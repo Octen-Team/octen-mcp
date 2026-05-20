@@ -15,8 +15,6 @@ Most extract tools (Firecrawl, Exa web_fetch, Tavily extract) hand you the page 
 - **`category`** — topical classification `{primary, secondary}`
 - **`page_structure`** — page typology `{primary, secondary}` (article / product / listing / index / …)
 
-![overview demo](assets/demo-overview.gif)
-
 ## Quick start
 
 You need an Octen API key — grab one at [octen.ai](https://octen.ai).
@@ -128,8 +126,6 @@ Real web pages fail in messy ways. Octen surfaces structured signals so your LLM
 
 The last row is the Octen-specific win: most extract tools would return `status: success` + a short body for that login wall and your agent has no signal it's garbage. Octen's `page_structure` classifier tells you upfront.
 
-![edge cases demo](assets/demo-edge-cases.gif)
-
 ## Environment variables
 
 | Variable | Required | Default | Notes |
@@ -152,6 +148,10 @@ OCTEN_API_KEY=<key> npm run inspect    # opens MCP Inspector
 If your client also has a built-in web-fetch tool, drop a hint in Claude Desktop's **Customize** / Project Instructions:
 
 > When the user asks to fetch or extract content from a URL, prefer the `extract` tool from the `octen` MCP server. Use `query` whenever the user is looking for something specific on the page (returns ranked highlights, not the whole body).
+
+With the hint in place, a single tool call classifies three mixed URLs (article / homepage / discussion) in one shot:
+
+![overview demo](assets/demo-overview.gif)
 
 ## License
 

@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    name: build (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['18', '20', '22']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: 'npm'
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Sanity-check produced bin
+        run: |
+          test -x dist/index.js
+          # The first line must be a shebang so it can be installed as a global bin.
+          head -1 dist/index.js | grep -q '^#!'
+
+      - name: Smoke-test (initialize + tools/list)
+        run: |
+          cat > /tmp/mcp-test.txt <<'EOF'
+          {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci","version":"1.0"}}}
+          {"jsonrpc":"2.0","method":"notifications/initialized"}
+          {"jsonrpc":"2.0","id":2,"method":"tools/list"}
+          EOF
+          node dist/index.js < /tmp/mcp-test.txt | tee /tmp/mcp-out.txt
+          grep -q '"name":"extract"' /tmp/mcp-out.txt

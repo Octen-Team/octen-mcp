@@ -1,0 +1,59 @@
+{
+  "name": "octen-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Octen Extract — turn URLs into LLM-ready markdown with query-driven highlights, category, and page_structure classification.",
+  "license": "MIT",
+  "author": "Octen <hello@octen.ai>",
+  "homepage": "https://github.com/Octen-Team/octen-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/Octen-Team/octen-mcp/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Octen-Team/octen-mcp.git"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "octen-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc && chmod +x dist/index.js",
+    "watch": "tsc --watch",
+    "dev": "tsc && node dist/index.js",
+    "inspect": "npx -y @modelcontextprotocol/inspector node dist/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "octen",
+    "extract",
+    "scrape",
+    "scraping",
+    "llm",
+    "claude",
+    "anthropic",
+    "cursor"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

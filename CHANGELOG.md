@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] — 2026-05-20
+
+### Changed
+- Align `mcpName` in `package.json` with the canonical GitHub
+  organization name (`io.github.Octen-Team/octen-mcp`), required by the
+  MCP Registry's case-sensitive ownership check.
+
 ## [0.1.4] — 2026-05-20
 
 ### Changed
@@ -50,7 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `OCTEN_API_KEY` env var for authentication.
 - `OCTEN_API_URL` override for staging or self-hosted endpoints.
 
-[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.1.5
 [0.1.4]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.1.4
 [0.1.3]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.1.3
 [0.1.2]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.1.2

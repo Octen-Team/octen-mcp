@@ -18,7 +18,7 @@ import { extractTool, handleExtract } from "./extract.js";
 const server = new Server(
   {
     name: "octen-mcp",
-    version: "0.1.4",
+    version: "0.1.5",
   },
   {
     capabilities: {

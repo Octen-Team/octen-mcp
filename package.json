@@ -1,6 +1,6 @@
 {
   "name": "octen-mcp",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "mcpName": "io.github.octen-team/octen-mcp",
   "description": "MCP server for Octen Extract — turn URLs into LLM-ready markdown with query-driven highlights, category, and page_structure classification.",
   "license": "MIT",

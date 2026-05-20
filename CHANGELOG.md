@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] — 2026-05-20
+
+### Changed
+- Tool response is now a single markdown text block instead of a compact
+  summary followed by the entire raw JSON. Some models (Claude included)
+  would otherwise reach for `jq` / file_search to dig through the JSON
+  dump just to find a title — wasted turns and a worse UX. Markdown gives
+  the model the structured info (title, category, page_structure,
+  highlights/full_content) ready to use.
+
 ## [0.1.3] — 2026-05-20
 
 ### Added
@@ -40,7 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `OCTEN_API_KEY` env var for authentication.
 - `OCTEN_API_URL` override for staging or self-hosted endpoints.
 
-[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.1.4
 [0.1.3]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.1.3
 [0.1.2]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.1.2
 [0.1.1]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.1.1

@@ -137,36 +137,66 @@ export async function handleExtract(rawArgs: Record<string, unknown>): Promise<C
     );
   }
 
-  // Build a compact summary block for the LLM, then the full JSON for the rest.
+  // Format each result as readable markdown so the LLM can use it directly,
+  // without a separate huge JSON dump (which previously made models reach for
+  // jq / file_search just to extract a title).
   const results = data?.data?.results ?? [];
-  const summary = results
-    .map((r: any, i: number) => {
-      const head = `[${i + 1}] ${r.url}  →  ${r.status}`;
-      if (r.status === "success") {
-        const cat = r.category?.primary ?? "-";
-        const struct = r.page_structure?.primary ?? "-";
-        const lines = [
-          head,
-          `    title: ${r.title ?? "-"}`,
-          `    category: ${cat}    page_structure: ${struct}`,
-        ];
-        if (Array.isArray(r.highlights) && r.highlights.length > 0) {
-          lines.push(`    highlights (${r.highlights.length}): ${r.highlights[0].slice(0, 120)}…`);
-        } else if (typeof r.full_content === "string") {
-          lines.push(`    full_content bytes: ${r.full_content.length}`);
-        }
-        return lines.join("\n");
-      }
-      return `${head}\n    error: ${r.error_message ?? "-"}`;
-    })
-    .join("\n");
+  const meta = data?.data?.meta ?? {};
+  const total = results.length;
 
-  return {
-    content: [
-      { type: "text", text: summary },
-      { type: "text", text: JSON.stringify(data, null, 2) },
-    ],
-  };
+  const blocks = results.map((r: any, i: number) => formatResult(r, i + 1, total));
+  const metaLine = formatMeta(meta, data?.request_id);
+  const text = [...blocks, metaLine].filter(Boolean).join("\n\n---\n\n");
+
+  return { content: [{ type: "text", text }] };
+}
+
+function formatResult(r: any, idx: number, total: number): string {
+  const head = `## Result ${idx}/${total}: ${r.url}`;
+
+  if (r.status === "failed") {
+    return [
+      head,
+      `**Status:** failed`,
+      `**Error:** ${r.error_message ?? "(no message)"}`,
+    ].join("\n");
+  }
+
+  const lines: string[] = [head, `**Status:** success`];
+  if (r.title) lines.push(`**Title:** ${r.title}`);
+  const cat = r.category?.primary;
+  if (cat) lines.push(`**Category:** ${cat}${r.category?.secondary ? " / " + r.category.secondary : ""}`);
+  const ps = r.page_structure?.primary;
+  if (ps) lines.push(`**Page structure:** ${ps}${r.page_structure?.secondary ? " / " + r.page_structure.secondary : ""}`);
+  if (r.time_published) lines.push(`**Published:** ${r.time_published}`);
+  if (r.time_last_crawled) lines.push(`**Last crawled:** ${r.time_last_crawled}`);
+  if (r.favicon) lines.push(`**Favicon:** ${r.favicon}`);
+  if (Array.isArray(r.images) && r.images.length) lines.push(`**Images:** ${r.images.length}`);
+  if (Array.isArray(r.videos) && r.videos.length) lines.push(`**Videos:** ${r.videos.length}`);
+  if (Array.isArray(r.audio)  && r.audio.length)  lines.push(`**Audio:** ${r.audio.length}`);
+
+  // Content body: highlights (if query supplied) take precedence, else full_content.
+  if (Array.isArray(r.highlights) && r.highlights.length) {
+    const items = r.highlights.map((h: string, i: number) => `${i + 1}. ${h}`).join("\n\n");
+    lines.push(`\n### Highlights\n${items}`);
+  } else if (typeof r.full_content === "string" && r.full_content.length > 0) {
+    lines.push(`\n### Content\n${r.full_content}`);
+  }
+
+  return lines.join("\n");
+}
+
+function formatMeta(meta: any, requestId: string | undefined): string {
+  const parts: string[] = [];
+  const u = meta?.usage;
+  if (u) {
+    if (typeof u.total_urls === "number") parts.push(`total_urls: ${u.total_urls}`);
+    if (typeof u.successful_urls === "number") parts.push(`successful_urls: ${u.successful_urls}`);
+  }
+  if (typeof meta?.latency === "number") parts.push(`latency_ms: ${meta.latency}`);
+  if (meta?.warning) parts.push(`warning: ${meta.warning}`);
+  if (requestId) parts.push(`request_id: ${requestId}`);
+  return parts.length ? `_${parts.join(" · ")}_` : "";
 }
 
 function errorResult(msg: string): CallToolResult {

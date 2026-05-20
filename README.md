@@ -74,7 +74,19 @@ The button prompts you for the API key on click — no manual editing needed. Or
 }
 ```
 
-### Windsurf / Cline / Claude Code
+### Claude Code (CLI)
+
+One line, no JSON editing:
+
+```bash
+claude mcp add --scope user octen \
+  -e OCTEN_API_KEY=your-key-here \
+  -- npx -y octen-mcp
+```
+
+`--scope user` makes it available from any directory. Verify with `claude mcp list` — should show `octen: ✓ Connected`.
+
+### Windsurf / Cline / other MCP clients
 
 Same `npx -y octen-mcp` command with `OCTEN_API_KEY` env — works in any MCP-compatible client.
 

@@ -15,6 +15,8 @@ Most extract tools (Firecrawl, Exa web_fetch, Tavily extract) hand you the page 
 - **`category`** — topical classification `{primary, secondary}`
 - **`page_structure`** — page typology `{primary, secondary}` (article / product / listing / index / …)
 
+![overview demo](assets/demo-overview.gif)
+
 ## Quick start
 
 You need an Octen API key — grab one at [octen.ai](https://octen.ai).
@@ -112,6 +114,21 @@ Full API reference: [docs.octen.ai/api-reference/extract](https://docs.octen.ai/
 - `Compare the positioning of firecrawl.dev and octen.ai.`
 - `What does the Hacker News front page say right now? Pull the top 5 story titles.`
 - `Search 'pricing' across firecrawl.dev — return only the relevant highlights.` _(triggers `query` → `highlights`)_
+
+## How Octen handles edge cases
+
+Real web pages fail in messy ways. Octen surfaces structured signals so your LLM agent can decide what to do, instead of guessing from an empty markdown blob.
+
+| Scenario | Example URL | Octen response | Why it's useful |
+|---|---|---|---|
+| **Hard 404** | `https://httpbin.org/status/404` | `status: failed`, `error_message: "Target returned HTTP 404"` | Agent knows the URL is dead — no need to retry. |
+| **Server error (5xx)** | `https://httpbin.org/status/500` | `status: failed`, `error_message: "Target server error (HTTP 500)"` | Distinguishes server-side outage from client-side dead page — can be safely retried later. |
+| **DNS failure / dead domain** | `https://nonexistent-zzz-fake-xyz.invalid` | `status: failed`, `error_message: "Failed to resolve domain"` | Distinguishes "domain doesn't exist" from "page doesn't exist" — different remediation. |
+| **Login wall / no main content** | `https://github.com/login` | `status: success`, `title: "Build software better, together"`, **`page_structure: "No Main Content"`**, `full_content: 602 bytes` | ✨ Even when the request succeeds and there's a title, `page_structure` flags pages with no real body. Agents can branch on this instead of feeding the LLM a useless login splash. |
+
+The last row is the Octen-specific win: most extract tools would return `status: success` + a short body for that login wall and your agent has no signal it's garbage. Octen's `page_structure` classifier tells you upfront.
+
+![edge cases demo](assets/demo-edge-cases.gif)
 
 ## Environment variables
 

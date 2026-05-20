@@ -10,9 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.1] — 2026-05-20
 
 ### Fixed
-- Server self-reported name in `initialize` response was `@octen/mcp-fetch` (a leftover
-  from an earlier scoped-package draft). Now correctly reports `octen-mcp`, matching
-  the published npm package name. Same fix applied to the stderr startup banner.
+- Align the MCP server's self-reported name (in the `initialize` handshake and
+  startup log) with the published package name `octen-mcp`.
 
 ## [0.1.0] — 2026-05-20
 

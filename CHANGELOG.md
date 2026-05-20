@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] — 2026-05-20
+
+### Added
+- `mcpName` field in `package.json` (`io.github.octen-team/octen-mcp`),
+  required by the official MCP Registry to link the npm package to a
+  registry entry.
+
 ## [0.1.2] — 2026-05-20
 
 ### Changed
@@ -33,7 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `OCTEN_API_KEY` env var for authentication.
 - `OCTEN_API_URL` override for staging or self-hosted endpoints.
 
-[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.1.3
 [0.1.2]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.1.2
 [0.1.1]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.1.0

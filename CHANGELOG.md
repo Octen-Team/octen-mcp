@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] — 2026-05-20
+
+### Changed
+- VS Code install button now prompts for the API key on click (no manual JSON
+  editing needed). Added a VS Code Insiders variant alongside.
+- Removed the Cursor install button. Cursor's deeplink format can't pre-prompt
+  for credentials, so the manual JSON config block is the canonical path now.
+
 ## [0.1.1] — 2026-05-20
 
 ### Fixed
@@ -25,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `OCTEN_API_KEY` env var for authentication.
 - `OCTEN_API_URL` override for staging or self-hosted endpoints.
 
-[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.1.2
 [0.1.1]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.1.0

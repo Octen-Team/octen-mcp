@@ -17,8 +17,8 @@ import { extractTool, handleExtract } from "./extract.js";
 
 const server = new Server(
   {
-    name: "@octen/mcp-fetch",
-    version: "0.1.0",
+    name: "octen-mcp",
+    version: "0.1.1",
   },
   {
     capabilities: {
@@ -56,10 +56,10 @@ async function main() {
   await server.connect(transport);
   // Note: do NOT console.log to stdout here — stdout is the MCP wire.
   // Use console.error for any startup logging.
-  console.error("[mcp-fetch] server started, listening on stdio");
+  console.error("[octen-mcp] server started, listening on stdio");
 }
 
 main().catch((err) => {
-  console.error("[mcp-fetch] fatal:", err);
+  console.error("[octen-mcp] fatal:", err);
   process.exit(1);
 });

@@ -9,11 +9,15 @@ MCP server for **[Octen Extract](https://docs.octen.ai/api-reference/extract)** 
 
 ## Why this MCP
 
-Most extract tools (Firecrawl, Exa web_fetch, Tavily extract) hand you the page body. Octen gives you more, per page, in one call:
+Most extract tools (Firecrawl, Jina Reader, Exa, Tavily) hand you the page body. Octen returns the body **plus structured page labels** in the same call:
 
-- **`highlights`** — pass a `query` and get the most relevant snippets ranked, not the whole page (cheaper context, better signal)
-- **`category`** — topical classification `{primary, secondary}`
-- **`page_structure`** — page typology `{primary, secondary}` (article / product / listing / index / …)
+- **`category`** — topical labels with subcategories (e.g., `Computers, Electronics & Technology / Artificial Intelligence`, `Health`, `Finance`, `Travel`). Use to skip out-of-vertical pages in RAG pipelines — a finance pipeline can filter out random forum / entertainment pages before embedding.
+
+- **`page_structure`** — what kind of page this actually is (e.g., `Content Page / Article`, `Homepage`, `Index Page`, `No Main Content`). Use to skip listing/navigation pages, dead links, and login-wall shells before paying for LLM calls — in real RAG pipelines, a meaningful share of fetched URLs (often 20–30%) are index pages or content-less shells.
+
+- **`highlights`** — pass a `query` and get the most relevant snippets ranked per page instead of the full body (cheaper context, better signal).
+
+The two labels move filtering upstream — instead of fetching everything, embedding it, then realizing a chunk of pages are useless, you skip them at fetch time. None of `category` / `page_structure` / `highlights` exist in Firecrawl, Jina, Exa, or Tavily today.
 
 ## Quick start
 
@@ -106,12 +110,55 @@ Same `npx -y octen-mcp` command with `OCTEN_API_KEY` env — works in any MCP-co
 
 Full API reference: [docs.octen.ai/api-reference/extract](https://docs.octen.ai/api-reference/extract).
 
+## Response example
+
+One result object per URL. Success shape:
+
+```json
+{
+  "url": "https://octen.ai",
+  "status": "success",
+  "title": "Octen — Search & Extract API for AI",
+  "category": {
+    "primary": "Computers, Electronics & Technology",
+    "secondary": "Artificial Intelligence"
+  },
+  "page_structure": {
+    "primary": "Content Page",
+    "secondary": "Article"
+  },
+  "time_published": "2025-09-12T00:00:00Z",
+  "time_last_crawled": "2026-05-21T08:14:22Z",
+  "full_content": "# Octen\n\n…clean markdown body…"
+}
+```
+
+When `query` is set, `full_content` is replaced by `"highlights": ["…ranked snippet 1…", "…ranked snippet 2…"]`. When `include_images` / `include_videos` / `include_audio` / `include_favicon` are set, the corresponding fields appear alongside.
+
+Failure shape (e.g., 404 / DNS / 5xx — see the [edge cases section](#how-octen-handles-edge-cases) below):
+
+```json
+{
+  "url": "https://httpbin.org/status/404",
+  "status": "failed",
+  "error_message": "Target returned HTTP 404"
+}
+```
+
 ## Example prompts to try
+
+Differentiating use-cases (these exercise Octen's per-page labels):
+
+- `Fetch these 10 URLs and only summarize the ones whose category is Finance.` _(filter by `category`)_
+- `Fetch these search results and skip any whose page_structure is Index Page or that come back as failed.` _(filter by `page_structure`)_
+- `Pull octen.ai/pricing and confirm its page_structure is a content page, not a redirect or empty shell.` _(`page_structure` validation)_
+- `Search 'pricing' across firecrawl.dev — return only the relevant highlights.` _(triggers `query` → `highlights`)_
+
+Basic fetch use-cases:
 
 - `Fetch octen.ai and summarize the main product features.`
 - `Compare the positioning of firecrawl.dev and octen.ai.`
 - `What does the Hacker News front page say right now? Pull the top 5 story titles.`
-- `Search 'pricing' across firecrawl.dev — return only the relevant highlights.` _(triggers `query` → `highlights`)_
 
 ## How Octen handles edge cases
 

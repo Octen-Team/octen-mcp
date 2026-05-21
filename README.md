@@ -19,9 +19,33 @@ Most extract tools (Firecrawl, Jina Reader, Exa, Tavily) hand you the page body.
 
 The two labels move filtering upstream — instead of fetching everything, embedding it, then realizing a chunk of pages are useless, you skip them at fetch time. None of `category` / `page_structure` / `highlights` exist in Firecrawl, Jina, Exa, or Tavily today.
 
+### When `success` isn't enough
+
+A common failure mode for extract pipelines: the request returns `success`, the response body is non-empty, but the page is actually a login wall, paywall, JS shell, or "we'll be right back" stub. The agent has no signal until it pays for an LLM call to discover the page has nothing to summarize. Octen flags these at fetch time.
+
+Take `https://github.com/login` — visually it looks like a normal page:
+
+<p align="center"><img src="assets/github-login-page.png" alt="Screenshot of GitHub's login page — a form with email/password fields and 'Continue with Google/Apple' buttons, no article content" width="640" /></p>
+
+But there's no main content to extract — it's a sign-in form. Same URL on both APIs returns very different signals:
+
+<table>
+<tr>
+<td width="50%" valign="top"><img src="assets/cmp-firecrawl-login.png" width="100%" alt="Firecrawl response for github.com/login: 60+ metadata fields, none of them flag this as a login wall" /></td>
+<td width="50%" valign="top"><img src="assets/cmp-octen-login.png" width="100%" alt="Octen response for github.com/login: page_structure.primary is 'No Main Content', agent can branch on it" /></td>
+</tr>
+</table>
+
+That single `page_structure: "No Main Content"` lets the agent skip the page without an LLM call. With other tools, the agent only finds out by spending tokens to summarize an empty page — at scale, a real chunk of the token bill.
+
 ## Quick start
 
-You need an Octen API key — grab one at [octen.ai](https://octen.ai).
+[![Install in VS Code](https://img.shields.io/badge/Install%20in-VS%20Code-007ACC?logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect/mcp/install?name=octen&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22apiKey%22%2C%22description%22%3A%22Octen%20API%20Key%22%2C%22password%22%3Atrue%7D%5D&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22octen-mcp%22%5D%2C%22env%22%3A%7B%22OCTEN_API_KEY%22%3A%22%24%7Binput%3AapiKey%7D%22%7D%7D)
+[![Install in VS Code Insiders](https://img.shields.io/badge/Install%20in-VS%20Code%20Insiders-24bfa5?logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=octen&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22apiKey%22%2C%22description%22%3A%22Octen%20API%20Key%22%2C%22password%22%3Atrue%7D%5D&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22octen-mcp%22%5D%2C%22env%22%3A%7B%22OCTEN_API_KEY%22%3A%22%24%7Binput%3AapiKey%7D%22%7D%7D&quality=insiders)
+
+VS Code users: click → the button prompts for your Octen API key on install (grab one at [octen.ai](https://octen.ai) first).
+
+For other clients, configure manually:
 
 ### Claude Desktop
 
@@ -59,12 +83,9 @@ Add to `~/.cursor/mcp.json`:
 }
 ```
 
-### VS Code
+### VS Code (workspace `.vscode/mcp.json`)
 
-[![Install in VS Code](https://img.shields.io/badge/Install%20in-VS%20Code-007ACC?logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect/mcp/install?name=octen&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22apiKey%22%2C%22description%22%3A%22Octen%20API%20Key%22%2C%22password%22%3Atrue%7D%5D&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22octen-mcp%22%5D%2C%22env%22%3A%7B%22OCTEN_API_KEY%22%3A%22%24%7Binput%3AapiKey%7D%22%7D%7D)
-[![Install in VS Code Insiders](https://img.shields.io/badge/Install%20in-VS%20Code%20Insiders-24bfa5?logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=octen&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22apiKey%22%2C%22description%22%3A%22Octen%20API%20Key%22%2C%22password%22%3Atrue%7D%5D&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22octen-mcp%22%5D%2C%22env%22%3A%7B%22OCTEN_API_KEY%22%3A%22%24%7Binput%3AapiKey%7D%22%7D%7D&quality=insiders)
-
-The button prompts you for the API key on click — no manual editing needed. Or add to `.vscode/mcp.json` in your workspace:
+The one-click badges above handle the user-level install. For a per-workspace config:
 
 ```json
 {
@@ -116,20 +137,20 @@ One result object per URL. Success shape:
 
 ```json
 {
-  "url": "https://octen.ai",
+  "url": "https://en.wikipedia.org/wiki/Model_Context_Protocol",
   "status": "success",
-  "title": "Octen — Search & Extract API for AI",
+  "title": "Model Context Protocol - Wikipedia",
   "category": {
     "primary": "Computers, Electronics & Technology",
-    "secondary": "Artificial Intelligence"
+    "secondary": "Programming and Developer Software"
   },
   "page_structure": {
     "primary": "Content Page",
-    "secondary": "Article"
+    "secondary": "Encyclopedia"
   },
-  "time_published": "2025-09-12T00:00:00Z",
+  "time_published": "2024-11-25T00:00:00Z",
   "time_last_crawled": "2026-05-21T08:14:22Z",
-  "full_content": "# Octen\n\n…clean markdown body…"
+  "full_content": "# Model Context Protocol\n\n…clean markdown body…"
 }
 ```
 
@@ -162,16 +183,13 @@ Basic fetch use-cases:
 
 ## How Octen handles edge cases
 
-Real web pages fail in messy ways. Octen surfaces structured signals so your LLM agent can decide what to do, instead of guessing from an empty markdown blob.
+For the silent-success case (login walls / shells), see [When `success` isn't enough](#when-success-isnt-enough) above. Other failure modes come back as structured `status: failed` results, not empty markdown:
 
 | Scenario | Example URL | Octen response | Why it's useful |
 |---|---|---|---|
 | **Hard 404** | `https://httpbin.org/status/404` | `status: failed`, `error_message: "Target returned HTTP 404"` | Agent knows the URL is dead — no need to retry. |
 | **Server error (5xx)** | `https://httpbin.org/status/500` | `status: failed`, `error_message: "Target server error (HTTP 500)"` | Distinguishes server-side outage from client-side dead page — can be safely retried later. |
 | **DNS failure / dead domain** | `https://nonexistent-zzz-fake-xyz.invalid` | `status: failed`, `error_message: "Failed to resolve domain"` | Distinguishes "domain doesn't exist" from "page doesn't exist" — different remediation. |
-| **Login wall / no main content** | `https://github.com/login` | `status: success`, `title: "Build software better, together"`, **`page_structure: "No Main Content"`**, `full_content: 602 bytes` | ✨ Even when the request succeeds and there's a title, `page_structure` flags pages with no real body. Agents can branch on this instead of feeding the LLM a useless login splash. |
-
-The last row is the Octen-specific win: most extract tools would return `status: success` + a short body for that login wall and your agent has no signal it's garbage. Octen's `page_structure` classifier tells you upfront.
 
 ## Environment variables
 

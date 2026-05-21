@@ -30,10 +30,18 @@ Take `https://github.com/login` — visually it looks like a normal page:
 But there's no main content to extract — it's a sign-in form. Same URL on both APIs returns very different signals:
 
 <table>
+<thead>
 <tr>
-<td width="50%" valign="top"><img src="assets/cmp-firecrawl-login.png" width="100%" alt="Firecrawl response for github.com/login: 60+ metadata fields, none of them flag this as a login wall" /></td>
-<td width="50%" valign="top"><img src="assets/cmp-octen-login.png" width="100%" alt="Octen response for github.com/login: page_structure.primary is 'No Main Content', agent can branch on it" /></td>
+<th width="50%">Firecrawl <code>/v1/scrape</code></th>
+<th width="50%">Octen <code>/extract</code> (this server)</th>
 </tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><img src="assets/cmp-firecrawl-login.png" width="100%" alt="Firecrawl response for github.com/login: 60+ metadata fields, none of them flag this as a login wall" /></td>
+<td valign="top"><img src="assets/cmp-octen-login.png" width="100%" alt="Octen response for github.com/login: page_structure.primary is 'No Main Content', agent can branch on it" /></td>
+</tr>
+</tbody>
 </table>
 
 That single `page_structure: "No Main Content"` lets the agent skip the page without an LLM call. With other tools, the agent only finds out by spending tokens to summarize an empty page — at scale, a real chunk of the token bill.

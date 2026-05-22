@@ -117,7 +117,7 @@ Set `query` whenever the user's question is **about** the page rather than askin
 
 ### Token economics
 
-On single-fact queries, `highlights` typically delivers the same answer in **1/4 to 1/170** the tokens of `full_content` — measured across pages from 1K to 50K tokens. See [`extract-highlights-benchmark.md`](https://docs.octen.ai/learn/highlights-benchmark) for the numbers and per-page detail.
+On single-fact queries, `highlights` typically delivers the same answer in a small fraction of the tokens you'd spend on the full body. The longer the page and the narrower the question, the bigger the win.
 
 ### Known limitation: structured quantitative data
 
@@ -208,4 +208,4 @@ def fetch_for_user(user_url, user_question=None):
 
 - **Failure-mode handling**: see the [edge cases section](https://github.com/Octen-Team/octen-mcp#how-octen-handles-edge-cases) of the MCP README for the 404 / 5xx / DNS patterns.
 - **Tokenizer choice / cost modeling**: estimates here use `cl100k_base` (GPT-4 family). Re-measure against your actual LLM.
-- **Independent quality eval**: the highlights-vs-full benchmark in this repo uses a single Claude reader. For production confidence, run your own eval against your task distribution.
+- **Independent quality eval**: for production confidence, run your own eval against your task distribution. `highlights` ranking quality and edge-case coverage depend on the page type — measure on the pages your agent actually fetches.

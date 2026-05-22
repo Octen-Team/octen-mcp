@@ -216,11 +216,17 @@ npm run build
 OCTEN_API_KEY=<key> npm run inspect    # opens MCP Inspector
 ```
 
-## Tip — make Claude prefer this tool
+## Tip — agent instructions worth pasting
 
-If your client also has a built-in web-fetch tool, drop a hint in Claude Desktop's **Customize** / Project Instructions:
+This is the highest-leverage change you can make to your agent's prompt. Drop into Claude Desktop's **Customize** / Project Instructions (or the equivalent in your client):
 
-> When the user asks to fetch or extract content from a URL, prefer the `extract` tool from the `octen` MCP server. Use `query` whenever the user is looking for something specific on the page (returns ranked highlights, not the whole body).
+> When the user asks to fetch or extract content from a URL, prefer the `extract` tool from the `octen` MCP server. For **every** result, check `page_structure` and `category` **before** consuming `full_content`:
+>
+> 1. If `page_structure.primary == "No Main Content"` (login wall, paywall, JS shell), tell the user the page has no extractable content — **do not** summarize the body, it's just nav.
+> 2. If `category.primary` is clearly off-topic for the user's intent, flag the mismatch and consider re-fetching with `query` to surface only the relevant section, or moving on to a different URL.
+> 3. Whenever the user wants something specific on a page (a fact, a number, a quote), pass `query` to get ranked `highlights` instead of the full body — same answer, a fraction of the tokens.
+
+See the [best-practices guide](docs/best-practices.md) for the full decision tree and concrete agent patterns.
 
 With the hint in place, a single tool call classifies three mixed URLs (article / homepage / discussion) in one shot:
 

@@ -204,8 +204,9 @@ def fetch_for_user(user_url, user_question=None):
 
 ---
 
-## What this guide does NOT replace
+## What this guide does NOT cover
 
-- **Failure-mode handling**: see the [edge cases section](https://github.com/Octen-Team/octen-mcp#how-octen-handles-edge-cases) of the MCP README for the 404 / 5xx / DNS patterns.
-- **Tokenizer choice / cost modeling**: estimates here use `cl100k_base` (GPT-4 family). Re-measure against your actual LLM.
-- **Independent quality eval**: for production confidence, run your own eval against your task distribution. `highlights` ranking quality and edge-case coverage depend on the page type — measure on the pages your agent actually fetches.
+This page is specifically about consuming the `page_structure`, `category`, and `highlights` fields. Two related concerns live elsewhere:
+
+- **Failure-mode handling** (404 / 5xx / DNS / blocked) — see the [edge cases section](https://github.com/Octen-Team/octen-mcp#how-octen-handles-edge-cases) of the MCP README.
+- **Independent quality evaluation** — `highlights` ranking quality and edge-case coverage depend on page type. For production confidence, run your own eval against the actual pages your agent fetches, not just the patterns above.

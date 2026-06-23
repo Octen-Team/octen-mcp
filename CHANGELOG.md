@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-06-23
+
+### Added
+- `search` tool wrapping Octen Search API (`POST https://api.octen.ai/search`).
+- Supports `query`, `topic` (general/news), `count`, domain and text
+  include/exclude filters (`include_domains` ≤1000, `exclude_domains` ≤150,
+  `include_text`/`exclude_text` ≤5, each entry ≤30 chars), a time window
+  (`time_basis`, `time_range`, `start_time`, `end_time`), `format`, `safesearch`,
+  `include_images` / `include_videos`, and per-result `highlight` / `full_content`
+  options (`highlight.max_tokens` 100–20000 default 512; `full_content.max_tokens`
+  100–100000 default 2048).
+- Results render as a single markdown block (title, url, authors, timestamps,
+  favicon, image/video counts, highlight/content) — consistent with the `extract` tool.
+- `news_search` tool — `search` locked to `topic: news` for current-events/headline
+  queries. Accepts every `search` parameter except `topic`.
+
 ## [0.1.5] — 2026-05-20
 
 ### Changed
@@ -57,7 +73,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `OCTEN_API_KEY` env var for authentication.
 - `OCTEN_API_URL` override for staging or self-hosted endpoints.
 
-[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.2.0
 [0.1.5]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.1.5
 [0.1.4]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.1.4
 [0.1.3]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.1.3

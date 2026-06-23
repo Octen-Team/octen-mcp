@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Octen Fetch MCP server — exposes /v1/extract as an LLM-callable tool.
+ * Octen MCP server — exposes Octen's /search and /extract as LLM-callable tools.
  *
  * Transport: stdio (Claude Desktop / Claude Code / Cursor compatible).
  * The same Server + tool handlers can later be reused under an HTTP/SSE
@@ -14,11 +14,12 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 
 import { extractTool, handleExtract } from "./extract.js";
+import { searchTool, handleSearch, newsSearchTool, handleNewsSearch } from "./search.js";
 
 const server = new Server(
   {
     name: "octen-mcp",
-    version: "0.1.5",
+    version: "0.2.0",
   },
   {
     capabilities: {
@@ -29,7 +30,7 @@ const server = new Server(
 
 // 1. List available tools — clients call this first to discover what we offer.
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: [extractTool],
+  tools: [searchTool, newsSearchTool, extractTool],
 }));
 
 // 2. Dispatch tool calls.
@@ -37,6 +38,10 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
   const { name, arguments: args } = req.params;
 
   switch (name) {
+    case "search":
+      return await handleSearch(args ?? {});
+    case "news_search":
+      return await handleNewsSearch(args ?? {});
     case "extract":
       return await handleExtract(args ?? {});
     default:

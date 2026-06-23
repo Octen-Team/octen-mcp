@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/Octen-Team/octen-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Octen-Team/octen-mcp/actions/workflows/ci.yml)
 
-MCP server for **[Octen Extract](https://docs.octen.ai/api-reference/extract)** — turn any URL into clean, LLM-ready markdown. Plug into Claude / Cursor / VS Code / Windsurf and let the model pull the live web.
+MCP server for **Octen** — **[search](https://docs.octen.ai/api-reference/search)** the live web and **[extract](https://docs.octen.ai/api-reference/extract)** any URL into clean, LLM-ready markdown. Plug into Claude / Cursor / VS Code / Windsurf and let the model pull the live web.
 
 ## Why this MCP
 
@@ -122,6 +122,36 @@ claude mcp add --scope user octen \
 ### Windsurf / Cline / other MCP clients
 
 Same `npx -y octen-mcp` command with `OCTEN_API_KEY` env — works in any MCP-compatible client.
+
+## Tool reference: `search`
+
+Search the live web and get back ranked results with snippets — pick broad vs. news search, filter by domain / text / time, and decide how much content each result returns.
+
+| Param | Type | Default | Description |
+|---|---|---|---|
+| `query` | `string` | required | Search query. Max 500 chars. |
+| `topic` | `general` \| `news` | `general` | Broad web search vs. news-focused results. |
+| `count` | `int` | `5` | Number of results, 1–100. |
+| `include_domains` | `string[]` | _none_ | Only return results from these domains. Max 1000, each ≤30 chars. |
+| `exclude_domains` | `string[]` | _none_ | Drop results from these domains. Max 150, each ≤30 chars. |
+| `include_text` | `string[]` | _none_ | Only results whose content contains all of these strings. Max 5, each ≤30 chars. |
+| `exclude_text` | `string[]` | _none_ | Drop results whose content contains any of these strings. Max 5, each ≤30 chars. |
+| `time_basis` | `auto` \| `published` \| `crawled` | `auto` | Which timestamp the time window filters against. |
+| `time_range` | `day` \| `week` \| `month` \| `year` (or `d`/`w`/`m`/`y`) | _none_ | Relative time window. Mutually exclusive with `start_time`/`end_time` (absolute wins). |
+| `start_time` / `end_time` | `string` | _none_ | Time window bounds, ISO 8601. |
+| `format` | `text` \| `markdown` | `text` | Format of returned content. |
+| `safesearch` | `off` \| `strict` | `strict` | Adult-content filter. |
+| `highlight` | `object` | _server default_ | `{ enable, max_tokens }` — ranked snippet per result (`max_tokens` 100–20000, default 512). |
+| `full_content` | `object` | _off_ | `{ enable, max_tokens }` — cleaned full page body per result (`max_tokens` 100–100000, default 2048). Heavier; use when the snippet isn't enough. |
+| `include_images` | `bool` | `false` | Return image URLs (and a cover image) per result. |
+| `include_videos` | `bool` | `false` | Return video URLs per result. |
+| `timeout` | `int` | _none_ | Request timeout in seconds, 1–60. |
+
+Full API reference: [docs.octen.ai/api-reference/search](https://docs.octen.ai/api-reference/search).
+
+## Tool reference: `news_search`
+
+Same engine as `search`, but locked to `topic: news` — a purpose-built tool for current events, headlines, and timely reporting. Accepts every `search` parameter **except `topic`** (which is fixed to `news`); see the table above. Use this when the user explicitly wants news so the model doesn't have to remember to set `topic`.
 
 ## Tool reference: `extract`
 

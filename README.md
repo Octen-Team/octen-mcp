@@ -43,20 +43,42 @@ For most MCP clients, the config is:
 }
 ```
 
-Common config locations:
+### Install command by client
+
+**Claude Code**
+
+```bash
+claude mcp add --scope user octen -e OCTEN_API_KEY=your-key-here -- npx -y octen-mcp
+```
+
+**Codex**
+
+```bash
+codex mcp add octen --env OCTEN_API_KEY=your-key-here -- npx -y octen-mcp
+```
+
+**Gemini CLI**
+
+```bash
+gemini mcp add octen -e OCTEN_API_KEY=your-key-here -- npx -y octen-mcp
+```
+
+**VS Code** (or click a badge above)
+
+```bash
+code --add-mcp '{"name":"octen","command":"npx","args":["-y","octen-mcp"],"env":{"OCTEN_API_KEY":"your-key-here"}}'
+```
+
+**Cursor** — [Add to Cursor](https://cursor.com/en/install-mcp?name=octen&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIm9jdGVuLW1jcCJdLCJlbnYiOnsiT0NURU5fQVBJX0tFWSI6InlvdXIta2V5LWhlcmUifX0%3D) (edit the key afterwards), or use the JSON above in `~/.cursor/mcp.json`.
+
+### Config file locations
+
+For clients without a CLI installer, drop the JSON config above into:
 
 - **Claude Desktop**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Cursor**: `~/.cursor/mcp.json`
-- **VS Code workspace**: `.vscode/mcp.json` using `servers` instead of `mcpServers`
-- **Windsurf / Cline / other clients**: use the same command and env var in that client's MCP settings
-
-For Claude Code:
-
-```bash
-claude mcp add --scope user octen \
-  -e OCTEN_API_KEY=your-key-here \
-  -- npx -y octen-mcp
-```
+- **VS Code workspace**: `.vscode/mcp.json` (use `servers` instead of `mcpServers`)
+- **Windsurf / Cline / other clients**: paste it into that client's MCP settings
 
 ## Tools
 

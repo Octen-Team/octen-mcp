@@ -20,6 +20,20 @@ What makes Octen useful for agents is that `extract` returns more than page text
 
 That lets an agent skip login walls, nav pages, and off-topic URLs before spending tokens on the full body.
 
+## Why Octen MCP
+
+### Fast
+Web search averages 62ms. Fast enough for multi-step MCP workflows.
+
+### Accurate
+Powered by SOTA text and VL embedding models. Better sources, fewer hallucinations.
+
+### Fresh
+Live web data with minute-level updates. Useful for news, prices, and fast-moving pages.
+
+### Efficient
+Clean highlights, optional `full_content`, and page labels keep model context relevant.
+
 ## Quick start
 
 You need an `OCTEN_API_KEY` from [octen.ai](https://octen.ai).
@@ -45,31 +59,14 @@ For most MCP clients, the config is:
 
 ### Install command by client
 
-**Claude Code**
-
-```bash
-claude mcp add --scope user octen -e OCTEN_API_KEY=your-key-here -- npx -y octen-mcp
-```
-
-**Codex**
-
-```bash
-codex mcp add octen --env OCTEN_API_KEY=your-key-here -- npx -y octen-mcp
-```
-
-**Gemini CLI**
-
-```bash
-gemini mcp add octen -e OCTEN_API_KEY=your-key-here -- npx -y octen-mcp
-```
-
-**VS Code** (or click a badge above)
-
-```bash
-code --add-mcp '{"name":"octen","command":"npx","args":["-y","octen-mcp"],"env":{"OCTEN_API_KEY":"your-key-here"}}'
-```
-
-**Cursor** — [Add to Cursor](https://cursor.com/en/install-mcp?name=octen&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIm9jdGVuLW1jcCJdLCJlbnYiOnsiT0NURU5fQVBJX0tFWSI6InlvdXIta2V5LWhlcmUifX0%3D) (edit the key afterwards), or use the JSON above in `~/.cursor/mcp.json`.
+| Agent | One-line install |
+|--|--|
+| Claude Code | `claude mcp add --scope user octen -e OCTEN_API_KEY=your-key-here -- npx -y octen-mcp` |
+| Codex | `codex mcp add octen --env OCTEN_API_KEY=your-key-here -- npx -y octen-mcp` |
+| Gemini CLI | `gemini mcp add octen -e OCTEN_API_KEY=your-key-here -- npx -y octen-mcp` |
+| VS Code | `code --add-mcp '{"name":"octen","command":"npx","args":["-y","octen-mcp"],"env":{"OCTEN_API_KEY":"your-key-here"}}'` (or click a badge above) |
+| Cursor | [Add to Cursor](https://cursor.com/en/install-mcp?name=octen&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIm9jdGVuLW1jcCJdLCJlbnYiOnsiT0NURU5fQVBJX0tFWSI6InlvdXIta2V5LWhlcmUifX0%3D) (then edit the key), or use the JSON above in `~/.cursor/mcp.json` |
+| Claude Desktop | No CLI — add the JSON above to the config file (see below) |
 
 ### Config file locations
 

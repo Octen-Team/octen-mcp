@@ -72,7 +72,7 @@ For most MCP clients, the config is:
 
 For clients without a CLI installer, drop the JSON config above into:
 
-- **Claude Desktop**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Claude Desktop**: `~/Library/Application\ Support/Claude/claude_desktop_config.json`
 - **Cursor**: `~/.cursor/mcp.json`
 - **VS Code workspace**: `.vscode/mcp.json` (use `servers` instead of `mcpServers`)
 - **Windsurf / Cline / other clients**: paste it into that client's MCP settings

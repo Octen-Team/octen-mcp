@@ -18,9 +18,12 @@ export const extractTool: Tool = {
   name: "extract",
   description:
     "Fetch one or more URLs and return LLM-ready content from Octen. " +
-    "Unique to Octen: pass a `query` to get the most relevant highlights " +
-    "per page instead of the full body; every result includes a `category` " +
-    "(topical) and `page_structure` (typology) classification. Bare hosts " +
+    "By default (no `query`) it returns each page's full content — this is " +
+    "what you want in almost all cases. Only pass `query` when the user " +
+    "explicitly asks to fetch relevance-ranked snippets for a specific topic; " +
+    "doing so returns highlights INSTEAD of the full body, so the content " +
+    "will be partial. Every result also includes a `category` (topical) and " +
+    "`page_structure` (typology) classification, unique to Octen. Bare hosts " +
     "like 'octen.ai' are auto-normalized to https. Cached when fresh.",
   inputSchema: {
     type: "object",
@@ -36,8 +39,12 @@ export const extractTool: Tool = {
         type: "string",
         maxLength: 500,
         description:
-          "Optional intent-focused keywords. When set, each result returns " +
-          "`highlights` (most relevant snippets, ranked) instead of `full_content`.",
+          "Optional — leave UNSET in the normal case. When unset, each result " +
+          "returns the page's `full_content` (the complete text). Only set this " +
+          "when the user explicitly wants relevance-ranked snippets for a " +
+          "specific query/topic: setting it makes each result return " +
+          "`highlights` (ranked excerpts) and OMIT `full_content`, so the page " +
+          "body will be incomplete. Do not pass it just to focus a normal fetch.",
       },
       max_age_seconds: {
         type: "integer",

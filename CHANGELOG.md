@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-06-29
+
+### Added
+- `broad_search` tool wrapping Octen Broad Search (`POST /broad-search`) —
+  decomposes a query into up to `max_queries` (1–30, default 5) sub-queries,
+  searches them concurrently, and returns results grouped per sub-query. Accepts
+  the same per-sub-query options as `search` (flattened, assembled into
+  `search_options`).
+- `image_search` tool wrapping Octen Image Search (`POST /image-search`) —
+  flattened `query` + optional `image_url`, `topic` (general/design; `design`
+  returns a style `summary` + `html_snippet`), `count` (1–10), domain/time
+  filters, `safesearch`, `html_snippet`. **In Beta — contact us for beta access.**
+- `video_search` tool wrapping Octen Video Search (`POST /video-search`) — text
+  `query`, `count` (1–10), time filters, `safesearch`; results include the matched
+  segment timestamps, duration, cover, and source. **In Beta — contact us for beta access.**
+
 ## [0.2.0] — 2026-06-23
 
 ### Added
@@ -73,7 +89,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `OCTEN_API_KEY` env var for authentication.
 - `OCTEN_API_URL` override for staging or self-hosted endpoints.
 
-[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/Octen-Team/octen-mcp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.2.0
 [0.1.5]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.1.5
 [0.1.4]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.1.4

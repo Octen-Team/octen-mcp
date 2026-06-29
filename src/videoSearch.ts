@@ -31,6 +31,7 @@ export const videoSearchTool: Tool = {
     properties: {
       query: {
         type: "string",
+        maxLength: 500,
         description: "Text query describing the videos to find.",
       },
       count: {

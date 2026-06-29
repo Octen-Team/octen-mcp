@@ -36,6 +36,7 @@ export const imageSearchTool: Tool = {
     properties: {
       query: {
         type: "string",
+        maxLength: 500,
         description: "Text query describing the images to find.",
       },
       image_url: {

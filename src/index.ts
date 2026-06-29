@@ -22,6 +22,8 @@ import {
   broadSearchTool,
   handleBroadSearch,
 } from "./search.js";
+import { imageSearchTool, handleImageSearch } from "./imageSearch.js";
+import { videoSearchTool, handleVideoSearch } from "./videoSearch.js";
 
 const server = new Server(
   {
@@ -37,7 +39,7 @@ const server = new Server(
 
 // 1. List available tools — clients call this first to discover what we offer.
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: [searchTool, newsSearchTool, broadSearchTool, extractTool],
+  tools: [searchTool, newsSearchTool, broadSearchTool, extractTool, imageSearchTool, videoSearchTool],
 }));
 
 // 2. Dispatch tool calls.
@@ -53,6 +55,10 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       return await handleBroadSearch(args ?? {});
     case "extract":
       return await handleExtract(args ?? {});
+    case "image_search":
+      return await handleImageSearch(args ?? {});
+    case "video_search":
+      return await handleVideoSearch(args ?? {});
     default:
       // MCP convention: return an error result, don't throw.
       return {

@@ -27,9 +27,10 @@ export const imageSearchTool: Tool = {
     "images with Octen and return ranked results (title, source page, " +
     "dimensions, thumbnail, description, summary). Pass a text `query`, and " +
     "optionally an `image_url` to search by reference image. Set `topic` to " +
-    "`design` for design/illustration-oriented results. Use this when the " +
-    "user wants to find pictures, photos, diagrams, or visual references — " +
-    "not for general text web search.",
+    "`design` for UI design references — each result then carries a structured " +
+    "style `summary` and an `html_snippet` for building/restyling frontends. " +
+    "Use this when the user wants to find pictures, photos, diagrams, or visual " +
+    "references — not for general text web search.",
   inputSchema: {
     type: "object",
     properties: {

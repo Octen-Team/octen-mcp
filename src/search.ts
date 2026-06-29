@@ -299,6 +299,140 @@ export async function handleNewsSearch(rawArgs: Record<string, unknown>): Promis
   return handleSearch({ ...rest, topic: "news" });
 }
 
+/**
+ * `broad_search` tool — wraps Octen Broad Search (POST /broad-search).
+ *
+ * Decomposes the query into up to `max_queries` related sub-queries, runs them
+ * concurrently, and returns results grouped per sub-query (not deduplicated).
+ * Params are flattened: the same per-result options as `search` plus
+ * `max_queries`; the handler nests the search options under `search_options`
+ * before POSTing.
+ */
+const { timeout: _omitBroadTimeout, ...broadBaseProperties } =
+  (searchTool.inputSchema as any).properties as Record<string, object>;
+const { query: broadQueryProp, ...broadOptionProperties } = broadBaseProperties;
+
+export const broadSearchTool: Tool = {
+  name: "broad_search",
+  description:
+    "Broad multi-angle web search with Octen. Decomposes `query` into up to " +
+    "`max_queries` related sub-queries, searches them concurrently, and returns " +
+    "results grouped per sub-query (not deduplicated) for comprehensive coverage. " +
+    "Use it for research-style questions that benefit from multiple angles; use " +
+    "`search` for a single focused query. Per-sub-query options (count, topic, " +
+    "domain / text filters, time window, highlight / full_content, media) are the " +
+    "same as `search` and apply to every sub-query.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      query: broadQueryProp,
+      max_queries: {
+        type: "integer",
+        minimum: 1,
+        maximum: 30,
+        default: 5,
+        description: "Upper bound on the number of sub-queries generated (1-30). Default 5.",
+      },
+      ...broadOptionProperties,
+      timeout: {
+        type: "integer",
+        minimum: 1,
+        maximum: 60,
+        description: "Request timeout in seconds (1-60).",
+      },
+    },
+    required: ["query"],
+  },
+};
+
+interface BroadSearchArgs extends SearchArgs {
+  max_queries?: number;
+}
+
+/** Handler — POSTs to Octen Broad Search and reshapes the grouped response. */
+export async function handleBroadSearch(rawArgs: Record<string, unknown>): Promise<CallToolResult> {
+  const args = rawArgs as unknown as BroadSearchArgs;
+
+  if (typeof args.query !== "string" || args.query.trim().length === 0) {
+    return errorResult("`query` must be a non-empty string");
+  }
+  if (!API_KEY) {
+    return errorResult(
+      "OCTEN_API_KEY env var is not set. Get a key at https://octen.ai " +
+      "and add it to your MCP client config (see README)."
+    );
+  }
+
+  // `timeout` is an HTTP-client concern; `query` and `max_queries` stay at the
+  // top level, everything else is nested under `search_options`.
+  const { timeout, max_queries, query, ...rest } = args;
+  const searchOptions: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(rest)) {
+    if (value !== undefined) searchOptions[key] = value;
+  }
+
+  const body: Record<string, unknown> = { query };
+  if (max_queries !== undefined) body.max_queries = max_queries;
+  if (Object.keys(searchOptions).length > 0) body.search_options = searchOptions;
+
+  let resp: Response;
+  try {
+    resp = await fetch(`${DEFAULT_API_BASE}/broad-search`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": API_KEY,
+      },
+      body: JSON.stringify(body),
+      signal: timeout ? AbortSignal.timeout(timeout * 1000) : undefined,
+    });
+  } catch (e) {
+    const err = e as Error;
+    if (err.name === "TimeoutError") {
+      return errorResult(`Octen Broad Search timed out after ${timeout}s`);
+    }
+    return errorResult(`Network error calling Octen Broad Search: ${err.message}`);
+  }
+
+  let data: any;
+  try {
+    data = await resp.json();
+  } catch {
+    return errorResult(`Octen Broad Search returned non-JSON (HTTP ${resp.status})`);
+  }
+
+  if (typeof data?.code === "number" && data.code !== 0) {
+    return errorResult(
+      `Octen Broad Search: code=${data.code} msg=${data.msg ?? "(no msg)"}` +
+      (data.request_id ? ` request_id=${data.request_id}` : "")
+    );
+  }
+
+  const groups: any[] = data?.data?.search_results ?? [];
+  const queries: string[] = data?.data?.queries ?? [];
+  const meta = data?.meta ?? {};
+
+  if (groups.length === 0) {
+    return { content: [{ type: "text", text: `No results for "${args.query}".` }] };
+  }
+
+  const header = queries.length
+    ? `Decomposed into ${queries.length} sub-quer${queries.length === 1 ? "y" : "ies"}: ${queries.join(" · ")}`
+    : "";
+  const blocks = groups.map((g: any, gi: number) => {
+    const sub = g?.query ?? `sub-query ${gi + 1}`;
+    const results: any[] = Array.isArray(g?.results) ? g.results : [];
+    const inner = results.length
+      ? results.map((r: any, i: number) => formatResult(r, i + 1, results.length)).join("\n\n---\n\n")
+      : "_No results._";
+    return `# Sub-query: ${sub}\n\n${inner}`;
+  });
+  const metaLine = formatMeta(meta, data?.request_id);
+  const text = [header, ...blocks, metaLine].filter(Boolean).join("\n\n---\n\n");
+
+  return { content: [{ type: "text", text }] };
+}
+
 function formatResult(r: any, idx: number, total: number): string {
   const lines: string[] = [`## Result ${idx}/${total}: ${r.title ?? "(untitled)"}`];
   if (r.url) lines.push(r.url);

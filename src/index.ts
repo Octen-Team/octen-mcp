@@ -14,12 +14,19 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 
 import { extractTool, handleExtract } from "./extract.js";
-import { searchTool, handleSearch, newsSearchTool, handleNewsSearch } from "./search.js";
+import {
+  searchTool,
+  handleSearch,
+  newsSearchTool,
+  handleNewsSearch,
+  broadSearchTool,
+  handleBroadSearch,
+} from "./search.js";
 
 const server = new Server(
   {
     name: "octen-mcp",
-    version: "0.2.0",
+    version: "0.3.0",
   },
   {
     capabilities: {
@@ -30,7 +37,7 @@ const server = new Server(
 
 // 1. List available tools — clients call this first to discover what we offer.
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: [searchTool, newsSearchTool, extractTool],
+  tools: [searchTool, newsSearchTool, broadSearchTool, extractTool],
 }));
 
 // 2. Dispatch tool calls.
@@ -42,6 +49,8 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       return await handleSearch(args ?? {});
     case "news_search":
       return await handleNewsSearch(args ?? {});
+    case "broad_search":
+      return await handleBroadSearch(args ?? {});
     case "extract":
       return await handleExtract(args ?? {});
     default:

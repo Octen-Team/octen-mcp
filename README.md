@@ -10,6 +10,7 @@ MCP server for **Octen**. Plug it into Claude, Cursor, VS Code, Windsurf, or any
 Core capabilities:
 
 - **`search` / `news_search`**: search the live web with domain, text, and time filters.
+- **`broad_search`**: decompose a query into multiple sub-queries, search them concurrently, and return results grouped per sub-query for broad coverage.
 - **`extract`**: turn one or more URLs into clean, LLM-ready content.
 
 What makes Octen useful for agents is that `extract` returns more than page text. Each successful result also includes:
@@ -81,8 +82,9 @@ For clients without a CLI installer, drop the JSON config above into:
 
 | Tool | What it does | Best for |
 |---|---|---|
-| `search` | Search the live web with domain, text, time, and content controls | broad web search |
+| `search` | Search the live web with domain, text, time, and content controls | a single focused web search |
 | `news_search` | Same engine as `search`, fixed to news | current events and timely reporting |
+| `broad_search` | Decompose a query into up to `max_queries` sub-queries, search concurrently, return grouped results | research-style, multi-angle coverage |
 | `extract` | Fetch 1-20 URLs and return clean content, labels, and optional highlights | summarization, RAG, fact lookup |
 
 Reference docs:

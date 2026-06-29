@@ -11,6 +11,8 @@ Core capabilities:
 
 - **`search` / `news_search`**: search the live web with domain, text, and time filters.
 - **`extract`**: turn one or more URLs into clean, LLM-ready content.
+- **`image_search`** (In Beta — contact us for beta access): search the web for images by text query, optionally with a reference image.
+- **`video_search`** (In Beta — contact us for beta access): search the web for videos by text query.
 
 What makes Octen useful for agents is that `extract` returns more than page text. Each successful result also includes:
 
@@ -84,6 +86,8 @@ For clients without a CLI installer, drop the JSON config above into:
 | `search` | Search the live web with domain, text, time, and content controls | broad web search |
 | `news_search` | Same engine as `search`, fixed to news | current events and timely reporting |
 | `extract` | Fetch 1-20 URLs and return clean content, labels, and optional highlights | summarization, RAG, fact lookup |
+| `image_search` | _In Beta — contact us for beta access._ Search the web for images by text query (optional reference `image_url`) | finding pictures, photos, visual references |
+| `video_search` | _In Beta — contact us for beta access._ Search the web for videos by text query | finding videos, clips, footage |
 
 Reference docs:
 

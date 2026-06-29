@@ -320,7 +320,7 @@ function formatResult(r: any, idx: number, total: number): string {
   return lines.join("\n");
 }
 
-function formatMeta(meta: any, requestId: string | undefined): string {
+export function formatMeta(meta: any, requestId: string | undefined): string {
   const parts: string[] = [];
   const u = meta?.usage;
   if (u && typeof u === "object") {
@@ -336,6 +336,6 @@ function formatMeta(meta: any, requestId: string | undefined): string {
   return parts.length ? `_${parts.join(" · ")}_` : "";
 }
 
-function errorResult(msg: string): CallToolResult {
+export function errorResult(msg: string): CallToolResult {
   return { isError: true, content: [{ type: "text", text: msg }] };
 }

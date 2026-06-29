@@ -315,13 +315,17 @@ const { query: broadQueryProp, ...broadOptionProperties } = broadBaseProperties;
 export const broadSearchTool: Tool = {
   name: "broad_search",
   description:
-    "Broad multi-angle web search with Octen. Decomposes `query` into up to " +
-    "`max_queries` related sub-queries, searches them concurrently, and returns " +
-    "results grouped per sub-query (not deduplicated) for comprehensive coverage. " +
-    "Use it for research-style questions that benefit from multiple angles; use " +
-    "`search` for a single focused query. Per-sub-query options (count, topic, " +
-    "domain / text filters, time window, highlight / full_content, media) are the " +
-    "same as `search` and apply to every sub-query.",
+    "Broad multi-angle web search with Octen. Best for questions that span " +
+    "several subtopics where a single `search` only reaches a few: comparisons " +
+    "across many sources (pricing, products, vendors), surveys and deeper " +
+    "research, and any multi-angle question. Pass the user's full question as " +
+    "`query` AS-IS — Octen expands it into related sub-queries and searches them " +
+    "concurrently, returning results grouped per sub-query (not deduplicated). Do " +
+    "NOT pre-split the question or call this repeatedly; raise `max_queries` for " +
+    "broader coverage instead. For a single focused lookup, use `search`. " +
+    "Per-sub-query options (count, topic, domain / text filters, time window, " +
+    "highlight / full_content, media) are the same as `search` and apply to every " +
+    "sub-query.",
   inputSchema: {
     type: "object",
     properties: {
@@ -331,7 +335,9 @@ export const broadSearchTool: Tool = {
         minimum: 1,
         maximum: 30,
         default: 5,
-        description: "Upper bound on the number of sub-queries generated (1-30). Default 5.",
+        description:
+          "Upper bound on the number of sub-queries generated (1-30). Default 5 — " +
+          "raise toward 30 for surveys / deeper research, lower for a tighter search.",
       },
       ...broadOptionProperties,
       timeout: {

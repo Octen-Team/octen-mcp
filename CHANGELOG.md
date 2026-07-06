@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-07-06
+
+Aligns the `extract` tool with the current Extract API reference
+(https://docs.octen.ai/api-reference/extract).
+
+### Removed
+- **`include_favicon`** input parameter. The page `favicon` is now returned by
+  default when available, so the flag is no longer needed (or accepted by the
+  API).
+
+### Added
+- `cover_image` (`{url}`) is now surfaced in each result when `include_images`
+  is set and the page has a cover image.
+
 ## [0.3.0] — 2026-06-29
 
 ### Added

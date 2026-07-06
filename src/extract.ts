@@ -67,10 +67,9 @@ export const extractTool: Tool = {
         default: 30,
         description: "Per-URL timeout in seconds (1-60).",
       },
-      include_images: { type: "boolean", default: false, description: "Return image URLs found on each page." },
+      include_images: { type: "boolean", default: false, description: "Return image resources found on each page (also enables `cover_image` when the page has one)." },
       include_videos: { type: "boolean", default: false, description: "Return video URLs found on each page." },
       include_audio:  { type: "boolean", default: false, description: "Return audio URLs found on each page." },
-      include_favicon:{ type: "boolean", default: false, description: "Return each page's favicon URL." },
     },
     required: ["urls"],
   },
@@ -85,7 +84,6 @@ interface ExtractArgs {
   include_images?: boolean;
   include_videos?: boolean;
   include_audio?: boolean;
-  include_favicon?: boolean;
 }
 
 /** Handler — POSTs to Octen Extract and reshapes the response for the LLM. */
@@ -111,7 +109,6 @@ export async function handleExtract(rawArgs: Record<string, unknown>): Promise<C
   if (args.include_images !== undefined)  body.include_images = args.include_images;
   if (args.include_videos !== undefined)  body.include_videos = args.include_videos;
   if (args.include_audio !== undefined)   body.include_audio = args.include_audio;
-  if (args.include_favicon !== undefined) body.include_favicon = args.include_favicon;
 
   let resp: Response;
   try {
@@ -178,6 +175,7 @@ function formatResult(r: any, idx: number, total: number): string {
   if (r.time_published) lines.push(`**Published:** ${r.time_published}`);
   if (r.time_last_crawled) lines.push(`**Last crawled:** ${r.time_last_crawled}`);
   if (r.favicon) lines.push(`**Favicon:** ${r.favicon}`);
+  if (r.cover_image?.url) lines.push(`**Cover image:** ${r.cover_image.url}`);
   if (Array.isArray(r.images) && r.images.length) lines.push(`**Images:** ${r.images.length}`);
   if (Array.isArray(r.videos) && r.videos.length) lines.push(`**Videos:** ${r.videos.length}`);
   if (Array.isArray(r.audio)  && r.audio.length)  lines.push(`**Audio:** ${r.audio.length}`);

@@ -1,6 +1,6 @@
 {
   "name": "octen-mcp",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "mcpName": "io.github.Octen-Team/octen-mcp",
   "description": "MCP server for Octen — web search plus URL extract: LLM-ready markdown with query-driven highlights, category, and page_structure classification.",
   "license": "MIT",
@@ -29,6 +29,8 @@
     "watch": "tsc --watch",
     "dev": "tsc && node dist/index.js",
     "inspect": "npx -y @modelcontextprotocol/inspector node dist/index.js",
+    "pretest": "npm run build",
+    "test": "node --test test/*.test.mjs",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

@@ -5,8 +5,9 @@
  *  - `topic` (general | news) — switch between broad web and news-focused search
  *  - per-result `highlight` (ranked snippet) OR `full_content` (cleaned page body),
  *    each with a token budget so the model controls how much context it pulls back
- *  - domain / text include-exclude filters and a published/crawled time window
- *    (absolute `start_time`/`end_time` or relative `time_range`)
+ *  - domain / text include-exclude filters, a `country` region filter, and a
+ *    published/crawled time window (absolute `start_time`/`end_time` or
+ *    relative `time_range`)
  *
  * Same envelope (`{code, msg, data, meta}`) and `x-api-key` auth as extract, but
  * note `meta` sits at the TOP level here (sibling of `data`), not under `data`.
@@ -25,7 +26,8 @@ export const searchTool: Tool = {
     "to get a ranked snippet per result, or `full_content` to pull the cleaned " +
     "page body inline (heavier — costs more context). Narrow with domain / text " +
     "include-exclude filters and a time window (published/crawled `start_time`/" +
-    "`end_time`, or a relative `time_range`). Set `include_images` / `include_videos` " +
+    "`end_time`, or a relative `time_range`). Set `country` (ISO 3166-1 alpha-2, " +
+    "e.g. `US`) for region-specific results. Set `include_images` / `include_videos` " +
     "to return media URLs per result.",
   inputSchema: {
     type: "object",
@@ -49,6 +51,13 @@ export const searchTool: Tool = {
         maximum: 100,
         default: 5,
         description: "Number of results to return (1-100). Default 5.",
+      },
+      country: {
+        type: "string",
+        default: "auto",
+        description:
+          "Country code for region-specific results. ISO 3166-1 alpha-2 " +
+          "(e.g. `US`, `JP`), or `auto` to determine automatically. Default auto.",
       },
       include_domains: {
         type: "array",
@@ -178,8 +187,8 @@ export const newsSearchTool: Tool = {
     "Search recent news with Octen and return ranked articles (title, url, " +
     "snippet). This is web search locked to `topic: news` — use it for current " +
     "events, headlines, and timely reporting. Same options as `search` " +
-    "(domain / text filters, time window, highlight / full_content, media) " +
-    "except `topic`, which is fixed to news.",
+    "(country, domain / text filters, time window, highlight / full_content, " +
+    "media) except `topic`, which is fixed to news.",
   inputSchema: {
     type: "object",
     properties: newsProperties,
@@ -201,6 +210,7 @@ interface SearchArgs {
   query: string;
   topic?: "general" | "news";
   count?: number;
+  country?: string;
   include_domains?: string[];
   exclude_domains?: string[];
   include_text?: string[];
@@ -323,9 +333,9 @@ export const broadSearchTool: Tool = {
     "concurrently, returning results grouped per sub-query (not deduplicated). Do " +
     "NOT pre-split the question or call this repeatedly; raise `max_queries` for " +
     "broader coverage instead. For a single focused lookup, use `search`. " +
-    "Per-sub-query options (count, topic, domain / text filters, time window, " +
-    "highlight / full_content, media) are the same as `search` and apply to every " +
-    "sub-query.",
+    "Per-sub-query options (count, topic, country, domain / text filters, time " +
+    "window, highlight / full_content, media) are the same as `search` and apply " +
+    "to every sub-query.",
   inputSchema: {
     type: "object",
     properties: {

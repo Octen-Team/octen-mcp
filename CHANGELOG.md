@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] — 2026-07-16
+
+### Added
+- **`country`** input parameter on `search`, `news_search`, and `broad_search` —
+  ISO 3166-1 alpha-2 country code (e.g. `US`, `JP`) or `auto` (server default)
+  for region-specific results. Sent top-level on `POST /search`; nested under
+  `search_options` on `POST /broad-search`. Omitted from the request when unset
+  so the server default applies.
+- Minimal unit-test suite (`npm test`, Node's built-in `node:test` runner)
+  covering request-body assembly for `search` / `news_search` / `broad_search`.
+
 ## [0.3.1] — 2026-07-06
 
 Aligns the `extract` tool with the current Extract API reference
@@ -103,7 +114,9 @@ Aligns the `extract` tool with the current Extract API reference
 - `OCTEN_API_KEY` env var for authentication.
 - `OCTEN_API_URL` override for staging or self-hosted endpoints.
 
-[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.1...v0.3.2
+[0.3.1]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Octen-Team/octen-mcp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.2.0
 [0.1.5]: https://github.com/Octen-Team/octen-mcp/releases/tag/v0.1.5

@@ -26,7 +26,7 @@ export const searchTool: Tool = {
     "to get a ranked snippet per result, or `full_content` to pull the cleaned " +
     "page body inline (heavier — costs more context). Narrow with domain / text " +
     "include-exclude filters and a time window (published/crawled `start_time`/" +
-    "`end_time`, or a relative `time_range`). Set `country` (ISO 3166-1 alpha-2, " +
+    "`end_time`, or a relative `time_range`). Set `country` (ISO 3166 country code, " +
     "e.g. `US`) for region-specific results. Set `include_images` / `include_videos` " +
     "to return media URLs per result.",
   inputSchema: {
@@ -56,8 +56,9 @@ export const searchTool: Tool = {
         type: "string",
         default: "auto",
         description:
-          "Country code for region-specific results. ISO 3166-1 alpha-2 " +
-          "(e.g. `US`, `JP`), or `auto` to determine automatically. Default auto.",
+          "Follow ISO 3166, the International Standard for country codes and " +
+          "codes for their subdivisions (e.g. `US`, `JP`); `auto` (default) " +
+          "determines it automatically.",
       },
       include_domains: {
         type: "array",

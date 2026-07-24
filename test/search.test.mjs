@@ -27,55 +27,58 @@ function captureFetch(responseData = { code: 0, data: { results: [] } }) {
   return captured;
 }
 
-test("search: schema advertises `country` (string, default auto)", () => {
-  const prop = searchTool.inputSchema.properties.country;
-  assert.ok(prop, "country missing from search inputSchema");
-  assert.equal(prop.type, "string");
-  assert.equal(prop.default, "auto");
+test("search: schema advertises `query` (required) and `count`", () => {
+  const props = searchTool.inputSchema.properties;
+  assert.ok(props.query, "query missing from search inputSchema");
+  assert.ok(props.count, "count missing from search inputSchema");
+  assert.equal(props.count.default, 5);
+  assert.ok(searchTool.inputSchema.required.includes("query"));
 });
 
-test("news_search: schema inherits `country`, drops `topic`", () => {
-  assert.ok(newsSearchTool.inputSchema.properties.country);
+test("news_search: schema inherits `count`, drops `topic`", () => {
+  assert.ok(newsSearchTool.inputSchema.properties.count);
   assert.equal(newsSearchTool.inputSchema.properties.topic, undefined);
 });
 
-test("broad_search: schema inherits `country`", () => {
-  assert.ok(broadSearchTool.inputSchema.properties.country);
+test("broad_search: schema inherits `count` and adds `max_queries`", () => {
+  assert.ok(broadSearchTool.inputSchema.properties.count);
+  assert.ok(broadSearchTool.inputSchema.properties.max_queries);
 });
 
-test("search: `country` is sent top-level in the /search body", async () => {
+test("search: `query` and `count` are sent top-level in the /search body", async () => {
   const captured = captureFetch();
-  await handleSearch({ query: "best local pizza", country: "US", count: 2 });
+  await handleSearch({ query: "best local pizza", count: 2 });
   assert.ok(captured.url.endsWith("/search"));
-  assert.equal(captured.body.country, "US");
+  assert.equal(captured.body.query, "best local pizza");
   assert.equal(captured.body.count, 2);
 });
 
-test("search: `country` is omitted from the body when unset", async () => {
+test("search: optional `count` is omitted from the body when unset", async () => {
   const captured = captureFetch();
   await handleSearch({ query: "best local pizza" });
-  assert.equal("country" in captured.body, false);
+  assert.equal(captured.body.query, "best local pizza");
+  assert.equal("count" in captured.body, false);
 });
 
-test("news_search: `country` passes through top-level, topic forced to news", async () => {
+test("news_search: options pass through top-level, topic forced to news", async () => {
   const captured = captureFetch();
-  await handleNewsSearch({ query: "chip news", country: "JP" });
-  assert.equal(captured.body.country, "JP");
+  await handleNewsSearch({ query: "chip news", count: 3 });
+  assert.equal(captured.body.count, 3);
   assert.equal(captured.body.topic, "news");
 });
 
-test("broad_search: `country` is nested under search_options, not top-level", async () => {
+test("broad_search: search options are nested under search_options, not top-level", async () => {
   const captured = captureFetch({ code: 0, data: { search_results: [], queries: [] } });
-  await handleBroadSearch({ query: "ev charging networks", country: "US", count: 2 });
+  await handleBroadSearch({ query: "ev charging networks", count: 2, max_queries: 2 });
   assert.ok(captured.url.endsWith("/broad-search"));
-  assert.equal("country" in captured.body, false, "country must not be top-level on /broad-search");
-  assert.equal(captured.body.search_options.country, "US");
+  assert.equal(captured.body.query, "ev charging networks");
+  assert.equal(captured.body.max_queries, 2);
+  assert.equal("count" in captured.body, false, "count must not be top-level on /broad-search");
   assert.equal(captured.body.search_options.count, 2);
 });
 
-test("broad_search: `country` (and search_options) omitted when unset", async () => {
+test("broad_search: search_options omitted when no per-sub-query options set", async () => {
   const captured = captureFetch({ code: 0, data: { search_results: [], queries: [] } });
   await handleBroadSearch({ query: "ev charging networks" });
-  assert.equal("country" in captured.body, false);
   assert.equal("search_options" in captured.body, false);
 });

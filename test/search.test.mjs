@@ -45,6 +45,31 @@ test("broad_search: schema inherits `count` and adds `max_queries`", () => {
   assert.ok(broadSearchTool.inputSchema.properties.max_queries);
 });
 
+const LANGUAGE_ENUM = ["ar", "de", "en", "es", "fr", "hi", "id", "it", "ja", "ko", "nl", "pl", "pt", "ru", "th", "tr", "vi", "zh"];
+
+test("search: schema advertises `language` as an enum array (ISO 639-1)", () => {
+  const lang = searchTool.inputSchema.properties.language;
+  assert.ok(lang, "language missing from search inputSchema");
+  assert.equal(lang.type, "array");
+  assert.equal(lang.items.type, "string");
+  assert.deepEqual(lang.items.enum, LANGUAGE_ENUM);
+  assert.deepEqual(lang.default, []);
+});
+
+test("news_search: schema inherits `language`", () => {
+  const lang = newsSearchTool.inputSchema.properties.language;
+  assert.ok(lang, "language missing from news_search inputSchema");
+  assert.equal(lang.type, "array");
+  assert.deepEqual(lang.items.enum, LANGUAGE_ENUM);
+});
+
+test("broad_search: schema inherits `language`", () => {
+  const lang = broadSearchTool.inputSchema.properties.language;
+  assert.ok(lang, "language missing from broad_search inputSchema");
+  assert.equal(lang.type, "array");
+  assert.deepEqual(lang.items.enum, LANGUAGE_ENUM);
+});
+
 test("search: `query` and `count` are sent top-level in the /search body", async () => {
   const captured = captureFetch();
   await handleSearch({ query: "best local pizza", count: 2 });
@@ -58,6 +83,38 @@ test("search: optional `count` is omitted from the body when unset", async () =>
   await handleSearch({ query: "best local pizza" });
   assert.equal(captured.body.query, "best local pizza");
   assert.equal("count" in captured.body, false);
+});
+
+test("search: `language` lands top-level in the /search body when set", async () => {
+  const captured = captureFetch();
+  await handleSearch({ query: "climate change", language: ["ja", "en"] });
+  assert.deepEqual(captured.body.language, ["ja", "en"]);
+});
+
+test("search: `language` omitted from the body when unset", async () => {
+  const captured = captureFetch();
+  await handleSearch({ query: "climate change" });
+  assert.equal("language" in captured.body, false);
+});
+
+test("news_search: `language` passes through top-level", async () => {
+  const captured = captureFetch();
+  await handleNewsSearch({ query: "chip news", language: ["de"] });
+  assert.deepEqual(captured.body.language, ["de"]);
+  assert.equal(captured.body.topic, "news");
+});
+
+test("broad_search: `language` nests under search_options, never top-level", async () => {
+  const captured = captureFetch({ code: 0, data: { search_results: [], queries: [] } });
+  await handleBroadSearch({ query: "ai news", language: ["en"], max_queries: 2 });
+  assert.equal("language" in captured.body, false, "language must not be top-level on /broad-search");
+  assert.deepEqual(captured.body.search_options.language, ["en"]);
+});
+
+test("broad_search: `language` absent from search_options when unset", async () => {
+  const captured = captureFetch({ code: 0, data: { search_results: [], queries: [] } });
+  await handleBroadSearch({ query: "ai news", count: 2 });
+  assert.equal("language" in captured.body.search_options, false);
 });
 
 test("news_search: options pass through top-level, topic forced to news", async () => {

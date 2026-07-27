@@ -28,7 +28,7 @@ import { videoSearchTool, handleVideoSearch } from "./videoSearch.js";
 const server = new Server(
   {
     name: "octen-mcp",
-    version: "0.3.4",
+    version: "0.3.5",
   },
   {
     capabilities: {

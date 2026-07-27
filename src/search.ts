@@ -5,7 +5,8 @@
  *  - `topic` (general | news) — switch between broad web and news-focused search
  *  - per-result `highlight` (ranked snippet) OR `full_content` (cleaned page body),
  *    each with a token budget so the model controls how much context it pulls back
- *  - domain / text include-exclude filters and a published/crawled time window
+ *  - domain / text include-exclude filters, a `language` filter (ISO 639-1
+ *    codes), and a published/crawled time window
  *    (absolute `start_time`/`end_time` or relative `time_range`)
  *
  * Same envelope (`{code, msg, data, meta}`) and `x-api-key` auth as extract, but
@@ -24,9 +25,9 @@ export const searchTool: Tool = {
     "snippet). Set `topic` to `news` for news-focused results. Pass `highlight` " +
     "to get a ranked snippet per result, or `full_content` to pull the cleaned " +
     "page body inline (heavier — costs more context). Narrow with domain / text " +
-    "include-exclude filters and a time window (published/crawled `start_time`/" +
-    "`end_time`, or a relative `time_range`). Set `include_images` / `include_videos` " +
-    "to return media URLs per result.",
+    "include-exclude filters, a `language` filter (ISO 639-1 codes), and a time " +
+    "window (published/crawled `start_time`/`end_time`, or a relative `time_range`). " +
+    "Set `include_images` / `include_videos` to return media URLs per result.",
   inputSchema: {
     type: "object",
     properties: {
@@ -109,6 +110,15 @@ export const searchTool: Tool = {
         default: "strict",
         description: "Adult-content filter. Default strict.",
       },
+      language: {
+        type: "array",
+        items: {
+          type: "string",
+          enum: ["ar", "de", "en", "es", "fr", "hi", "id", "it", "ja", "ko", "nl", "pl", "pt", "ru", "th", "tr", "vi", "zh"],
+        },
+        default: [],
+        description: "Languages to filter results by, as ISO 639-1 codes. Empty = no filter.",
+      },
       highlight: {
         type: "object",
         description:
@@ -178,7 +188,7 @@ export const newsSearchTool: Tool = {
     "Search recent news with Octen and return ranked articles (title, url, " +
     "snippet). This is web search locked to `topic: news` — use it for current " +
     "events, headlines, and timely reporting. Same options as `search` " +
-    "(domain / text filters, time window, highlight / full_content, " +
+    "(domain / text filters, `language` filter, time window, highlight / full_content, " +
     "media) except `topic`, which is fixed to news.",
   inputSchema: {
     type: "object",
@@ -211,6 +221,7 @@ interface SearchArgs {
   end_time?: string;
   format?: "text" | "markdown";
   safesearch?: "off" | "strict";
+  language?: string[];
   highlight?: HighlightOptions;
   full_content?: FullContentOptions;
   include_images?: boolean;
@@ -323,7 +334,7 @@ export const broadSearchTool: Tool = {
     "concurrently, returning results grouped per sub-query (not deduplicated). Do " +
     "NOT pre-split the question or call this repeatedly; raise `max_queries` for " +
     "broader coverage instead. For a single focused lookup, use `search`. " +
-    "Per-sub-query options (count, topic, domain / text filters, time " +
+    "Per-sub-query options (count, topic, `language` filter, domain / text filters, time " +
     "window, highlight / full_content, media) are the same as `search` and apply " +
     "to every sub-query.",
   inputSchema: {

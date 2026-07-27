@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.5] — 2026-07-27
+
+### Added
+- `language` parameter (ISO 639-1 codes) for language filtering on the search / news_search / broad_search tools.
+
 ## [0.3.4] — 2026-07-24
 
 ### Removed
@@ -124,7 +129,8 @@ Aligns the `extract` tool with the current Extract API reference
 - `OCTEN_API_KEY` env var for authentication.
 - `OCTEN_API_URL` override for staging or self-hosted endpoints.
 
-[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.4...HEAD
+[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.5...HEAD
+[0.3.5]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.1...v0.3.2

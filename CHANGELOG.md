@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.6] — 2026-07-28
+
+### Added
+- `OCTEN_ENABLE_BETA_TOOLS` env var. Defaults to enabled (existing behavior). Set
+  it to `false`/`0`/`off`/`no` to omit the Beta `image_search` and `video_search`
+  tools from tool discovery and reject any direct call to them — lets a host
+  expose only the four generally-available tools.
+
 ## [0.3.5] — 2026-07-27
 
 ### Added
@@ -129,7 +137,8 @@ Aligns the `extract` tool with the current Extract API reference
 - `OCTEN_API_KEY` env var for authentication.
 - `OCTEN_API_URL` override for staging or self-hosted endpoints.
 
-[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.5...HEAD
+[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.6...HEAD
+[0.3.6]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.5...v0.3.6
 [0.3.5]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.2...v0.3.3

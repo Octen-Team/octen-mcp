@@ -21,11 +21,9 @@ const API_KEY = process.env.OCTEN_API_KEY;
 export const videoSearchTool: Tool = {
   name: "video_search",
   description:
-    "In Beta. Contact us to request beta access. Search the live web for " +
-    "videos with Octen and return ranked results (title, source page, cover " +
-    "image, duration, matching segment, authors, description). Pass a text " +
-    "`query`. Use this when the user wants to find videos, clips, or footage " +
-    "— not for general text web search.",
+    `Find videos on the web by text query — returns ranked results (title, source page, cover image, duration, matching segment, authors, description). In Beta; contact us to request beta access. Pass a text \`query\`. Use this when the user wants to find videos, clips, footage, tutorials, or a specific moment within a video — not for general text web search.
+
+keywords: find videos, video search, clips, footage, youtube, tutorial video, watch, movie, video clip`,
   inputSchema: {
     type: "object",
     properties: {

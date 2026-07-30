@@ -17,14 +17,11 @@ const API_KEY = process.env.OCTEN_API_KEY;
 export const extractTool: Tool = {
   name: "extract",
   description:
-    "Fetch one or more URLs and return LLM-ready content from Octen. " +
-    "By default (no `query`) it returns each page's full content — this is " +
-    "what you want in almost all cases. Only pass `query` when the user " +
-    "explicitly asks to fetch relevance-ranked snippets for a specific topic; " +
-    "doing so returns highlights INSTEAD of the full body, so the content " +
-    "will be partial. Every result also includes a `category` (topical) and " +
-    "`page_structure` (typology) classification, unique to Octen. Bare hosts " +
-    "like 'octen.ai' are auto-normalized to https. Cached when fresh.",
+    `Read one or more web pages by URL and return clean, LLM-ready content (markdown or text). By default (no \`query\`) it returns each page's full content — this is what you want in almost all cases. Only pass \`query\` when the user explicitly asks to fetch relevance-ranked snippets for a specific topic; doing so returns highlights INSTEAD of the full body, so the content will be partial. Every result also includes a \`category\` (topical) and \`page_structure\` (typology) classification. Bare hosts like 'octen.ai' are auto-normalized to https. Cached when fresh.
+
+Use this when you already have the URL(s). To find pages first, use \`search\` or \`broad_search\`.
+
+keywords: read page, fetch url, scrape, page content, article text, parse webpage, extract, read article, url content, open link`,
   inputSchema: {
     type: "object",
     properties: {

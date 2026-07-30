@@ -21,13 +21,11 @@ const API_KEY = process.env.OCTEN_API_KEY;
 export const searchTool: Tool = {
   name: "search",
   description:
-    "Search the live web with Octen and return ranked results (title, url, " +
-    "snippet). Set `topic` to `news` for news-focused results. Pass `highlight` " +
-    "to get a ranked snippet per result, or `full_content` to pull the cleaned " +
-    "page body inline (heavier — costs more context). Narrow with domain / text " +
-    "include-exclude filters, a `language` filter (ISO 639-1 codes), and a time " +
-    "window (published/crawled `start_time`/`end_time`, or a relative `time_range`). " +
-    "Set `include_images` / `include_videos` to return media URLs per result.",
+    `Search the live web and return ranked results (title, url, snippet) — fast, fresh, real-time web search for one focused lookup. Set \`topic\` to \`news\` for news-focused results. Pass \`highlight\` to get a ranked snippet per result, or \`full_content\` to pull the cleaned page body inline (heavier — costs more context). Narrow with domain / text include-exclude filters, a \`language\` filter (ISO 639-1 codes), and a time window (published/crawled \`start_time\`/\`end_time\`, or a relative \`time_range\`). Set \`include_images\` / \`include_videos\` to return media URLs per result.
+
+USE FOR a single focused lookup: one fact, one entity, one document. If the question spans several independent subtopics, load and use \`broad_search\` instead — a sequence of search calls is slower and gives worse coverage than one fan-out. To read a page you already have the URL for, use \`extract\`.
+
+keywords: web search, search the web, look up, find, check, fact, current information, latest, news, source, url, real-time`,
   inputSchema: {
     type: "object",
     properties: {
@@ -185,11 +183,11 @@ const { topic: _omitTopic, ...newsProperties } =
 export const newsSearchTool: Tool = {
   name: "news_search",
   description:
-    "Search recent news with Octen and return ranked articles (title, url, " +
-    "snippet). This is web search locked to `topic: news` — use it for current " +
-    "events, headlines, and timely reporting. Same options as `search` " +
-    "(domain / text filters, `language` filter, time window, highlight / full_content, " +
-    "media) except `topic`, which is fixed to news.",
+    `Search recent news and return ranked articles (title, url, snippet) — current events, headlines, timely reporting. This is \`search\` locked to \`topic: news\`; same options as \`search\` (domain / text filters, \`language\` filter, time window, highlight / full_content, media) except \`topic\`, which is fixed to news.
+
+For a single news lookup this is the right tool. For a multi-angle news question ("what shipped across the industry this month", "how are different outlets covering X"), use \`broad_search\` with topic=news instead of looping news_search.
+
+keywords: news search, latest news, headlines, current events, breaking news, recent, today, this week, press coverage`,
   inputSchema: {
     type: "object",
     properties: newsProperties,
@@ -326,17 +324,32 @@ const { query: broadQueryProp, ...broadOptionProperties } = broadBaseProperties;
 export const broadSearchTool: Tool = {
   name: "broad_search",
   description:
-    "Broad multi-angle web search with Octen. Best for questions that span " +
-    "several subtopics where a single `search` only reaches a few: comparisons " +
-    "across many sources (pricing, products, vendors), surveys and deeper " +
-    "research, and any multi-angle question. Pass the user's full question as " +
-    "`query` AS-IS — Octen expands it into related sub-queries and searches them " +
-    "concurrently, returning results grouped per sub-query (not deduplicated). Do " +
-    "NOT pre-split the question or call this repeatedly; raise `max_queries` for " +
-    "broader coverage instead. For a single focused lookup, use `search`. " +
-    "Per-sub-query options (count, topic, `language` filter, domain / text filters, time " +
-    "window, highlight / full_content, media) are the same as `search` and apply " +
-    "to every sub-query.",
+    `Search the web across many angles in one call — for comparisons, research, surveys, and questions with several distinct parts. Expands your question into multiple sub-queries and runs them concurrently.
+
+USE WHEN the question has multiple distinct parts or entities that one search cannot cover:
+  - comparing vendors / products / pricing across many sources
+  - literature reviews, market or landscape surveys
+  - open-ended "what are the options for X" / "how do people solve Y"
+  - a question that clearly decomposes into 3+ independent sub-questions
+  - multi-angle questions about recent events ("what shipped across the industry this month") — set topic=news, do NOT loop news_search
+
+DO NOT USE for:
+  - a single fact, entity, or document → use \`search\`
+  - re-running a disappointing search → do NOT call broad_search twice; follow up with a targeted \`search\` or \`extract\` on the specific gaps
+  - reading a page you already have the URL for → use \`extract\`
+  - a straight A-vs-B comparison of two known entities → two targeted \`search\` calls are cheaper and more controllable
+
+COST: fans out into \`max_queries\` concurrent searches — roughly Nx the cost and notably higher latency than a single \`search\`. When in doubt, prefer \`search\`.
+
+QUERY: pass one natural-language question (max 500 chars). Resolve pronouns and references from the conversation first — "how does it compare to the other one" is a useless query. Do NOT pre-split into sub-queries; that is this tool's job. For broader coverage raise \`max_queries\` rather than calling repeatedly. Per-sub-query options (count, topic, \`language\` filter, domain / text filters, time window, highlight / full_content, media) match \`search\` and apply to every sub-query.
+
+RESULTS are grouped per sub-query and NOT deduplicated — the same URL may appear under several sub-queries.
+
+max_queries: 3-5 focused comparison (2-3 entities) | 5-10 multi-facet research | 10-20 landscape scan | 20-30 exhaustive survey
+
+For a single focused lookup use \`search\`; to read a specific page use \`extract\`.
+
+keywords: web search, search the web, look up, find information, research, compare, comparison, versus, alternatives, options, landscape, survey, market research, pricing, latest, current information, multi-part question`,
   inputSchema: {
     type: "object",
     properties: {

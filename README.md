@@ -96,6 +96,32 @@ Reference docs:
 - Search: [docs.octen.ai/api-reference/search](https://docs.octen.ai/api-reference/search)
 - Extract: [docs.octen.ai/api-reference/extract](https://docs.octen.ai/api-reference/extract)
 
+### Keep the tools always on (optional)
+
+In clients with **MCP tool search** enabled (the Claude Code default), tools are
+*deferred* — the model runs a `ToolSearch` step to load them on demand. If you'd
+rather have the Octen tools resident from the first turn (no discovery step), set
+`alwaysLoad` on the server in your `.mcp.json` (Claude Code v2.1.121+):
+
+```jsonc
+{
+  "mcpServers": {
+    "octen": {
+      "command": "npx",
+      "args": ["-y", "octen-mcp"],
+      "env": { "OCTEN_API_KEY": "your-key-here" },
+      "alwaysLoad": true
+    }
+  }
+}
+```
+
+Each always-loaded tool uses context on every turn, and `alwaysLoad` blocks startup
+until the server connects (capped at the ~5s connect timeout), so reserve it for tools
+you hit constantly. To keep the cost down, mark just the highest-traffic tools — e.g.
+`search` and `broad_search` — with `"anthropic/alwaysLoad": true` in each tool's `_meta`,
+leaving the rest deferred.
+
 ## Why agents like this
 
 Most extract tools stop at "here is the page body." Octen helps one step earlier:

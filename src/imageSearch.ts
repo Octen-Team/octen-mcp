@@ -23,14 +23,9 @@ const API_KEY = process.env.OCTEN_API_KEY;
 export const imageSearchTool: Tool = {
   name: "image_search",
   description:
-    "In Beta. Contact us to request beta access. Search the live web for " +
-    "images with Octen and return ranked results (title, source page, " +
-    "dimensions, thumbnail, description, summary). Pass a text `query`, and " +
-    "optionally an `image_url` to search by reference image. Set `topic` to " +
-    "`design` for UI design references — each result then carries a structured " +
-    "style `summary` and an `html_snippet` for building/restyling frontends. " +
-    "Use this when the user wants to find pictures, photos, diagrams, or visual " +
-    "references — not for general text web search.",
+    `Find images on the web by text query, and optionally by a reference image — returns ranked results (title, source page, dimensions, thumbnail, description, summary). In Beta; contact us to request beta access. Pass a text \`query\`, and optionally an \`image_url\` to search by reference image. Set \`topic\` to \`design\` for UI design references — each result then carries a structured style \`summary\` and an \`html_snippet\` for building/restyling frontends. Use this when the user wants pictures, photos, diagrams, screenshots, or visual references — not for general text web search.
+
+keywords: find images, image search, photos, pictures, screenshots, visual reference, diagram, icon, illustration, UI design, reference image`,
   inputSchema: {
     type: "object",
     properties: {

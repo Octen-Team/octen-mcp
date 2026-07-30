@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.7] — 2026-07-30
+
+### Changed
+- Tool **descriptions** rewritten for discovery & routing in deferred-loading
+  clients (no behavior/schema/param change):
+  - Every tool now opens with a generic, retrieval-friendly first sentence
+    (no brand name or internal jargon up front) and carries a `keywords:` line —
+    `image_search` / `video_search` no longer open with "In Beta.".
+  - `broad_search` gained an explicit **COST** signal, four concrete negative
+    examples (single fact → `search`; don't re-run; known URL → `extract`;
+    A-vs-B → two `search` calls), a `max_queries` problem-type → number mapping,
+    pronoun-resolution guidance, and a `broad_search + topic=news` boundary.
+  - `search` gained symmetric guidance pointing multi-subtopic questions to
+    `broad_search`; sibling cross-references added across `search` / `broad_search`
+    / `extract`.
+- README: optional `alwaysLoad` ("keep the tools always on") section for clients
+  with MCP tool search enabled.
+
 ## [0.3.6] — 2026-07-28
 
 ### Added
@@ -137,7 +155,8 @@ Aligns the `extract` tool with the current Extract API reference
 - `OCTEN_API_KEY` env var for authentication.
 - `OCTEN_API_URL` override for staging or self-hosted endpoints.
 
-[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.6...HEAD
+[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.7...HEAD
+[0.3.7]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.6...v0.3.7
 [0.3.6]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.5...v0.3.6
 [0.3.5]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.3...v0.3.4

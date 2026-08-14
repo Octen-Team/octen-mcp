@@ -24,6 +24,19 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+      # The suite was previously never executed in CI — only `build` ran, so a
+      # regression could go green all the way to publish.
+      - name: Unit and startup tests
+        run: npm test
+        env:
+          # `startup.test.mjs` spawns real servers; keep any proxy the runner
+          # may set out of their environment so the proxy cases test what they
+          # claim to.
+          HTTPS_PROXY: ''
+          https_proxy: ''
+          HTTP_PROXY: ''
+          http_proxy: ''
+
       - name: Sanity-check produced bin
         run: |
           test -x dist/index.js

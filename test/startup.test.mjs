@@ -101,3 +101,37 @@ test("OCTEN_RETRY=off disables the retry", async () => {
   assert.equal(await countAttempts({ OCTEN_RETRY: "off" }), 1,
     "the opt-out shipped without coverage in the first pass; a retry costs quota");
 });
+
+test("debug tracing emits the fields a field report needs", async () => {
+  // A real local origin, so the success path (and its headers) is exercised.
+  const http = await import("node:http");
+  const srv = http.createServer((_req, res) => {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ code: 0, data: { results: [] }, meta: {} }));
+  });
+  await new Promise((r) => srv.listen(0, r));
+  const port = srv.address().port;
+
+  const call = JSON.stringify({
+    jsonrpc: "2.0", id: 2, method: "tools/call",
+    params: { name: "search", arguments: { query: "x" } },
+  });
+  const r = await startServer(
+    { OCTEN_MCP_DEBUG: "1", OCTEN_API_URL: `http://127.0.0.1:${port}`,
+      HTTPS_PROXY: "", https_proxy: "", HTTP_PROXY: "", http_proxy: "" },
+    call + "\n"
+  );
+  srv.close();
+
+  // An absolute timestamp: a duration alone cannot be aligned against a
+  // client's session log or against server-side receive times.
+  assert.match(r.err, /\[octen-mcp \d{4}-\d{2}-\d{2}T[\d:.]+Z\]/,
+    "debug lines carry no wall-clock timestamp");
+  // When the call reached this process — the only way to separate our latency
+  // from the host's or a relay's.
+  assert.match(r.err, /call #1 received tool=search/);
+  assert.match(r.err, /call #1 returning tool=search handler_total=\d+ms/);
+  // Whether a handshake was paid for.
+  assert.match(r.err, /socket=(new|reused)/);
+  assert.match(r.err, /\/search attempt=1 status=200 elapsed=\d+ms/);
+});

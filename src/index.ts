@@ -26,6 +26,7 @@ import {
 } from "./search.js";
 import { imageSearchTool, handleImageSearch } from "./imageSearch.js";
 import { videoSearchTool, handleVideoSearch } from "./videoSearch.js";
+import { debug } from "./http.js";
 
 // Read the version from package.json rather than restating it here — the
 // hardcoded copy silently drifted (0.3.6 while the package shipped as 0.3.7),
@@ -67,8 +68,27 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 }));
 
 // 2. Dispatch tool calls.
+let callSeq = 0;
+
 server.setRequestHandler(CallToolRequestSchema, async (req) => {
   const { name, arguments: args } = req.params;
+
+  // Stamp the moment the call reached this process, before any of our work.
+  //
+  // This is the measurement that settles who owns a slow call. Subtract this
+  // timestamp from the one the MCP client recorded when it issued the tool
+  // call, and the difference is time spent entirely outside octen-mcp — in the
+  // host, or in whatever relays between them. Without it, a client-side stopwatch
+  // attributes that delay to us by default, because we are the last thing in
+  // the chain that reports anything at all.
+  const seq = ++callSeq;
+  const receivedAt = Date.now();
+  debug(`call #${seq} received tool=${name}`);
+
+  const finish = <T>(result: T): T => {
+    debug(`call #${seq} returning tool=${name} handler_total=${Date.now() - receivedAt}ms`);
+    return result;
+  };
 
   if (!BETA_TOOLS_ENABLED && BETA_TOOL_NAMES.has(name)) {
     return {
@@ -81,17 +101,17 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 
   switch (name) {
     case "search":
-      return await handleSearch(args ?? {});
+      return finish(await handleSearch(args ?? {}));
     case "news_search":
-      return await handleNewsSearch(args ?? {});
+      return finish(await handleNewsSearch(args ?? {}));
     case "broad_search":
-      return await handleBroadSearch(args ?? {});
+      return finish(await handleBroadSearch(args ?? {}));
     case "extract":
-      return await handleExtract(args ?? {});
+      return finish(await handleExtract(args ?? {}));
     case "image_search":
-      return await handleImageSearch(args ?? {});
+      return finish(await handleImageSearch(args ?? {}));
     case "video_search":
-      return await handleVideoSearch(args ?? {});
+      return finish(await handleVideoSearch(args ?? {}));
     default:
       // MCP convention: return an error result, don't throw.
       return {
@@ -109,7 +129,7 @@ async function main() {
   await server.connect(transport);
   // Note: do NOT console.log to stdout here — stdout is the MCP wire.
   // Use console.error for any startup logging.
-  console.error("[octen-mcp] server started, listening on stdio");
+  console.error(`[octen-mcp] v${VERSION} started, listening on stdio`);
 }
 
 main().catch((err) => {

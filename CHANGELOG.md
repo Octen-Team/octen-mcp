@@ -70,8 +70,20 @@ that should arrive silently via `~0.3.x`.
   its debug output. Server-side lookup by this header is *not* available yet —
   the API does not record it — so it does not currently let a failed request be
   found in Octen's logs.
-- `OCTEN_MCP_DEBUG=1` — per-request timing, status, retry and correlation id on
-  **stderr** (stdout carries MCP protocol framing).
+- `OCTEN_MCP_DEBUG=1` — request tracing on **stderr** (stdout carries MCP
+  protocol framing), built around the questions a field report actually has to
+  answer:
+  - a UTC timestamp on every line, so the trace can be aligned against a
+    client's session log and against server-side receive times;
+  - the moment each tool call **reached this process**, which is what separates
+    delay inside `octen-mcp` from delay in the host or a relay ahead of it — a
+    client-side stopwatch attributes all of it to us by default;
+  - whether the call reused a connection or paid for a handshake
+    (`socket=new` / `socket=reused`), and what the handshake cost;
+  - connection failures by phase and error code, rather than after the fact;
+  - `x-azure-ref` from the edge, which unlike our own correlation id is already
+    present in Octen's infrastructure logs — and whose absence on a failure is
+    itself evidence the request never arrived.
 - Tunables: `OCTEN_KEEP_ALIVE_MS`, `OCTEN_KEEP_ALIVE_MAX_MS`,
   `OCTEN_CONNECT_TIMEOUT_MS`, `OCTEN_HTTP2`, `OCTEN_RETRY`. HTTP/2 is off by
   default: it measured no faster for the usual one-request-at-a-time pattern
@@ -91,6 +103,13 @@ that should arrive silently via `~0.3.x`.
 ### Notes
 - The timeout is a deadline for the whole call, not per attempt: the retry
   draws down the same budget, so a 30s timeout cannot become 60s.
+- `keepAliveTimeout` is 60s because that is what `api.octen.ai` tolerates, not
+  because 60s is a round number. Measured: a socket idle 30s or 60s is still
+  usable; at 90s the origin has already closed it and the next call re-shakes
+  hands (816ms against 268ms). The edge does not advertise a `Keep-Alive` hint
+  to follow, so the ceiling has to be set client-side — and setting it too high
+  is not a harmless over-reach, since every gap past the origin's threshold
+  leaves us dispatching onto a socket the peer has already closed.
 
 ## [0.3.7] — 2026-07-30
 

@@ -54,19 +54,71 @@ export const DEBUG = envFlag("OCTEN_MCP_DEBUG");
 /**
  * Debug output MUST go to stderr — stdout carries the MCP protocol framing and
  * anything written there corrupts the session.
+ *
+ * Every line is stamped with a wall-clock UTC timestamp. That is not cosmetic:
+ * diagnosing a report like the one that prompted this release means aligning
+ * our log against the client's own session log and against server-side receive
+ * times, and a duration without an absolute time cannot be aligned with
+ * anything.
  */
-function debug(msg: string): void {
-  if (DEBUG) process.stderr.write(`[octen-mcp] ${msg}\n`);
+export function debug(msg: string): void {
+  if (DEBUG) process.stderr.write(`[octen-mcp ${new Date().toISOString()}] ${msg}\n`);
+}
+
+/**
+ * Connection-phase tracing.
+ *
+ * The single most useful thing to know about a slow or failed call is whether
+ * it re-established a connection, and where that establishment died. undici
+ * publishes this on diagnostics channels; without it a debug line can say a
+ * call took 900ms but not that 640ms of it was a TLS handshake we should not
+ * have needed.
+ *
+ * Subscriptions are installed only under OCTEN_MCP_DEBUG so the normal path
+ * carries no cost.
+ */
+let connectCount = 0;
+let connectStartedAt = 0;
+
+if (DEBUG) {
+  const dc = await import("node:diagnostics_channel");
+  dc.channel("undici:client:beforeConnect").subscribe(() => {
+    connectStartedAt = Date.now();
+  });
+  dc.channel("undici:client:connected").subscribe((evt: any) => {
+    connectCount++;
+    const origin = evt?.connectParams?.host ?? "?";
+    debug(`connect #${connectCount} established to ${origin} in ${Date.now() - connectStartedAt}ms`);
+  });
+  dc.channel("undici:client:connectError").subscribe((evt: any) => {
+    const err = evt?.error;
+    debug(
+      `connect FAILED after ${Date.now() - connectStartedAt}ms ` +
+      `code=${err?.code ?? err?.name ?? "?"} ${err?.message ?? ""}`
+    );
+  });
 }
 
 const PROXY_ENV = ["https_proxy", "HTTPS_PROXY", "http_proxy", "HTTP_PROXY"];
 const proxyConfigured = PROXY_ENV.some((k) => (process.env[k] ?? "").trim() !== "");
 
 const agentOptions: Agent.Options = {
-  // Hold idle sockets long enough to span the gap between agent tool calls.
-  // Capped by the server's own `Keep-Alive` hint when it sends one, so raising
-  // this cannot push us past what the origin is willing to keep open.
-  keepAliveTimeout: envInt("OCTEN_KEEP_ALIVE_MS", 240_000),
+  // Hold idle sockets long enough to span the gap between agent tool calls, but
+  // strictly below what the origin will tolerate.
+  //
+  // 60s is measured, not chosen: against api.octen.ai a socket idle for 30s and
+  // 60s is still usable, while at 90s the origin has already closed it and the
+  // next call re-handshakes (816ms vs 268ms). The edge is Azure Front Door,
+  // whose documented client idle timeout is 90s, and it does not advertise a
+  // `Keep-Alive` hint we could follow instead — so the ceiling has to be set
+  // here.
+  //
+  // Overshooting is not harmless: every idle gap past the origin's threshold
+  // leaves us dispatching onto a socket the peer has already closed, and the
+  // resulting ECONNRESET is exactly the case a retry cannot distinguish from a
+  // mid-flight failure. Point `OCTEN_API_URL` at a different origin and this is
+  // the knob to re-measure.
+  keepAliveTimeout: envInt("OCTEN_KEEP_ALIVE_MS", 60_000),
   keepAliveMaxTimeout: envInt("OCTEN_KEEP_ALIVE_MAX_MS", 600_000),
   connectTimeout: envInt("OCTEN_CONNECT_TIMEOUT_MS", 10_000),
   // HTTP/2 measured no better than 1.1 for this workload (one request in
@@ -232,6 +284,7 @@ export async function postJson(opts: PostJsonOptions): Promise<Response> {
   // closes an idle socket at the moment we dispatch on it.
   for (let attempt = 1; attempt <= 2; attempt++) {
     const started = Date.now();
+    const connectsBefore = connectCount;
     try {
       const resp = await fetch(`${API_BASE}${path}`, {
         method: "POST",
@@ -246,10 +299,24 @@ export async function postJson(opts: PostJsonOptions): Promise<Response> {
         // that Node honours but the DOM `fetch` types do not declare.
         dispatcher,
       });
-      debug(
-        `${path} attempt=${attempt} status=${resp.status} ` +
-        `elapsed=${Date.now() - started}ms request_id=${requestId}`
-      );
+      // Guarded rather than left to `debug()` to discard: the message reads
+      // response headers, and building it on every request would be wasted work
+      // whenever tracing is off.
+      if (DEBUG) {
+        // Azure Front Door stamps every response that reaches the edge. Unlike
+        // our own correlation id, this one already exists in Octen's
+        // infrastructure logs, so it is the handle that works today.
+        const edgeRef = resp.headers?.get?.("x-azure-ref");
+        debug(
+          `${path} attempt=${attempt} status=${resp.status} ` +
+          `elapsed=${Date.now() - started}ms ` +
+          // Whether this call paid for a handshake is the difference between
+          // "the service is slow" and "we threw the connection away".
+          `socket=${connectCount > connectsBefore ? "new" : "reused"} ` +
+          `request_id=${requestId}` +
+          (edgeRef ? ` x-azure-ref=${edgeRef}` : "")
+        );
+      }
       return resp;
     } catch (e) {
       const elapsed = Date.now() - started;

@@ -25,7 +25,9 @@ function scriptFetch(outcomes) {
     attempts.push({ url: String(url), init });
     const outcome = outcomes[Math.min(i++, outcomes.length - 1)];
     if (outcome instanceof Error) throw outcome;
-    return { status: 200, json: async () => outcome };
+    // Carry a real `headers` object: the debug path reads response headers, and
+    // a stub without them hides breakage there behind a passing test.
+    return { status: 200, headers: new Headers(), json: async () => outcome };
   };
   return attempts;
 }

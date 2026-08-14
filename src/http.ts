@@ -313,12 +313,43 @@ export interface PostJsonOptions {
   /** Applied when the caller passes no timeout. */
   defaultTimeoutSec: number;
   /**
+   * Credential for this call. Comes from the process environment under stdio,
+   * and from the request headers under the HTTP transport, where one process
+   * serves many keys — which is why it travels per call rather than living at
+   * module level. Callers verify presence before calling; this layer only
+   * forwards it.
+   */
+  apiKey: string;
+  /**
    * Whether raising `timeout` would actually buy more headroom. False when the
    * effective value already sits at the schema maximum — `broad_search`
    * defaults to 60s and cannot go higher — so we don't advise an agent to turn
    * a knob that is already at its stop.
    */
   canRaiseTimeout?: boolean;
+}
+
+/**
+ * Per-invocation context handed to tool handlers by the transport layer.
+ *
+ * Under stdio there is one user and the key lives in the environment, so this
+ * is absent. Under the HTTP transport one process serves many keys, so the
+ * credential must travel with the call — reading it from module state would
+ * hand one tenant's key to another's request.
+ */
+export interface HandlerContext {
+  apiKey?: string;
+  /** Only used to word the missing-key error usefully for the caller's setup. */
+  transport?: "stdio" | "http";
+}
+
+/** The missing-key error, phrased for how this particular caller would fix it. */
+export function missingKeyMessage(ctx?: HandlerContext): string {
+  return ctx?.transport === "http"
+    ? "No API key on this request. Send it in the `x-api-key` header (or " +
+      "`Authorization: Bearer <key>`). Get a key at https://octen.ai."
+    : "OCTEN_API_KEY env var is not set. Get a key at https://octen.ai " +
+      "and add it to your MCP client config (see README).";
 }
 
 /** Thrown by {@link postJson}; `message` is already formatted for the LLM. */
@@ -340,8 +371,7 @@ export function postJson(opts: PostJsonOptions): Promise<Response> {
 }
 
 async function postJsonInner(opts: PostJsonOptions): Promise<Response> {
-  const { path, body, label, timeoutSec, defaultTimeoutSec, canRaiseTimeout = true } = opts;
-  const apiKey = process.env.OCTEN_API_KEY!;
+  const { path, body, label, timeoutSec, defaultTimeoutSec, canRaiseTimeout = true, apiKey } = opts;
   const effectiveTimeoutSec = timeoutSec ?? defaultTimeoutSec;
   // One correlation id for the whole logical call, retry included, so a support
   // ticket maps to every attempt in the server logs.

@@ -13,7 +13,7 @@
  * note `meta` sits at the TOP level here (sibling of `data`), not under `data`.
  */
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
-import { postJson, OctenHttpError } from "./http.js";
+import { postJson, OctenHttpError, missingKeyMessage, type HandlerContext } from "./http.js";
 
 const API_KEY = process.env.OCTEN_API_KEY;
 
@@ -247,17 +247,20 @@ interface SearchArgs {
 }
 
 /** Handler — POSTs to Octen Search and reshapes the response for the LLM. */
-export async function handleSearch(rawArgs: Record<string, unknown>): Promise<CallToolResult> {
+export async function handleSearch(rawArgs: Record<string, unknown>, ctx?: HandlerContext): Promise<CallToolResult> {
   const args = rawArgs as unknown as SearchArgs;
 
   if (typeof args.query !== "string" || args.query.trim().length === 0) {
     return errorResult("`query` must be a non-empty string");
   }
-  if (!API_KEY) {
-    return errorResult(
-      "OCTEN_API_KEY env var is not set. Get a key at https://octen.ai " +
-      "and add it to your MCP client config (see README)."
-    );
+  // When a transport supplies ctx, it is authoritative — no env fallback. The
+  // stdio entry resolves the env key into ctx itself; falling back here would
+  // let an unauthenticated HTTP caller silently ride the deployment's own
+  // credential. The bare fallback exists only for direct in-process callers
+  // (the unit suites) that invoke handlers without a transport.
+  const apiKey = ctx ? ctx.apiKey : API_KEY;
+  if (!apiKey) {
+    return errorResult(missingKeyMessage(ctx));
   }
 
   // `timeout` is an HTTP-client concern, not part of the search payload.
@@ -272,6 +275,7 @@ export async function handleSearch(rawArgs: Record<string, unknown>): Promise<Ca
   let resp: Response;
   try {
     resp = await postJson({
+      apiKey,
       path: "/search",
       body,
       label: "Octen Search",
@@ -317,9 +321,9 @@ export async function handleSearch(rawArgs: Record<string, unknown>): Promise<Ca
 }
 
 /** Handler — news search. Forces `topic=news`, ignoring any caller-supplied topic. */
-export async function handleNewsSearch(rawArgs: Record<string, unknown>): Promise<CallToolResult> {
+export async function handleNewsSearch(rawArgs: Record<string, unknown>, ctx?: HandlerContext): Promise<CallToolResult> {
   const { topic: _ignored, ...rest } = rawArgs ?? {};
-  return handleSearch({ ...rest, topic: "news" });
+  return handleSearch({ ...rest, topic: "news" }, ctx);
 }
 
 /**
@@ -396,17 +400,20 @@ interface BroadSearchArgs extends SearchArgs {
 }
 
 /** Handler — POSTs to Octen Broad Search and reshapes the grouped response. */
-export async function handleBroadSearch(rawArgs: Record<string, unknown>): Promise<CallToolResult> {
+export async function handleBroadSearch(rawArgs: Record<string, unknown>, ctx?: HandlerContext): Promise<CallToolResult> {
   const args = rawArgs as unknown as BroadSearchArgs;
 
   if (typeof args.query !== "string" || args.query.trim().length === 0) {
     return errorResult("`query` must be a non-empty string");
   }
-  if (!API_KEY) {
-    return errorResult(
-      "OCTEN_API_KEY env var is not set. Get a key at https://octen.ai " +
-      "and add it to your MCP client config (see README)."
-    );
+  // When a transport supplies ctx, it is authoritative — no env fallback. The
+  // stdio entry resolves the env key into ctx itself; falling back here would
+  // let an unauthenticated HTTP caller silently ride the deployment's own
+  // credential. The bare fallback exists only for direct in-process callers
+  // (the unit suites) that invoke handlers without a transport.
+  const apiKey = ctx ? ctx.apiKey : API_KEY;
+  if (!apiKey) {
+    return errorResult(missingKeyMessage(ctx));
   }
 
   // `timeout` is an HTTP-client concern; `query` and `max_queries` stay at the
@@ -424,6 +431,7 @@ export async function handleBroadSearch(rawArgs: Record<string, unknown>): Promi
   let resp: Response;
   try {
     resp = await postJson({
+      apiKey,
       path: "/broad-search",
       body,
       label: "Octen Broad Search",

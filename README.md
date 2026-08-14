@@ -139,6 +139,26 @@ For the full decision tree and integration patterns, see [docs/best-practices.md
 - `Fetch these URLs and only summarize the ones whose category is Finance.`
 - `Search site:docs.anthropic.com prompt caching and return only the relevant highlights.`
 
+## Remote HTTP transport (preview)
+
+The same server can run behind a URL instead of being spawned by each client:
+
+```bash
+PORT=8080 npx -y -p octen-mcp octen-mcp-http   # or: octen-mcp-http after a global install
+```
+
+Endpoints: `POST /mcp` (stateless Streamable HTTP) and `GET /healthz`.
+Credentials travel per request — `x-api-key: <key>` or
+`Authorization: Bearer <key>` — and are required only for `tools/call`, so
+clients can connect and list tools before a key is configured. Example:
+
+```bash
+claude mcp add --transport http octen https://your-host/mcp --header "x-api-key: your-key-here"
+```
+
+A hosted endpoint operated by Octen is planned; until then this entry is for
+self-hosting. Design notes: `docs/remote-mcp-feasibility.md`.
+
 ## Environment variables
 
 | Variable | Required | Default | Notes |

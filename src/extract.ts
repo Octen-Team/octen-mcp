@@ -9,7 +9,7 @@
  * None of these are in Firecrawl / Exa / Tavily today.
  */
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
-import { postJson, OctenHttpError } from "./http.js";
+import { postJson, OctenHttpError, missingKeyMessage, type HandlerContext } from "./http.js";
 
 const API_KEY = process.env.OCTEN_API_KEY;
 
@@ -95,17 +95,20 @@ interface ExtractArgs {
 }
 
 /** Handler — POSTs to Octen Extract and reshapes the response for the LLM. */
-export async function handleExtract(rawArgs: Record<string, unknown>): Promise<CallToolResult> {
+export async function handleExtract(rawArgs: Record<string, unknown>, ctx?: HandlerContext): Promise<CallToolResult> {
   const args = rawArgs as unknown as ExtractArgs;
 
   if (!Array.isArray(args.urls) || args.urls.length === 0) {
     return errorResult("`urls` must be a non-empty array of strings");
   }
-  if (!API_KEY) {
-    return errorResult(
-      "OCTEN_API_KEY env var is not set. Get a key at https://octen.ai " +
-      "and add it to your MCP client config (see README)."
-    );
+  // When a transport supplies ctx, it is authoritative — no env fallback. The
+  // stdio entry resolves the env key into ctx itself; falling back here would
+  // let an unauthenticated HTTP caller silently ride the deployment's own
+  // credential. The bare fallback exists only for direct in-process callers
+  // (the unit suites) that invoke handlers without a transport.
+  const apiKey = ctx ? ctx.apiKey : API_KEY;
+  if (!apiKey) {
+    return errorResult(missingKeyMessage(ctx));
   }
 
   // Drop undefined fields so server defaults apply.
@@ -121,6 +124,7 @@ export async function handleExtract(rawArgs: Record<string, unknown>): Promise<C
   let resp: Response;
   try {
     resp = await postJson({
+      apiKey,
       path: "/extract",
       body,
       label: "Octen Extract",

@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Remote HTTP transport (preview)** — `octen-mcp-http` runs the same server
+  over stateless Streamable HTTP, for hosting behind a URL instead of spawning
+  per client. The deployment shape follows Exa's, probed live and recorded in
+  `docs/remote-mcp-feasibility.md`:
+  - `initialize` and `tools/list` are unauthenticated; credentials are enforced
+    at `tools/call`, where a missing key fails with header guidance rather than
+    an opaque handshake refusal;
+  - both `x-api-key: <key>` and `Authorization: Bearer <key>` are accepted —
+    some clients can only send the latter;
+  - one server instance per request, key bound by closure. The environment's
+    `OCTEN_API_KEY` is deliberately **not** a fallback for HTTP callers: an
+    unauthenticated request must fail, not silently ride the deployment's own
+    credential. Guarded by tests including a deterministic staggered-body
+    interleaving case, since the race window for shared-key-state bugs sits
+    inside the body-read await where ordinary concurrent tests cannot land;
+  - `GET /healthz` liveness with no upstream round-trip.
+
+  The stdio entry is unchanged in behavior; both entries now assemble the same
+  server from `src/server.ts`, so the transports cannot drift apart.
+
 ## [0.4.0] — 2026-08-14
 
 Reliability and latency fixes in the HTTP layer. No tool, schema, or parameter

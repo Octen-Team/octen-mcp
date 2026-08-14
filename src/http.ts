@@ -78,23 +78,54 @@ export function debug(msg: string): void {
  * carries no cost.
  */
 let connectCount = 0;
+let connectAttempts = 0;
 let connectStartedAt = 0;
+
+/**
+ * How this request got its socket. Reported on success *and* failure, because
+ * the same error code means different things either side of it: a reused socket
+ * that fails is a stale keep-alive connection (ours to fix), a fresh connect
+ * that fails is the network refusing us (not ours). Distinguishing them needs
+ * both counters — a failed connect never increments `connectCount`, so
+ * comparing that alone reports a connection that was never established as
+ * "reused".
+ */
+function socketKind(attemptsBefore: number, connectsBefore: number): string {
+  if (connectAttempts === attemptsBefore) return "reused";
+  return connectCount > connectsBefore ? "new" : "connect-failed";
+}
 
 if (DEBUG) {
   const dc = await import("node:diagnostics_channel");
   dc.channel("undici:client:beforeConnect").subscribe(() => {
+    connectAttempts++;
     connectStartedAt = Date.now();
   });
   dc.channel("undici:client:connected").subscribe((evt: any) => {
     connectCount++;
-    const origin = evt?.connectParams?.host ?? "?";
-    debug(`connect #${connectCount} established to ${origin} in ${Date.now() - connectStartedAt}ms`);
+    const host = evt?.connectParams?.host ?? "?";
+    const s = evt?.socket;
+    debug(
+      `connect #${connectCount} established to ${host} in ${Date.now() - connectStartedAt}ms` +
+      // The peer address is the field that matters most when the origin is
+      // anycast: api.octen.ai resolves to whichever edge is nearest the
+      // client, so "which edge did this machine actually reach" is not
+      // answerable from the hostname, and an edge-local problem is invisible
+      // without it.
+      (s?.remoteAddress ? ` peer=${s.remoteAddress}:${s.remotePort}` : "") +
+      (s?.getProtocol?.() ? ` tls=${s.getProtocol()}` : "") +
+      (s?.alpnProtocol ? ` alpn=${s.alpnProtocol}` : "")
+    );
   });
   dc.channel("undici:client:connectError").subscribe((evt: any) => {
     const err = evt?.error;
+    const p = evt?.connectParams;
     debug(
       `connect FAILED after ${Date.now() - connectStartedAt}ms ` +
-      `code=${err?.code ?? err?.name ?? "?"} ${err?.message ?? ""}`
+      `code=${err?.code ?? err?.name ?? "?"} ` +
+      `host=${p?.hostname ?? "?"}` +
+      (err?.address ? ` peer=${err.address}${err.port ? ":" + err.port : ""}` : "") +
+      ` ${err?.message ?? ""}`
     );
   });
 }
@@ -285,6 +316,7 @@ export async function postJson(opts: PostJsonOptions): Promise<Response> {
   for (let attempt = 1; attempt <= 2; attempt++) {
     const started = Date.now();
     const connectsBefore = connectCount;
+    const attemptsBefore = connectAttempts;
     try {
       const resp = await fetch(`${API_BASE}${path}`, {
         method: "POST",
@@ -312,7 +344,7 @@ export async function postJson(opts: PostJsonOptions): Promise<Response> {
           `elapsed=${Date.now() - started}ms ` +
           // Whether this call paid for a handshake is the difference between
           // "the service is slow" and "we threw the connection away".
-          `socket=${connectCount > connectsBefore ? "new" : "reused"} ` +
+          `socket=${socketKind(attemptsBefore, connectsBefore)} ` +
           `request_id=${requestId}` +
           (edgeRef ? ` x-azure-ref=${edgeRef}` : "")
         );
@@ -323,7 +355,10 @@ export async function postJson(opts: PostJsonOptions): Promise<Response> {
       const err = e as Error;
 
       if (err.name === "TimeoutError" || err.name === "AbortError") {
-        debug(`${path} attempt=${attempt} TIMEOUT after ${elapsed}ms request_id=${requestId}`);
+        debug(
+          `${path} attempt=${attempt} TIMEOUT after ${elapsed}ms ` +
+          `socket=${socketKind(attemptsBefore, connectsBefore)} request_id=${requestId}`
+        );
         throw new OctenHttpError(
           `${label} timed out after ${effectiveTimeoutSec}s ` +
           `(request_id=${requestId})` +
@@ -339,7 +374,14 @@ export async function postJson(opts: PostJsonOptions): Promise<Response> {
 
       const { code, detail } = describeError(e);
       lastDetail = detail;
-      debug(`${path} attempt=${attempt} FAILED after ${elapsed}ms ${detail} request_id=${requestId}`);
+      debug(
+        // `socket=` on the failure path too, not just on success: a reused
+        // socket that fails is a stale keep-alive connection, a new one that
+        // fails is the network refusing us. Same error code, different owner.
+        `${path} attempt=${attempt} FAILED after ${elapsed}ms ` +
+        `socket=${socketKind(attemptsBefore, connectsBefore)} ` +
+        `${detail} request_id=${requestId}`
+      );
 
       if (attempt === 1 && RETRYABLE_CODES.has(code)) {
         // Only retry if the shared deadline can still accommodate one. Sleeping

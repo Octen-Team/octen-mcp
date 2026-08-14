@@ -15,8 +15,11 @@
  */
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 import { formatMeta, errorResult } from "./search.js";
+import { postJson, OctenHttpError } from "./http.js";
 
-const DEFAULT_API_BASE = process.env.OCTEN_API_URL ?? "https://api.octen.ai";
+/** Client-side ceiling when the caller passes no `timeout`. */
+const IMAGE_SEARCH_TIMEOUT_SEC = 30;
+
 const API_KEY = process.env.OCTEN_API_KEY;
 
 /** Tool advertisement — clients see this in the list-tools response. */
@@ -163,21 +166,16 @@ export async function handleImageSearch(rawArgs: Record<string, unknown>): Promi
 
   let resp: Response;
   try {
-    resp = await fetch(`${DEFAULT_API_BASE}/image-search`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": API_KEY,
-      },
-      body: JSON.stringify(body),
-      signal: timeout ? AbortSignal.timeout(timeout * 1000) : undefined,
+    resp = await postJson({
+      path: "/image-search",
+      body,
+      label: "Octen Image Search",
+      timeoutSec: timeout,
+      defaultTimeoutSec: IMAGE_SEARCH_TIMEOUT_SEC,
     });
   } catch (e) {
-    const err = e as Error;
-    if (err.name === "TimeoutError") {
-      return errorResult(`Octen Image Search timed out after ${timeout}s`);
-    }
-    return errorResult(`Network error calling Octen Image Search: ${err.message}`);
+    if (e instanceof OctenHttpError) return errorResult(e.message);
+    throw e;
   }
 
   // Octen returns the envelope even on errors (code: 401, 429, etc.),

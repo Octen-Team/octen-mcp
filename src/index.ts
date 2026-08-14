@@ -6,6 +6,8 @@
  * The same Server + tool handlers can later be reused under an HTTP/SSE
  * transport without changing the tool definition.
  */
+import { createRequire } from "node:module";
+
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -25,10 +27,16 @@ import {
 import { imageSearchTool, handleImageSearch } from "./imageSearch.js";
 import { videoSearchTool, handleVideoSearch } from "./videoSearch.js";
 
+// Read the version from package.json rather than restating it here — the
+// hardcoded copy silently drifted (0.3.6 while the package shipped as 0.3.7),
+// which made the version a client reported useless for triaging bug reports.
+const require = createRequire(import.meta.url);
+const { version: VERSION } = require("../package.json") as { version: string };
+
 const server = new Server(
   {
     name: "octen-mcp",
-    version: "0.3.6",
+    version: VERSION,
   },
   {
     capabilities: {

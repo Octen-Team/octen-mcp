@@ -1,0 +1,213 @@
+/**
+ * Shared HTTP layer for every Octen API call.
+ *
+ * Node's built-in `fetch` uses undici's *global* dispatcher, whose defaults are
+ * tuned for short-lived scripts, not for a long-running MCP server that fires a
+ * request every few minutes:
+ *
+ *  - `keepAliveTimeout` is 4s, so a socket idle longer than that is closed and
+ *    the next tool call pays a full TCP + TLS handshake again. Measured against
+ *    api.octen.ai: 824ms cold vs 260ms on a warm socket — the handshake is ~68%
+ *    of a call whose server-side latency is ~1ms. Agent tool calls are almost
+ *    always more than 4s apart, so nearly every call paid it.
+ *  - the proxy environment (`HTTPS_PROXY` & co.) is ignored entirely, unlike
+ *    curl / most SDKs, so behind a corporate proxy the server cannot reach the
+ *    API at all while every other tool on the machine can.
+ *  - there is no connect timeout the caller can reason about, and a stalled
+ *    request hangs on undici's 300s `headersTimeout` — which the agent sees as
+ *    a tool call that never returns rather than as an error.
+ *
+ * On top of the dispatcher this module centralises what every call site was
+ * doing by hand (and getting wrong): a default timeout, retrying connection
+ * failures, and — most importantly — reporting `err.cause`. `fetch` rejects
+ * with a bare `TypeError: fetch failed`; the actual reason (ECONNRESET,
+ * UND_ERR_CONNECT_TIMEOUT, ENOTFOUND, …) only exists on `err.cause.code`, and
+ * dropping it is what made support tickets undiagnosable.
+ */
+import { Agent, EnvHttpProxyAgent, type Dispatcher } from "undici";
+import { randomUUID } from "node:crypto";
+
+/** Read a positive-integer env override, falling back when unset/invalid. */
+function envInt(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === "") return fallback;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+}
+
+function envFlag(name: string): boolean {
+  const v = (process.env[name] ?? "").trim().toLowerCase();
+  return v !== "" && !["false", "0", "off", "no"].includes(v);
+}
+
+export const DEBUG = envFlag("OCTEN_MCP_DEBUG");
+
+/**
+ * Debug output MUST go to stderr — stdout carries the MCP protocol framing and
+ * anything written there corrupts the session.
+ */
+function debug(msg: string): void {
+  if (DEBUG) process.stderr.write(`[octen-mcp] ${msg}\n`);
+}
+
+const PROXY_ENV = ["https_proxy", "HTTPS_PROXY", "http_proxy", "HTTP_PROXY"];
+const proxyConfigured = PROXY_ENV.some((k) => (process.env[k] ?? "").trim() !== "");
+
+const agentOptions: Agent.Options = {
+  // Hold idle sockets long enough to span the gap between agent tool calls.
+  // Capped by the server's own `Keep-Alive` hint when it sends one, so raising
+  // this cannot push us past what the origin is willing to keep open.
+  keepAliveTimeout: envInt("OCTEN_KEEP_ALIVE_MS", 240_000),
+  keepAliveMaxTimeout: envInt("OCTEN_KEEP_ALIVE_MAX_MS", 600_000),
+  connectTimeout: envInt("OCTEN_CONNECT_TIMEOUT_MS", 10_000),
+  // HTTP/2 measured no better than 1.1 for this workload (one request in
+  // flight at a time) and is not reliable through every CONNECT proxy, so it
+  // stays opt-in.
+  allowH2: envFlag("OCTEN_HTTP2"),
+};
+
+/**
+ * `EnvHttpProxyAgent` honours HTTP_PROXY / HTTPS_PROXY / NO_PROXY the way the
+ * rest of the ecosystem does; the plain `Agent` avoids its per-request proxy
+ * lookup when no proxy is configured.
+ *
+ * undici prints an "experimental" warning for it on stderr — which only fires
+ * when a proxy is actually configured, and reads as a useful "proxy path is
+ * engaged" signal there. stderr is safe: stdout carries MCP framing, stderr is
+ * the client's log. The `^6` pin keeps the API stable regardless.
+ */
+const dispatcher: Dispatcher = proxyConfigured
+  ? new EnvHttpProxyAgent(agentOptions)
+  : new Agent(agentOptions);
+
+debug(
+  `dispatcher=${proxyConfigured ? "EnvHttpProxyAgent" : "Agent"} ` +
+  `keepAlive=${agentOptions.keepAliveTimeout}ms connect=${agentOptions.connectTimeout}ms ` +
+  `h2=${agentOptions.allowH2}`
+);
+
+/** Connection-level failures: the request never reached the server, so a retry is safe. */
+const RETRYABLE_CODES = new Set([
+  "ECONNRESET",       // idle keep-alive socket reaped by the peer mid-dispatch
+  "ECONNREFUSED",
+  "EPIPE",
+  "ETIMEDOUT",
+  "EAI_AGAIN",        // transient DNS failure
+  "UND_ERR_CONNECT_TIMEOUT",
+  "UND_ERR_SOCKET",
+]);
+
+/** Pull the useful diagnosis out of a `fetch` rejection. */
+function describeError(e: unknown): { code: string; detail: string } {
+  const err = e as (Error & { cause?: any }) | undefined;
+  const cause = err?.cause;
+  // `AggregateError` (happy-eyeballs: every address failed) hides the real
+  // codes one level further down.
+  const sub = Array.isArray(cause?.errors) ? cause.errors[0] : undefined;
+  const code: string = cause?.code ?? sub?.code ?? err?.name ?? "UNKNOWN";
+  const parts = [`code=${code}`];
+  const message = cause?.message ?? err?.message;
+  if (message) parts.push(`cause=${message}`);
+  const address = cause?.address ?? sub?.address;
+  if (address) parts.push(`address=${address}${cause?.port ?? sub?.port ? `:${cause?.port ?? sub?.port}` : ""}`);
+  if (proxyConfigured) parts.push("proxy=env");
+  return { code, detail: parts.join(" ") };
+}
+
+export interface PostJsonOptions {
+  /** API path, e.g. `/search`. */
+  path: string;
+  /** Request body, serialised as JSON. */
+  body: unknown;
+  /** Human-readable API name used in error messages, e.g. `Octen Search`. */
+  label: string;
+  /** Caller-supplied timeout in seconds; falls back to `defaultTimeoutSec`. */
+  timeoutSec?: number;
+  /** Applied when the caller passes no timeout. */
+  defaultTimeoutSec: number;
+}
+
+/** Thrown by {@link postJson}; `message` is already formatted for the LLM. */
+export class OctenHttpError extends Error {}
+
+const API_BASE = process.env.OCTEN_API_URL ?? "https://api.octen.ai";
+
+/**
+ * POST JSON to the Octen API over the tuned dispatcher.
+ *
+ * Resolves with the raw `Response` (callers still read the envelope themselves,
+ * since Octen returns `{code, msg}` bodies on error alongside non-2xx status).
+ * Rejects with an {@link OctenHttpError} whose message names the failure code
+ * and carries the correlation id.
+ */
+export async function postJson(opts: PostJsonOptions): Promise<Response> {
+  const { path, body, label, timeoutSec, defaultTimeoutSec } = opts;
+  const apiKey = process.env.OCTEN_API_KEY!;
+  const effectiveTimeoutSec = timeoutSec ?? defaultTimeoutSec;
+  // One correlation id for the whole logical call, retry included, so a support
+  // ticket maps to every attempt in the server logs.
+  const requestId = randomUUID();
+  const payload = JSON.stringify(body);
+
+  let lastDetail = "";
+  // Two attempts: the second exists for the keep-alive race, where the origin
+  // closes an idle socket at the moment we dispatch on it.
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const started = Date.now();
+    try {
+      const resp = await fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "x-request-id": requestId,
+        },
+        body: payload,
+        signal: AbortSignal.timeout(effectiveTimeoutSec * 1000),
+        // @ts-expect-error — `dispatcher` is an undici extension to RequestInit
+        // that Node honours but the DOM `fetch` types do not declare.
+        dispatcher,
+      });
+      debug(
+        `${path} attempt=${attempt} status=${resp.status} ` +
+        `elapsed=${Date.now() - started}ms request_id=${requestId}`
+      );
+      return resp;
+    } catch (e) {
+      const elapsed = Date.now() - started;
+      const err = e as Error;
+
+      if (err.name === "TimeoutError" || err.name === "AbortError") {
+        debug(`${path} attempt=${attempt} TIMEOUT after ${elapsed}ms request_id=${requestId}`);
+        throw new OctenHttpError(
+          `${label} timed out after ${effectiveTimeoutSec}s ` +
+          `(request_id=${requestId})` +
+          (timeoutSec === undefined
+            ? ` — this is the client default; pass \`timeout\` to change it.`
+            : "")
+        );
+      }
+
+      const { code, detail } = describeError(e);
+      lastDetail = detail;
+      debug(`${path} attempt=${attempt} FAILED after ${elapsed}ms ${detail} request_id=${requestId}`);
+
+      if (attempt === 1 && RETRYABLE_CODES.has(code)) {
+        await new Promise((r) => setTimeout(r, 250));
+        continue;
+      }
+
+      throw new OctenHttpError(
+        `Network error calling ${label}: ${detail} request_id=${requestId}` +
+        (code === "UND_ERR_CONNECT_TIMEOUT" || code === "ECONNREFUSED"
+          ? proxyConfigured
+            ? " — a proxy is configured in the environment and was used; check it allows api.octen.ai."
+            : " — could not establish a connection. If this machine requires an HTTP proxy, set HTTPS_PROXY."
+          : "")
+      );
+    }
+  }
+
+  /* c8 ignore next */
+  throw new OctenHttpError(`Network error calling ${label}: ${lastDetail} request_id=${requestId}`);
+}

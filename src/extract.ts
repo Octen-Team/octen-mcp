@@ -9,9 +9,19 @@
  * None of these are in Firecrawl / Exa / Tavily today.
  */
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
+import { postJson, OctenHttpError } from "./http.js";
 
-const DEFAULT_API_BASE = process.env.OCTEN_API_URL ?? "https://api.octen.ai";
 const API_KEY = process.env.OCTEN_API_KEY;
+
+/**
+ * `timeout` here is the *server-side, per-URL* fetch budget (it travels in the
+ * request body), so it cannot double as the client ceiling: a 20-URL call can
+ * legitimately outlast it. We allow the per-URL budget plus headroom for the
+ * server's own fan-out, bounded so a wedged request still fails eventually.
+ */
+const EXTRACT_SERVER_TIMEOUT_DEFAULT_SEC = 30;
+const EXTRACT_CLIENT_HEADROOM_SEC = 90;
+const EXTRACT_CLIENT_TIMEOUT_CAP_SEC = 180;
 
 /** Tool advertisement — clients see this in the list-tools response. */
 export const extractTool: Tool = {
@@ -109,16 +119,18 @@ export async function handleExtract(rawArgs: Record<string, unknown>): Promise<C
 
   let resp: Response;
   try {
-    resp = await fetch(`${DEFAULT_API_BASE}/extract`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": API_KEY,
-      },
-      body: JSON.stringify(body),
+    resp = await postJson({
+      path: "/extract",
+      body,
+      label: "Octen Extract",
+      defaultTimeoutSec: Math.min(
+        EXTRACT_CLIENT_TIMEOUT_CAP_SEC,
+        (args.timeout ?? EXTRACT_SERVER_TIMEOUT_DEFAULT_SEC) + EXTRACT_CLIENT_HEADROOM_SEC
+      ),
     });
   } catch (e) {
-    return errorResult(`Network error calling Octen Extract: ${(e as Error).message}`);
+    if (e instanceof OctenHttpError) return errorResult(e.message);
+    throw e;
   }
 
   // Octen returns the envelope even on errors (code: 401, 429, etc.),

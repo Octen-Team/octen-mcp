@@ -13,9 +13,18 @@
  * note `meta` sits at the TOP level here (sibling of `data`), not under `data`.
  */
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
+import { postJson, OctenHttpError } from "./http.js";
 
-const DEFAULT_API_BASE = process.env.OCTEN_API_URL ?? "https://api.octen.ai";
 const API_KEY = process.env.OCTEN_API_KEY;
+
+/**
+ * Client-side ceilings applied when the caller passes no `timeout`. Before
+ * 0.3.8 an omitted `timeout` meant *no* AbortSignal at all, so a stalled
+ * request sat on undici's 300s `headersTimeout` and the agent simply hung.
+ * Broad search fans out server-side, so it gets the longer budget.
+ */
+const SEARCH_TIMEOUT_SEC = 30;
+const BROAD_SEARCH_TIMEOUT_SEC = 60;
 
 /** Tool advertisement — clients see this in the list-tools response. */
 export const searchTool: Tool = {
@@ -252,21 +261,16 @@ export async function handleSearch(rawArgs: Record<string, unknown>): Promise<Ca
 
   let resp: Response;
   try {
-    resp = await fetch(`${DEFAULT_API_BASE}/search`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": API_KEY,
-      },
-      body: JSON.stringify(body),
-      signal: timeout ? AbortSignal.timeout(timeout * 1000) : undefined,
+    resp = await postJson({
+      path: "/search",
+      body,
+      label: "Octen Search",
+      timeoutSec: timeout,
+      defaultTimeoutSec: SEARCH_TIMEOUT_SEC,
     });
   } catch (e) {
-    const err = e as Error;
-    if (err.name === "TimeoutError") {
-      return errorResult(`Octen Search timed out after ${timeout}s`);
-    }
-    return errorResult(`Network error calling Octen Search: ${err.message}`);
+    if (e instanceof OctenHttpError) return errorResult(e.message);
+    throw e;
   }
 
   // Octen returns the envelope even on errors (code: 401, 429, etc.),
@@ -407,21 +411,16 @@ export async function handleBroadSearch(rawArgs: Record<string, unknown>): Promi
 
   let resp: Response;
   try {
-    resp = await fetch(`${DEFAULT_API_BASE}/broad-search`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": API_KEY,
-      },
-      body: JSON.stringify(body),
-      signal: timeout ? AbortSignal.timeout(timeout * 1000) : undefined,
+    resp = await postJson({
+      path: "/broad-search",
+      body,
+      label: "Octen Broad Search",
+      timeoutSec: timeout,
+      defaultTimeoutSec: BROAD_SEARCH_TIMEOUT_SEC,
     });
   } catch (e) {
-    const err = e as Error;
-    if (err.name === "TimeoutError") {
-      return errorResult(`Octen Broad Search timed out after ${timeout}s`);
-    }
-    return errorResult(`Network error calling Octen Broad Search: ${err.message}`);
+    if (e instanceof OctenHttpError) return errorResult(e.message);
+    throw e;
   }
 
   let data: any;

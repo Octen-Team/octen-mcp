@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.8] — 2026-08-14
+
+Reliability and latency fixes in the HTTP layer. No tool, schema, or parameter
+changes — every tool behaves the same, it just gets there faster and says what
+went wrong when it doesn't.
+
+### Fixed
+- **Network failures are now diagnosable.** `fetch` rejects with a bare
+  `TypeError: fetch failed`; the actual reason lives on `err.cause`, which every
+  call site discarded. Errors now report `cause.code` (`ECONNRESET`,
+  `UND_ERR_CONNECT_TIMEOUT`, `ENOTFOUND`, …), the peer address, and a
+  correlation id, and unwrap `AggregateError` when every address failed. Support
+  tickets previously carried no information beyond "fetch failed".
+- **Every request has a timeout.** `timeout` was only honoured when the caller
+  passed it explicitly — otherwise no `AbortSignal` was attached at all and a
+  stalled request sat on undici's 300s `headersTimeout`, which an agent sees as
+  a tool call that never returns. Defaults: 30s for `search` / `news_search` /
+  `image_search` / `video_search`, 60s for `broad_search`. `extract` had no
+  client timeout whatsoever; its `timeout` is the server-side per-URL budget, so
+  the client ceiling is now derived from it with headroom.
+- **Connections are reused between tool calls.** The server used undici's global
+  dispatcher, whose `keepAliveTimeout` is 4s — longer than that idle and the
+  socket is closed, so the next tool call re-pays TCP + TLS. Agent tool calls are
+  almost always more than 4s apart, so nearly every call paid it. Measured
+  against `api.octen.ai`: four calls spanning 16s of idle opened **3 connections
+  at 785ms each**; they now open **1**, and calls after the first settle at
+  **~270ms** against a server-side latency of ~1ms.
+- `src/index.ts` reported version `0.3.6` while the package shipped as `0.3.7`,
+  making the version a client reports useless for triage. It is now read from
+  `package.json`.
+
+### Added
+- `HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY` support. Node's built-in `fetch`
+  ignores proxy environment variables, unlike curl and most SDKs, so behind a
+  corporate proxy the server could not reach the API at all while every other
+  tool on the machine could.
+- One retry with backoff on connection-level failures (`ECONNRESET`,
+  `UND_ERR_CONNECT_TIMEOUT`, …), which also covers the keep-alive race where the
+  origin closes an idle socket exactly as we dispatch on it. The request never
+  reached the server, so the retry is safe. Permanent failures are not retried.
+- An `x-request-id` correlation id per logical call, stable across the retry and
+  echoed in error messages. Octen's own `request_id` is generated server-side
+  and only comes back on success, so a failed call previously had no identifier
+  at all; this one at least ties a user's error message to the retry attempts in
+  its debug output. Server-side lookup by this header is *not* available yet —
+  the API does not record it — so it does not currently let a failed request be
+  found in Octen's logs.
+- `OCTEN_MCP_DEBUG=1` — per-request timing, status, retry and correlation id on
+  **stderr** (stdout carries MCP protocol framing).
+- Tunables: `OCTEN_KEEP_ALIVE_MS`, `OCTEN_CONNECT_TIMEOUT_MS`, `OCTEN_HTTP2`.
+  HTTP/2 is off by default: it measured no faster for the usual
+  one-request-at-a-time pattern and is not reliable through every CONNECT proxy.
+
+### Changed
+- New runtime dependency on `undici` (^6), required to configure a dispatcher —
+  Node exposes no core API for it. This is the same implementation that backs
+  Node's built-in `fetch`.
+- `engines.node` tightened from `>=18` to `>=18.17` to match undici 6.
+
 ## [0.3.7] — 2026-07-30
 
 ### Changed

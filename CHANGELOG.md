@@ -49,6 +49,12 @@ that should arrive silently via `~0.3.x`.
   ignores proxy environment variables, unlike curl and most SDKs, so behind a
   corporate proxy the server could not reach the API at all while every other
   tool on the machine could.
+
+  Note for MCP clients generally, and Claude Desktop specifically: the server
+  does not inherit your shell environment. Claude Desktop passes `HOME`,
+  `LOGNAME`, `PATH`, `SHELL` and `USER` plus the config's `env` block, and
+  nothing else — so a system-wide proxy is *not* picked up automatically and has
+  to be named in `env` like the API key. The README shows the config.
 - One retry with backoff on connection-level failures (`ECONNRESET`,
   `UND_ERR_CONNECT_TIMEOUT`, …), covering in particular the keep-alive race
   where the origin reaps an idle socket exactly as we dispatch on it — which

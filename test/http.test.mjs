@@ -164,3 +164,35 @@ test("requests go through the tuned dispatcher, not undici's 4s-keepalive global
   await handleSearch({ query: "hi" });
   assert.ok(attempts[0].init.dispatcher, "no dispatcher — every call more than 4s apart re-pays the TLS handshake");
 });
+
+test("broad_search does not advise raising a `timeout` already at its schema max", async () => {
+  scriptFetch([Object.assign(new Error("aborted"), { name: "TimeoutError" })]);
+  const out = await handleBroadSearch({ query: "hi" });
+  assert.match(textOf(out), /timed out after 60s/);
+  assert.doesNotMatch(textOf(out), /raise this ceiling/,
+    "60s is already the schema maximum — telling an agent to raise it is unactionable advice");
+});
+
+test("extract advises raising `timeout` only while it is below its own max", async () => {
+  scriptFetch([Object.assign(new Error("aborted"), { name: "TimeoutError" })]);
+  const raisable = textOf(await handleExtract({ urls: ["https://e.com"], timeout: 30 }));
+  assert.match(raisable, /raise this ceiling/);
+
+  scriptFetch([Object.assign(new Error("aborted"), { name: "TimeoutError" })]);
+  const maxed = textOf(await handleExtract({ urls: ["https://e.com"], timeout: 60 }));
+  assert.doesNotMatch(maxed, /raise this ceiling/, "timeout=60 is the schema max; cannot be raised");
+});
+
+test("no retry when the remaining budget cannot fit one", async () => {
+  // `timeout: 1` — attempt 1 burns most of it, so retrying would abort instantly
+  // and replace a real ECONNRESET diagnosis with a generic timeout.
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls++;
+    await new Promise((r) => setTimeout(r, 900));
+    throw fetchFailed(Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" }));
+  };
+  const out = await handleSearch({ query: "hi", timeout: 1 });
+  assert.equal(calls, 1, "retried into a budget that could not fit it");
+  assert.match(textOf(out), /ECONNRESET/, "lost the specific diagnosis to a generic timeout");
+});

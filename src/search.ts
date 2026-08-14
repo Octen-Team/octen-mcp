@@ -417,6 +417,8 @@ export async function handleBroadSearch(rawArgs: Record<string, unknown>): Promi
       label: "Octen Broad Search",
       timeoutSec: timeout,
       defaultTimeoutSec: BROAD_SEARCH_TIMEOUT_SEC,
+      // The 60s default is already the schema maximum for `timeout`.
+      canRaiseTimeout: false,
     });
   } catch (e) {
     if (e instanceof OctenHttpError) return errorResult(e.message);

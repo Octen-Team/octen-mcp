@@ -81,8 +81,12 @@ that should arrive silently via `~0.3.x`.
 - **`engines.node` tightened from `>=18` to `>=18.17`** to match undici 6.
   Installs on Node 18.0–18.16 will now fail rather than silently misbehave.
 - New runtime dependency on `undici` (^6), required to configure a dispatcher —
-  Node exposes no core API for it. This is the same implementation that backs
-  Node's built-in `fetch`.
+  Node exposes no core API for it. It is the same project that Node bundles for
+  `fetch`, though not necessarily the same major version: Node 18 ships undici 5
+  and Node 24 ships undici 7 internally. Passing a `dispatcher` built by one
+  major to a `fetch` implemented by another is a supported-in-practice but
+  unguaranteed combination, so the pin is deliberate and worth revisiting when
+  the Node floor moves.
 
 ### Notes
 - The timeout is a deadline for the whole call, not per attempt: the retry

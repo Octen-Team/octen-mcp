@@ -20,6 +20,7 @@ const API_KEY = process.env.OCTEN_API_KEY;
  * server's own fan-out, bounded so a wedged request still fails eventually.
  */
 const EXTRACT_SERVER_TIMEOUT_DEFAULT_SEC = 30;
+const EXTRACT_TIMEOUT_MAX_SEC = 60;   // schema maximum for `timeout`
 const EXTRACT_CLIENT_HEADROOM_SEC = 90;
 const EXTRACT_CLIENT_TIMEOUT_CAP_SEC = 180;
 
@@ -127,6 +128,9 @@ export async function handleExtract(rawArgs: Record<string, unknown>): Promise<C
         EXTRACT_CLIENT_TIMEOUT_CAP_SEC,
         (args.timeout ?? EXTRACT_SERVER_TIMEOUT_DEFAULT_SEC) + EXTRACT_CLIENT_HEADROOM_SEC
       ),
+      // The ceiling derives from the per-URL budget, so raising `timeout` does
+      // raise it — but only while `timeout` is below its own schema maximum.
+      canRaiseTimeout: (args.timeout ?? EXTRACT_SERVER_TIMEOUT_DEFAULT_SEC) < EXTRACT_TIMEOUT_MAX_SEC,
     });
   } catch (e) {
     if (e instanceof OctenHttpError) return errorResult(e.message);

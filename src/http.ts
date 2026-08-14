@@ -76,18 +76,50 @@ const agentOptions: Agent.Options = {
 };
 
 /**
+ * curl accepts a proxy without a scheme (`proxy.corp:8080`) and so do most
+ * corporate setups' muscle memory; undici requires one and throws without it.
+ */
+function normalizeProxy(raw: string | undefined): string | undefined {
+  const v = (raw ?? "").trim();
+  if (!v) return undefined;
+  return /^[a-z0-9+.-]+:\/\//i.test(v) ? v : `http://${v}`;
+}
+
+/**
  * `EnvHttpProxyAgent` honours HTTP_PROXY / HTTPS_PROXY / NO_PROXY the way the
  * rest of the ecosystem does; the plain `Agent` avoids its per-request proxy
  * lookup when no proxy is configured.
  *
- * undici prints an "experimental" warning for it on stderr — which only fires
- * when a proxy is actually configured, and reads as a useful "proxy path is
- * engaged" signal there. stderr is safe: stdout carries MCP framing, stderr is
- * the client's log. The `^6` pin keeps the API stable regardless.
+ * Construction is guarded because it happens at module load: undici rejects a
+ * proxy URL it cannot parse — a `socks5://` proxy, say — by throwing
+ * synchronously, and an uncaught throw here would take the whole server down at
+ * startup, killing all six tools over a variable that 0.3.7 simply ignored. A
+ * misconfigured proxy must degrade to "this one feature is unavailable", never
+ * to "the server does not start".
+ *
+ * undici prints an "experimental" warning for the proxy agent on stderr — which
+ * only fires when a proxy is actually configured, and reads as a useful "proxy
+ * path is engaged" signal there. stderr is safe: stdout carries MCP framing.
  */
-const dispatcher: Dispatcher = proxyConfigured
-  ? new EnvHttpProxyAgent(agentOptions)
-  : new Agent(agentOptions);
+function buildDispatcher(): Dispatcher {
+  if (!proxyConfigured) return new Agent(agentOptions);
+  try {
+    return new EnvHttpProxyAgent({
+      ...agentOptions,
+      httpProxy: normalizeProxy(process.env.http_proxy ?? process.env.HTTP_PROXY),
+      httpsProxy: normalizeProxy(process.env.https_proxy ?? process.env.HTTPS_PROXY),
+      noProxy: process.env.no_proxy ?? process.env.NO_PROXY,
+    });
+  } catch (e) {
+    process.stderr.write(
+      `[octen-mcp] proxy environment is set but unusable (${(e as Error).message}); ` +
+      `continuing with direct connections. Supported: http:// and https:// proxies.\n`
+    );
+    return new Agent(agentOptions);
+  }
+}
+
+const dispatcher: Dispatcher = buildDispatcher();
 
 debug(
   `dispatcher=${proxyConfigured ? "EnvHttpProxyAgent" : "Agent"} ` +
@@ -116,6 +148,10 @@ debug(
  * But it is a duplicate *billed* call, and for `broad_search` that means its
  * whole server-side fan-out runs twice. Set `OCTEN_RETRY=off` to disable.
  */
+const RETRY_BACKOFF_MS = 250;
+/** Below this much remaining budget, a second connection attempt is pointless. */
+const MIN_RETRY_BUDGET_MS = 1_000;
+
 const RETRYABLE_PRE_SEND = ["ECONNREFUSED", "EAI_AGAIN", "UND_ERR_CONNECT_TIMEOUT"];
 const RETRYABLE_AMBIGUOUS = ["ECONNRESET", "EPIPE", "ETIMEDOUT", "UND_ERR_SOCKET"];
 const RETRYABLE_CODES = new Set(
@@ -152,6 +188,13 @@ export interface PostJsonOptions {
   timeoutSec?: number;
   /** Applied when the caller passes no timeout. */
   defaultTimeoutSec: number;
+  /**
+   * Whether raising `timeout` would actually buy more headroom. False when the
+   * effective value already sits at the schema maximum — `broad_search`
+   * defaults to 60s and cannot go higher — so we don't advise an agent to turn
+   * a knob that is already at its stop.
+   */
+  canRaiseTimeout?: boolean;
 }
 
 /** Thrown by {@link postJson}; `message` is already formatted for the LLM. */
@@ -168,7 +211,7 @@ const API_BASE = process.env.OCTEN_API_URL ?? "https://api.octen.ai";
  * and carries the correlation id.
  */
 export async function postJson(opts: PostJsonOptions): Promise<Response> {
-  const { path, body, label, timeoutSec, defaultTimeoutSec } = opts;
+  const { path, body, label, timeoutSec, defaultTimeoutSec, canRaiseTimeout = true } = opts;
   const apiKey = process.env.OCTEN_API_KEY!;
   const effectiveTimeoutSec = timeoutSec ?? defaultTimeoutSec;
   // One correlation id for the whole logical call, retry included, so a support
@@ -183,6 +226,7 @@ export async function postJson(opts: PostJsonOptions): Promise<Response> {
   // higher threshold, the "tool call that never returns" this module exists to
   // prevent.
   const deadline = AbortSignal.timeout(effectiveTimeoutSec * 1000);
+  const callStarted = Date.now();
 
   // Two attempts: the second exists for the keep-alive race, where the origin
   // closes an idle socket at the moment we dispatch on it.
@@ -220,7 +264,9 @@ export async function postJson(opts: PostJsonOptions): Promise<Response> {
           // ceiling is derived from the caller's own per-URL `timeout`, so
           // calling it a default would be false. Raising `timeout` raises the
           // ceiling in both cases, which is the actionable part.
-          (timeoutSec === undefined ? " — pass `timeout` to raise this ceiling." : "")
+          (timeoutSec === undefined && canRaiseTimeout
+            ? " — pass `timeout` to raise this ceiling."
+            : "")
         );
       }
 
@@ -229,8 +275,17 @@ export async function postJson(opts: PostJsonOptions): Promise<Response> {
       debug(`${path} attempt=${attempt} FAILED after ${elapsed}ms ${detail} request_id=${requestId}`);
 
       if (attempt === 1 && RETRYABLE_CODES.has(code)) {
-        await new Promise((r) => setTimeout(r, 250));
-        continue;
+        // Only retry if the shared deadline can still accommodate one. Sleeping
+        // into an already-expired budget would abort the second attempt
+        // instantly and report a generic timeout in place of the specific
+        // network diagnosis we already have — strictly worse information about
+        // the same failure. `timeout` may be as low as 1s.
+        const remaining = effectiveTimeoutSec * 1000 - (Date.now() - callStarted);
+        if (remaining > RETRY_BACKOFF_MS + MIN_RETRY_BUDGET_MS) {
+          await new Promise((r) => setTimeout(r, RETRY_BACKOFF_MS));
+          continue;
+        }
+        debug(`${path} not retrying: only ${remaining}ms of budget left request_id=${requestId}`);
       }
 
       throw new OctenHttpError(

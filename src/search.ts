@@ -19,7 +19,7 @@ const API_KEY = process.env.OCTEN_API_KEY;
 
 /**
  * Client-side ceilings applied when the caller passes no `timeout`. Before
- * 0.3.8 an omitted `timeout` meant *no* AbortSignal at all, so a stalled
+ * 0.4.0 an omitted `timeout` meant *no* AbortSignal at all, so a stalled
  * request sat on undici's 300s `headersTimeout` and the agent simply hung.
  * Broad search fans out server-side, so it gets the longer budget.
  */

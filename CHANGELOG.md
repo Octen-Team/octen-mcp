@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.8] — 2026-08-14
+## [0.4.0] — 2026-08-14
 
 Reliability and latency fixes in the HTTP layer. No tool, schema, or parameter
 changes — every tool behaves the same, it just gets there faster and says what
 went wrong when it doesn't.
+
+Released as a minor rather than a patch, because three things change underneath
+a caller who upgrades without reading: the minimum Node version rises (an
+install failure on 18.0–18.16), a runtime dependency appears, and requests that
+previously ran untimed and un-retried now do both — a retry costs quota. None of
+that should arrive silently via `~0.3.x`.
 
 ### Fixed
 - **Network failures are now diagnosable.** `fetch` rejects with a bare
@@ -71,16 +77,16 @@ went wrong when it doesn't.
   default: it measured no faster for the usual one-request-at-a-time pattern
   and is not reliable through every CONNECT proxy.
 
-### Notes
-
-- The timeout is a deadline for the whole call, not per attempt: the retry
-  draws down the same budget, so a 30s timeout cannot become 60s.
-
 ### Changed
+- **`engines.node` tightened from `>=18` to `>=18.17`** to match undici 6.
+  Installs on Node 18.0–18.16 will now fail rather than silently misbehave.
 - New runtime dependency on `undici` (^6), required to configure a dispatcher —
   Node exposes no core API for it. This is the same implementation that backs
   Node's built-in `fetch`.
-- `engines.node` tightened from `>=18` to `>=18.17` to match undici 6.
+
+### Notes
+- The timeout is a deadline for the whole call, not per attempt: the retry
+  draws down the same budget, so a 30s timeout cannot become 60s.
 
 ## [0.3.7] — 2026-07-30
 

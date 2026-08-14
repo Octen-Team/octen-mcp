@@ -146,7 +146,7 @@ For the full decision tree and integration patterns, see [docs/best-practices.md
 | `OCTEN_API_KEY` | yes | — | |
 | `OCTEN_API_URL` | no | `https://api.octen.ai` | |
 | `OCTEN_ENABLE_BETA_TOOLS` | no | on | Set to `false`/`0`/`off`/`no` to hide the Beta `image_search` / `video_search` tools from discovery. |
-| `HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY` | no | — | Honoured since 0.3.8. Node's built-in `fetch` ignores these by default, so before 0.3.8 the server could not reach the API from behind a proxy even when every other tool on the machine could. |
+| `HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY` | no | — | Honoured since 0.4.0. Node's built-in `fetch` ignores these by default, so before 0.4.0 the server could not reach the API from behind a proxy even when every other tool on the machine could. |
 | `OCTEN_KEEP_ALIVE_MS` | no | `240000` | How long an idle connection is kept for reuse. The default spans the gap between agent tool calls; undici's own default of 4s meant nearly every call re-paid a full TLS handshake (~515ms measured). |
 | `OCTEN_KEEP_ALIVE_MAX_MS` | no | `600000` | Upper bound on the above when the origin advertises its own `Keep-Alive` hint. |
 | `OCTEN_CONNECT_TIMEOUT_MS` | no | `10000` | Ceiling on **establishing the outbound connection to `api.octen.ai`** — unrelated to the MCP client's own startup connect timeout mentioned above. Lower it (e.g. `5000`) on a path where connections fail intermittently, so the automatic retry engages sooner. |

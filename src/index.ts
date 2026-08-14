@@ -6,6 +6,8 @@
  * The same Server + tool handlers can later be reused under an HTTP/SSE
  * transport without changing the tool definition.
  */
+import { createRequire } from "node:module";
+
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -24,11 +26,18 @@ import {
 } from "./search.js";
 import { imageSearchTool, handleImageSearch } from "./imageSearch.js";
 import { videoSearchTool, handleVideoSearch } from "./videoSearch.js";
+import { debug } from "./http.js";
+
+// Read the version from package.json rather than restating it here — the
+// hardcoded copy silently drifted (0.3.6 while the package shipped as 0.3.7),
+// which made the version a client reported useless for triaging bug reports.
+const require = createRequire(import.meta.url);
+const { version: VERSION } = require("../package.json") as { version: string };
 
 const server = new Server(
   {
     name: "octen-mcp",
-    version: "0.3.6",
+    version: VERSION,
   },
   {
     capabilities: {
@@ -59,39 +68,66 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 }));
 
 // 2. Dispatch tool calls.
+let callSeq = 0;
+
 server.setRequestHandler(CallToolRequestSchema, async (req) => {
   const { name, arguments: args } = req.params;
 
-  if (!BETA_TOOLS_ENABLED && BETA_TOOL_NAMES.has(name)) {
-    return {
-      isError: true,
-      content: [
-        { type: "text", text: `Tool "${name}" is disabled: Beta tools are turned off via OCTEN_ENABLE_BETA_TOOLS.` },
-      ],
-    };
-  }
+  // Stamp the moment the call reached this process, before any of our work.
+  //
+  // This is the measurement that settles who owns a slow call. Subtract this
+  // timestamp from the one the MCP client recorded when it issued the tool
+  // call, and the difference is time spent entirely outside octen-mcp — in the
+  // host, or in whatever relays between them. Without it, a client-side stopwatch
+  // attributes that delay to us by default, because we are the last thing in
+  // the chain that reports anything at all.
+  const seq = ++callSeq;
+  const receivedAt = Date.now();
+  debug(`call #${seq} received tool=${name}`);
 
-  switch (name) {
-    case "search":
-      return await handleSearch(args ?? {});
-    case "news_search":
-      return await handleNewsSearch(args ?? {});
-    case "broad_search":
-      return await handleBroadSearch(args ?? {});
-    case "extract":
-      return await handleExtract(args ?? {});
-    case "image_search":
-      return await handleImageSearch(args ?? {});
-    case "video_search":
-      return await handleVideoSearch(args ?? {});
-    default:
-      // MCP convention: return an error result, don't throw.
+  // In a `finally`, not around each return: the beta-disabled and unknown-tool
+  // branches return without touching the switch, and a handler that throws
+  // (anything not an OctenHttpError is deliberately rethrown) skipped it
+  // entirely. Each of those logged "received" and never "returning", so
+  // scanning the trace for calls that never came back — the reason the pair
+  // exists — produced false hangs.
+  const finish = () =>
+    debug(`call #${seq} returning tool=${name} handler_total=${Date.now() - receivedAt}ms`);
+
+  try {
+    if (!BETA_TOOLS_ENABLED && BETA_TOOL_NAMES.has(name)) {
       return {
         isError: true,
         content: [
-          { type: "text", text: `Unknown tool: ${name}` },
+          { type: "text", text: `Tool "${name}" is disabled: Beta tools are turned off via OCTEN_ENABLE_BETA_TOOLS.` },
         ],
       };
+    }
+
+    switch (name) {
+      case "search":
+        return await handleSearch(args ?? {});
+      case "news_search":
+        return await handleNewsSearch(args ?? {});
+      case "broad_search":
+        return await handleBroadSearch(args ?? {});
+      case "extract":
+        return await handleExtract(args ?? {});
+      case "image_search":
+        return await handleImageSearch(args ?? {});
+      case "video_search":
+        return await handleVideoSearch(args ?? {});
+      default:
+        // MCP convention: return an error result, don't throw.
+        return {
+          isError: true,
+          content: [
+            { type: "text", text: `Unknown tool: ${name}` },
+          ],
+        };
+    }
+  } finally {
+    finish();
   }
 });
 
@@ -101,7 +137,7 @@ async function main() {
   await server.connect(transport);
   // Note: do NOT console.log to stdout here — stdout is the MCP wire.
   // Use console.error for any startup logging.
-  console.error("[octen-mcp] server started, listening on stdio");
+  console.error(`[octen-mcp] v${VERSION} started, listening on stdio`);
 }
 
 main().catch((err) => {

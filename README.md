@@ -141,10 +141,102 @@ For the full decision tree and integration patterns, see [docs/best-practices.md
 
 ## Environment variables
 
-| Variable | Required | Default |
-|---|---|---|
-| `OCTEN_API_KEY` | yes | — |
-| `OCTEN_API_URL` | no | `https://api.octen.ai` |
+| Variable | Required | Default | Notes |
+|---|---|---|---|
+| `OCTEN_API_KEY` | yes | — | |
+| `OCTEN_API_URL` | no | `https://api.octen.ai` | |
+| `OCTEN_ENABLE_BETA_TOOLS` | no | on | Set to `false`/`0`/`off`/`no` to hide the Beta `image_search` / `video_search` tools from discovery. |
+| `HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY` | no | — | Honoured since 0.4.0. Node's built-in `fetch` ignores these by default, so before 0.4.0 the server could not reach the API from behind a proxy even when every other tool on the machine could. **Set them explicitly in your client config** — see below; most MCP clients do not pass your shell environment through. |
+| `OCTEN_KEEP_ALIVE_MS` | no | `60000` | How long an idle connection is kept for reuse. undici's own default of 4s meant nearly every call re-paid a full TLS handshake (~515ms measured). 60s is measured against `api.octen.ai`, which closes idle connections between 60s and 90s — staying under that means we always release first, instead of dispatching onto a socket the origin has already closed. Re-measure if you point `OCTEN_API_URL` elsewhere. |
+| `OCTEN_KEEP_ALIVE_MAX_MS` | no | `600000` | Upper bound on the above when the origin advertises its own `Keep-Alive` hint. `api.octen.ai` does not send one. |
+| `OCTEN_CONNECT_TIMEOUT_MS` | no | `10000` | Ceiling on **establishing the outbound connection to `api.octen.ai`** — unrelated to the MCP client's own startup connect timeout mentioned above. Lower it (e.g. `5000`) on a path where connections fail intermittently, so the automatic retry engages sooner. |
+| `OCTEN_RETRY` | no | on | Set to `false`/`0`/`off`/`no` to disable the single automatic retry on connection-level failures. Retries cost quota when the original request had in fact reached the server. |
+| `OCTEN_HTTP2` | no | off | Opt into HTTP/2. Measured no faster for the usual one-request-at-a-time pattern, and not reliable through every CONNECT proxy — worth trying if you issue many tool calls in parallel. |
+| `OCTEN_MCP_DEBUG` | no | off | Request tracing on **stderr** (stdout carries MCP framing). See below. |
+
+### Setting these in Claude Desktop (and where the logs go)
+
+MCP servers do not inherit your shell environment. Claude Desktop spawns them
+with `HOME`, `LOGNAME`, `PATH`, `SHELL` and `USER` — and nothing else except what
+you put in the server's `env` block. **A proxy configured system-wide will not be
+picked up**; it has to be named explicitly, alongside the API key:
+
+```json
+{
+  "mcpServers": {
+    "octen": {
+      "command": "npx",
+      "args": ["-y", "octen-mcp"],
+      "env": {
+        "OCTEN_API_KEY": "your-key-here",
+        "HTTPS_PROXY": "http://proxy.example:8080"
+      }
+    }
+  }
+}
+```
+
+Restart Claude Desktop after editing the config — it reads it at launch.
+
+Server output lands in:
+
+- **macOS**: `~/Library/Logs/Claude/mcp-server-octen.log`
+- **Windows**: `%APPDATA%\Claude\logs\mcp-server-octen.log`
+
+Everything the server writes to stderr, including the tracing below, goes there.
+
+### Diagnosing a slow or failing call
+
+Add `"OCTEN_MCP_DEBUG": "1"` to the `env` block above while you are investigating,
+and **take it out afterwards** — the client appends this to a log file that is
+never rotated, so leaving it on grows that file for the life of the install.
+
+With it on, every call is traced to stderr:
+
+```
+[octen-mcp 2026-08-14T04:36:36.219Z] call #1 received tool=search
+[octen-mcp 2026-08-14T04:36:36.637Z] connect #1 established to api.octen.ai in 410ms
+[octen-mcp 2026-08-14T04:36:37.155Z] /search attempt=1 status=200 elapsed=935ms socket=new request_id=42cd56a5-… x-azure-ref=20260814T043636Z-16d98fb8cd8…
+[octen-mcp 2026-08-14T04:36:37.157Z] call #1 returning tool=search handler_total=938ms
+```
+
+Each field answers a specific question:
+
+- **`call #N received` timestamp** — when the call reached this process. Subtract it
+  from the time your MCP client issued the tool call: the difference is time spent
+  entirely outside `octen-mcp`, in the host or in whatever relays between them. A
+  client-side stopwatch alone cannot separate that from time we are responsible for.
+- **`connect … established in Xms`** — a handshake happened, and what it cost.
+  `connect FAILED` names the phase and error code instead.
+- **`socket=new` / `socket=reused`** — whether this call paid for a handshake. This
+  is the difference between "the service is slow" and "the connection was thrown
+  away between calls".
+- **`elapsed`** vs **`handler_total`** — time in the HTTP request vs time in the tool
+  handler. A large gap means the cost is in request assembly or response formatting,
+  not the network.
+- **`x-azure-ref`** — stamped by the edge on every request that reaches it, and
+  already present in Octen's own logs. Quote it in a support report. Its *absence*
+  on a failure is itself informative: the request never arrived.
+- **`request_id`** — our client-generated correlation id, stable across the retry.
+
+Failures name the cause rather than `fetch failed`:
+
+```
+Network error calling Octen Search: code=ECONNREFUSED cause=connect ECONNREFUSED 203.0.113.9:443
+address=203.0.113.9:443 request_id=d6ad2a98-… — could not establish a connection.
+If this machine requires an HTTP proxy, set HTTPS_PROXY.
+```
+
+`UND_ERR_CONNECT_TIMEOUT` means the connection was never established, `ECONNRESET`
+means it was established and then torn down, and `ENOTFOUND` means DNS — three
+different problems with three different owners.
+
+Request timeouts: `search` and the media tools default to 30s, `broad_search` to 60s,
+and `extract` to its per-URL budget plus headroom. The search tools accept a
+`timeout` parameter to override; `extract`'s `timeout` is the *server-side,
+per-URL* fetch budget, so the client ceiling is derived from it rather than
+equal to it. The automatic retry draws down the same deadline as the first
+attempt, so the stated timeout bounds the whole call, retry included.
 
 ## Local development
 

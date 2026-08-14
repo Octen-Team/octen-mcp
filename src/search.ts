@@ -13,9 +13,28 @@
  * note `meta` sits at the TOP level here (sibling of `data`), not under `data`.
  */
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
+import { postJson, OctenHttpError } from "./http.js";
 
-const DEFAULT_API_BASE = process.env.OCTEN_API_URL ?? "https://api.octen.ai";
 const API_KEY = process.env.OCTEN_API_KEY;
+
+/**
+ * Client-side ceilings applied when the caller passes no `timeout`. Before
+ * 0.4.0 an omitted `timeout` meant *no* AbortSignal at all, so a stalled
+ * request sat on undici's 300s `headersTimeout` and the agent simply hung.
+ * Broad search fans out server-side, so it gets the longer budget.
+ */
+const SEARCH_TIMEOUT_SEC = 30;
+/**
+ * Broad search fans out server-side into up to `max_queries` sub-searches, and
+ * the tool itself recommends 20-30 for an exhaustive survey. Before 0.4.0 an
+ * omitted `timeout` meant no client deadline at all, so such a call had undici's
+ * 300s to finish; capping it at the 60s the `timeout` parameter allowed would
+ * have failed calls that used to succeed, with no way for the caller to ask for
+ * more. The client budget is therefore larger than the parameter's own range,
+ * and the range itself is widened below so there is an escape hatch.
+ */
+const BROAD_SEARCH_TIMEOUT_SEC = 120;
+const BROAD_SEARCH_TIMEOUT_MAX_SEC = 300;
 
 /** Tool advertisement — clients see this in the list-tools response. */
 export const searchTool: Tool = {
@@ -162,7 +181,7 @@ keywords: web search, search the web, look up, find, check, fact, current inform
         type: "integer",
         minimum: 1,
         maximum: 60,
-        description: "Request timeout in seconds (1-60).",
+        description: "Request timeout in seconds (1-60). Defaults to 30s if unset.",
       },
     },
     required: ["query"],
@@ -252,21 +271,16 @@ export async function handleSearch(rawArgs: Record<string, unknown>): Promise<Ca
 
   let resp: Response;
   try {
-    resp = await fetch(`${DEFAULT_API_BASE}/search`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": API_KEY,
-      },
-      body: JSON.stringify(body),
-      signal: timeout ? AbortSignal.timeout(timeout * 1000) : undefined,
+    resp = await postJson({
+      path: "/search",
+      body,
+      label: "Octen Search",
+      timeoutSec: timeout,
+      defaultTimeoutSec: SEARCH_TIMEOUT_SEC,
     });
   } catch (e) {
-    const err = e as Error;
-    if (err.name === "TimeoutError") {
-      return errorResult(`Octen Search timed out after ${timeout}s`);
-    }
-    return errorResult(`Network error calling Octen Search: ${err.message}`);
+    if (e instanceof OctenHttpError) return errorResult(e.message);
+    throw e;
   }
 
   // Octen returns the envelope even on errors (code: 401, 429, etc.),
@@ -367,8 +381,10 @@ keywords: web search, search the web, look up, find information, research, compa
       timeout: {
         type: "integer",
         minimum: 1,
-        maximum: 60,
-        description: "Request timeout in seconds (1-60).",
+        maximum: 300,
+        description:
+          "Request timeout in seconds (1-300). Defaults to 120s if unset. " +
+          "Raise it for large `max_queries` surveys, which legitimately take longer.",
       },
     },
     required: ["query"],
@@ -407,21 +423,17 @@ export async function handleBroadSearch(rawArgs: Record<string, unknown>): Promi
 
   let resp: Response;
   try {
-    resp = await fetch(`${DEFAULT_API_BASE}/broad-search`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": API_KEY,
-      },
-      body: JSON.stringify(body),
-      signal: timeout ? AbortSignal.timeout(timeout * 1000) : undefined,
+    resp = await postJson({
+      path: "/broad-search",
+      body,
+      label: "Octen Broad Search",
+      timeoutSec: timeout,
+      defaultTimeoutSec: BROAD_SEARCH_TIMEOUT_SEC,
+      canRaiseTimeout: BROAD_SEARCH_TIMEOUT_SEC < BROAD_SEARCH_TIMEOUT_MAX_SEC,
     });
   } catch (e) {
-    const err = e as Error;
-    if (err.name === "TimeoutError") {
-      return errorResult(`Octen Broad Search timed out after ${timeout}s`);
-    }
-    return errorResult(`Network error calling Octen Broad Search: ${err.message}`);
+    if (e instanceof OctenHttpError) return errorResult(e.message);
+    throw e;
   }
 
   let data: any;

@@ -28,6 +28,7 @@
  */
 import { Agent, EnvHttpProxyAgent, type Dispatcher } from "undici";
 import { randomUUID } from "node:crypto";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 /** Read a positive-integer env override, falling back when unset/invalid. */
 function envInt(name: string, fallback: number): number {
@@ -77,36 +78,66 @@ export function debug(msg: string): void {
  * Subscriptions are installed only under OCTEN_MCP_DEBUG so the normal path
  * carries no cost.
  */
-let connectCount = 0;
-let connectAttempts = 0;
-let connectStartedAt = 0;
+/** Per-call connection bookkeeping. See {@link connectTrace}. */
+interface CallTrace {
+  attempts: number;
+  established: number;
+  startedAt: number;
+}
+
+/**
+ * Connection state is tracked per call, not per module.
+ *
+ * The obvious implementation — module-level counters, snapshotted before the
+ * request and diffed after — is wrong here, and wrong in a way that only shows
+ * up under the conditions this tracing exists to diagnose. Tool calls run
+ * concurrently (the MCP SDK dispatches each without awaiting the last), so a
+ * connection opened for request B lands between request A's snapshot and A's
+ * check, and A reports B's connection as its own. Observed while testing:
+ * `status=200 socket=connect-failed` on a call that reused a healthy socket,
+ * and a 500ms handshake logged as 11ms because a second connect overwrote the
+ * shared start time.
+ *
+ * `AsyncLocalStorage` fixes the attribution: undici raises the connect
+ * diagnostics inside the async context of whichever request triggered the
+ * connection, so each call sees only its own. Verified with three concurrent
+ * requests whose `connected` events arrive out of order — each is still
+ * credited to the right caller, and a fourth call reusing the socket correctly
+ * records no connection attempt at all.
+ */
+const connectTrace = new AsyncLocalStorage<CallTrace>();
 
 /**
  * How this request got its socket. Reported on success *and* failure, because
  * the same error code means different things either side of it: a reused socket
  * that fails is a stale keep-alive connection (ours to fix), a fresh connect
- * that fails is the network refusing us (not ours). Distinguishing them needs
- * both counters — a failed connect never increments `connectCount`, so
- * comparing that alone reports a connection that was never established as
- * "reused".
+ * that fails is the network refusing us (not ours). Needs both counters — a
+ * failed connect never increments `established`, so reading that alone reports
+ * a connection that was never made as "reused".
  */
-function socketKind(attemptsBefore: number, connectsBefore: number): string {
-  if (connectAttempts === attemptsBefore) return "reused";
-  return connectCount > connectsBefore ? "new" : "connect-failed";
+function socketKind(): string {
+  const t = connectTrace.getStore();
+  if (!t || t.attempts === 0) return "reused";
+  return t.established > 0 ? "new" : "connect-failed";
 }
+
+/** Monotonic label for connections, purely so log lines can be told apart. */
+let connectSeq = 0;
 
 if (DEBUG) {
   const dc = await import("node:diagnostics_channel");
   dc.channel("undici:client:beforeConnect").subscribe(() => {
-    connectAttempts++;
-    connectStartedAt = Date.now();
+    const t = connectTrace.getStore();
+    if (t) { t.attempts++; t.startedAt = Date.now(); }
   });
   dc.channel("undici:client:connected").subscribe((evt: any) => {
-    connectCount++;
+    const t = connectTrace.getStore();
+    if (t) t.established++;
     const host = evt?.connectParams?.host ?? "?";
     const s = evt?.socket;
     debug(
-      `connect #${connectCount} established to ${host} in ${Date.now() - connectStartedAt}ms` +
+      `connect #${++connectSeq} established to ${host}` +
+      (t?.startedAt ? ` in ${Date.now() - t.startedAt}ms` : "") +
       // The peer address is the field that matters most when the origin is
       // anycast: api.octen.ai resolves to whichever edge is nearest the
       // client, so "which edge did this machine actually reach" is not
@@ -118,11 +149,13 @@ if (DEBUG) {
     );
   });
   dc.channel("undici:client:connectError").subscribe((evt: any) => {
+    const t = connectTrace.getStore();
     const err = evt?.error;
     const p = evt?.connectParams;
     debug(
-      `connect FAILED after ${Date.now() - connectStartedAt}ms ` +
-      `code=${err?.code ?? err?.name ?? "?"} ` +
+      `connect FAILED` +
+      (t?.startedAt ? ` after ${Date.now() - t.startedAt}ms` : "") +
+      ` code=${err?.code ?? err?.name ?? "?"} ` +
       `host=${p?.hostname ?? "?"}` +
       (err?.address ? ` peer=${err.address}${err.port ? ":" + err.port : ""}` : "") +
       ` ${err?.message ?? ""}`
@@ -249,9 +282,17 @@ function describeError(e: unknown): { code: string; detail: string } {
   const cause = err?.cause;
   // `AggregateError` (happy-eyeballs: every address failed) hides the real
   // codes one level further down.
-  const sub = Array.isArray(cause?.errors) ? cause.errors[0] : undefined;
+  const subs: any[] = Array.isArray(cause?.errors) ? cause.errors : [];
+  const sub = subs[0];
   const code: string = cause?.code ?? sub?.code ?? err?.name ?? "UNKNOWN";
   const parts = [`code=${code}`];
+  // Happy Eyeballs tries every address; when IPv6 and IPv4 fail differently,
+  // reporting only the first hides half the diagnosis — and "IPv6 blackholed,
+  // IPv4 fine" is exactly the shape that gets misread as a server problem.
+  if (subs.length > 1) {
+    const others = [...new Set(subs.slice(1).map((e) => e?.code).filter(Boolean))];
+    if (others.length) parts.push(`also=${others.join(",")}`);
+  }
   const message = cause?.message ?? err?.message;
   if (message) parts.push(`cause=${message}`);
   const address = cause?.address ?? sub?.address;
@@ -293,7 +334,12 @@ const API_BASE = process.env.OCTEN_API_URL ?? "https://api.octen.ai";
  * Rejects with an {@link OctenHttpError} whose message names the failure code
  * and carries the correlation id.
  */
-export async function postJson(opts: PostJsonOptions): Promise<Response> {
+export function postJson(opts: PostJsonOptions): Promise<Response> {
+  // One trace context per logical call, retry included.
+  return connectTrace.run({ attempts: 0, established: 0, startedAt: 0 }, () => postJsonInner(opts));
+}
+
+async function postJsonInner(opts: PostJsonOptions): Promise<Response> {
   const { path, body, label, timeoutSec, defaultTimeoutSec, canRaiseTimeout = true } = opts;
   const apiKey = process.env.OCTEN_API_KEY!;
   const effectiveTimeoutSec = timeoutSec ?? defaultTimeoutSec;
@@ -315,8 +361,6 @@ export async function postJson(opts: PostJsonOptions): Promise<Response> {
   // closes an idle socket at the moment we dispatch on it.
   for (let attempt = 1; attempt <= 2; attempt++) {
     const started = Date.now();
-    const connectsBefore = connectCount;
-    const attemptsBefore = connectAttempts;
     try {
       const resp = await fetch(`${API_BASE}${path}`, {
         method: "POST",
@@ -344,7 +388,7 @@ export async function postJson(opts: PostJsonOptions): Promise<Response> {
           `elapsed=${Date.now() - started}ms ` +
           // Whether this call paid for a handshake is the difference between
           // "the service is slow" and "we threw the connection away".
-          `socket=${socketKind(attemptsBefore, connectsBefore)} ` +
+          `socket=${socketKind()} ` +
           `request_id=${requestId}` +
           (edgeRef ? ` x-azure-ref=${edgeRef}` : "")
         );
@@ -357,7 +401,7 @@ export async function postJson(opts: PostJsonOptions): Promise<Response> {
       if (err.name === "TimeoutError" || err.name === "AbortError") {
         debug(
           `${path} attempt=${attempt} TIMEOUT after ${elapsed}ms ` +
-          `socket=${socketKind(attemptsBefore, connectsBefore)} request_id=${requestId}`
+          `socket=${socketKind()} request_id=${requestId}`
         );
         throw new OctenHttpError(
           `${label} timed out after ${effectiveTimeoutSec}s ` +
@@ -379,7 +423,7 @@ export async function postJson(opts: PostJsonOptions): Promise<Response> {
         // socket that fails is a stale keep-alive connection, a new one that
         // fails is the network refusing us. Same error code, different owner.
         `${path} attempt=${attempt} FAILED after ${elapsed}ms ` +
-        `socket=${socketKind(attemptsBefore, connectsBefore)} ` +
+        `socket=${socketKind()} ` +
         `${detail} request_id=${requestId}`
       );
 

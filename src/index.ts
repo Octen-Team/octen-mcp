@@ -85,41 +85,49 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
   const receivedAt = Date.now();
   debug(`call #${seq} received tool=${name}`);
 
-  const finish = <T>(result: T): T => {
+  // In a `finally`, not around each return: the beta-disabled and unknown-tool
+  // branches return without touching the switch, and a handler that throws
+  // (anything not an OctenHttpError is deliberately rethrown) skipped it
+  // entirely. Each of those logged "received" and never "returning", so
+  // scanning the trace for calls that never came back — the reason the pair
+  // exists — produced false hangs.
+  const finish = () =>
     debug(`call #${seq} returning tool=${name} handler_total=${Date.now() - receivedAt}ms`);
-    return result;
-  };
 
-  if (!BETA_TOOLS_ENABLED && BETA_TOOL_NAMES.has(name)) {
-    return {
-      isError: true,
-      content: [
-        { type: "text", text: `Tool "${name}" is disabled: Beta tools are turned off via OCTEN_ENABLE_BETA_TOOLS.` },
-      ],
-    };
-  }
-
-  switch (name) {
-    case "search":
-      return finish(await handleSearch(args ?? {}));
-    case "news_search":
-      return finish(await handleNewsSearch(args ?? {}));
-    case "broad_search":
-      return finish(await handleBroadSearch(args ?? {}));
-    case "extract":
-      return finish(await handleExtract(args ?? {}));
-    case "image_search":
-      return finish(await handleImageSearch(args ?? {}));
-    case "video_search":
-      return finish(await handleVideoSearch(args ?? {}));
-    default:
-      // MCP convention: return an error result, don't throw.
+  try {
+    if (!BETA_TOOLS_ENABLED && BETA_TOOL_NAMES.has(name)) {
       return {
         isError: true,
         content: [
-          { type: "text", text: `Unknown tool: ${name}` },
+          { type: "text", text: `Tool "${name}" is disabled: Beta tools are turned off via OCTEN_ENABLE_BETA_TOOLS.` },
         ],
       };
+    }
+
+    switch (name) {
+      case "search":
+        return await handleSearch(args ?? {});
+      case "news_search":
+        return await handleNewsSearch(args ?? {});
+      case "broad_search":
+        return await handleBroadSearch(args ?? {});
+      case "extract":
+        return await handleExtract(args ?? {});
+      case "image_search":
+        return await handleImageSearch(args ?? {});
+      case "video_search":
+        return await handleVideoSearch(args ?? {});
+      default:
+        // MCP convention: return an error result, don't throw.
+        return {
+          isError: true,
+          content: [
+            { type: "text", text: `Unknown tool: ${name}` },
+          ],
+        };
+    }
+  } finally {
+    finish();
   }
 });
 

@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 
 process.env.OCTEN_API_KEY = process.env.OCTEN_API_KEY ?? "test-key";
 
-const { handleSearch, handleBroadSearch } = await import("../dist/search.js");
+const { handleSearch, handleBroadSearch, broadSearchTool } = await import("../dist/search.js");
 const { handleExtract } = await import("../dist/extract.js");
 
 const OK_BODY = { code: 0, data: { results: [] } };
@@ -132,9 +132,9 @@ test("extract's timeout hint is not called a `default` — it derives from the c
   assert.doesNotMatch(textOf(out), /default/, "135s is derived from timeout=45, not a default");
 });
 
-test("broad_search gets the longer default budget (server-side fan-out)", async () => {
+test("broad_search gets a longer default budget than search (server-side fan-out)", async () => {
   scriptFetch([Object.assign(new Error("The operation was aborted"), { name: "TimeoutError" })]);
-  assert.match(textOf(await handleBroadSearch({ query: "hi" })), /timed out after 60s/);
+  assert.match(textOf(await handleBroadSearch({ query: "hi" })), /timed out after 120s/);
 });
 
 test("a caller-supplied `timeout` still wins over the default", async () => {
@@ -167,12 +167,15 @@ test("requests go through the tuned dispatcher, not undici's 4s-keepalive global
   assert.ok(attempts[0].init.dispatcher, "no dispatcher — every call more than 4s apart re-pays the TLS handshake");
 });
 
-test("broad_search does not advise raising a `timeout` already at its schema max", async () => {
+test("broad_search keeps a budget wider than the `timeout` parameter's own range", async () => {
   scriptFetch([Object.assign(new Error("aborted"), { name: "TimeoutError" })]);
   const out = await handleBroadSearch({ query: "hi" });
-  assert.match(textOf(out), /timed out after 60s/);
-  assert.doesNotMatch(textOf(out), /raise this ceiling/,
-    "60s is already the schema maximum — telling an agent to raise it is unactionable advice");
+  // 0.3.7 left this call with undici's 300s and no client deadline. Capping the
+  // default at the parameter's old 60s maximum would have failed surveys that
+  // used to succeed, with nothing the caller could do about it.
+  assert.match(textOf(out), /timed out after 120s/);
+  assert.match(textOf(out), /raise this ceiling/, "there must be an escape hatch");
+  assert.equal(broadSearchTool.inputSchema.properties.timeout.maximum, 300);
 });
 
 test("extract advises raising `timeout` only while it is below its own max", async () => {

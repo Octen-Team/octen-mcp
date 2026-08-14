@@ -169,7 +169,6 @@ picked up**; it has to be named explicitly, alongside the API key:
       "args": ["-y", "octen-mcp"],
       "env": {
         "OCTEN_API_KEY": "your-key-here",
-        "OCTEN_MCP_DEBUG": "1",
         "HTTPS_PROXY": "http://proxy.example:8080"
       }
     }
@@ -188,7 +187,11 @@ Everything the server writes to stderr, including the tracing below, goes there.
 
 ### Diagnosing a slow or failing call
 
-`OCTEN_MCP_DEBUG=1` traces every call to stderr:
+Add `"OCTEN_MCP_DEBUG": "1"` to the `env` block above while you are investigating,
+and **take it out afterwards** — the client appends this to a log file that is
+never rotated, so leaving it on grows that file for the life of the install.
+
+With it on, every call is traced to stderr:
 
 ```
 [octen-mcp 2026-08-14T04:36:36.219Z] call #1 received tool=search

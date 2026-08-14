@@ -24,7 +24,17 @@ const API_KEY = process.env.OCTEN_API_KEY;
  * Broad search fans out server-side, so it gets the longer budget.
  */
 const SEARCH_TIMEOUT_SEC = 30;
-const BROAD_SEARCH_TIMEOUT_SEC = 60;
+/**
+ * Broad search fans out server-side into up to `max_queries` sub-searches, and
+ * the tool itself recommends 20-30 for an exhaustive survey. Before 0.4.0 an
+ * omitted `timeout` meant no client deadline at all, so such a call had undici's
+ * 300s to finish; capping it at the 60s the `timeout` parameter allowed would
+ * have failed calls that used to succeed, with no way for the caller to ask for
+ * more. The client budget is therefore larger than the parameter's own range,
+ * and the range itself is widened below so there is an escape hatch.
+ */
+const BROAD_SEARCH_TIMEOUT_SEC = 120;
+const BROAD_SEARCH_TIMEOUT_MAX_SEC = 300;
 
 /** Tool advertisement — clients see this in the list-tools response. */
 export const searchTool: Tool = {
@@ -371,8 +381,10 @@ keywords: web search, search the web, look up, find information, research, compa
       timeout: {
         type: "integer",
         minimum: 1,
-        maximum: 60,
-        description: "Request timeout in seconds (1-60). Defaults to 60s if unset.",
+        maximum: 300,
+        description:
+          "Request timeout in seconds (1-300). Defaults to 120s if unset. " +
+          "Raise it for large `max_queries` surveys, which legitimately take longer.",
       },
     },
     required: ["query"],
@@ -417,8 +429,7 @@ export async function handleBroadSearch(rawArgs: Record<string, unknown>): Promi
       label: "Octen Broad Search",
       timeoutSec: timeout,
       defaultTimeoutSec: BROAD_SEARCH_TIMEOUT_SEC,
-      // The 60s default is already the schema maximum for `timeout`.
-      canRaiseTimeout: false,
+      canRaiseTimeout: BROAD_SEARCH_TIMEOUT_SEC < BROAD_SEARCH_TIMEOUT_MAX_SEC,
     });
   } catch (e) {
     if (e instanceof OctenHttpError) return errorResult(e.message);

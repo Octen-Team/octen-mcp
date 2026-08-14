@@ -40,6 +40,24 @@ function startServer(env, extraStdin = "") {
   });
 }
 
+/** Like startServer, but writes a second batch of stdin after `delayMs`. */
+function startServerStaged(env, firstStdin, laterStdin, delayMs) {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [SERVER], {
+      env: { ...process.env, OCTEN_API_KEY: "test-key", ...env },
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    let out = "", err = "";
+    child.stdout.on("data", (d) => (out += d));
+    child.stderr.on("data", (d) => (err += d));
+    child.on("close", (code) => resolve({ code, out, err }));
+    child.stdin.write(INITIALIZE + "\n");
+    child.stdin.write(firstStdin);
+    setTimeout(() => child.stdin.write(laterStdin), delayMs);
+    setTimeout(() => child.kill(), delayMs + 2500);
+  });
+}
+
 function started({ out }) {
   return out.split("\n").some((l) => l.includes('"serverInfo"'));
 }
@@ -134,4 +152,119 @@ test("debug tracing emits the fields a field report needs", async () => {
   // Whether a handshake was paid for.
   assert.match(r.err, /socket=(new|reused)/);
   assert.match(r.err, /\/search attempt=1 status=200 elapsed=\d+ms/);
+});
+
+test("concurrent calls do not cross-attribute each other's connections", async () => {
+  // The bug this guards: connection state kept in module-level counters is
+  // shared by every in-flight call, so one call reports another's connection as
+  // its own. It surfaced as `status=200 socket=connect-failed` — a contradiction
+  // on its face.
+  //
+  // Reproducing it needs a *mix*, not just concurrency: one call reusing a warm
+  // socket while another call's connect fails at the same moment. Four calls
+  // that all open connections corrupt nothing, because every one of them really
+  // did open a connection. `maxConnections = 1` produces the mix — the pool's
+  // second connection is dropped on arrival while the first stays usable.
+  const http = await import("node:http");
+  const srv = http.createServer((_req, res) => {
+    setTimeout(() => {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ code: 0, data: { results: [] }, meta: {} }));
+    }, 400);
+  });
+  srv.maxConnections = 1;
+  srv.keepAliveTimeout = 60_000;
+  await new Promise((r) => srv.listen(0, r));
+  const port = srv.address().port;
+
+  const call = (id) => JSON.stringify({
+    jsonrpc: "2.0", id, method: "tools/call",
+    params: { name: "search", arguments: { query: `q${id}` } },
+  });
+  // First call warms one socket; the next two run together, so one reuses it
+  // and the other tries — and fails — to open a second.
+  const stdin = call(10) + "\n";
+  const later = call(11) + "\n" + call(12) + "\n";
+
+  const r = await startServerStaged(
+    { OCTEN_MCP_DEBUG: "1", OCTEN_API_URL: `http://127.0.0.1:${port}`,
+      HTTPS_PROXY: "", https_proxy: "", HTTP_PROXY: "", http_proxy: "" },
+    stdin, later, 1200
+  );
+  srv.close();
+
+  const lines = r.err.split("\n").filter((l) => l.includes("attempt="));
+  assert.ok(lines.length >= 2, `expected several request lines, got:\n${r.err}`);
+  for (const line of lines) {
+    assert.doesNotMatch(
+      line, /status=200.*socket=connect-failed/,
+      `a call that returned 200 cannot have failed to connect — it inherited another call's connection state:\n${line}`
+    );
+  }
+  const reused = lines.filter((l) => l.includes("socket=reused")).length;
+  assert.ok(reused >= 1,
+    `expected at least one call to reuse the warm socket; none did, so the mix this test needs did not occur:\n${r.err}`);
+});
+
+test("a call that opens a connection reports peer address, TLS and ALPN", async () => {
+  const call = JSON.stringify({
+    jsonrpc: "2.0", id: 2, method: "tools/call",
+    params: { name: "search", arguments: { query: "x" } },
+  });
+  const r = await startServer(
+    { OCTEN_MCP_DEBUG: "1", OCTEN_API_URL: "http://127.0.0.1:45999",
+      HTTPS_PROXY: "", https_proxy: "", HTTP_PROXY: "", http_proxy: "" },
+    call + "\n"
+  );
+  // Unreachable origin: the connect-failure line must still name what it tried.
+  assert.match(r.err, /connect FAILED.*code=ECONNREFUSED/);
+  assert.match(r.err, /connect FAILED.*peer=127\.0\.0\.1:45999/,
+    "a connect failure that does not say which address it tried is not actionable");
+  assert.match(r.err, /socket=connect-failed/,
+    "a connection that was never established must not be reported as reused");
+});
+
+test("env overrides reach the dispatcher", async () => {
+  const r = await startServer({
+    OCTEN_MCP_DEBUG: "1", OCTEN_KEEP_ALIVE_MS: "12345",
+    OCTEN_CONNECT_TIMEOUT_MS: "6789", OCTEN_HTTP2: "1",
+  });
+  assert.match(r.err, /keepAlive=12345ms/);
+  assert.match(r.err, /connect=6789ms/);
+  assert.match(r.err, /h2=true/);
+});
+
+test("an invalid env override falls back rather than producing NaN", async () => {
+  const r = await startServer({ OCTEN_MCP_DEBUG: "1", OCTEN_KEEP_ALIVE_MS: "not-a-number" });
+  assert.match(r.err, /keepAlive=60000ms/, "invalid input should fall back to the default");
+  assert.doesNotMatch(r.err, /NaN/);
+});
+
+test("a gateway that returns HTML instead of JSON is reported as such", async () => {
+  // Untestable through the in-process stub, whose `json()` returns an object
+  // directly and so can never throw the way a real body does. A 502 page from
+  // an intermediary is a normal production event and must not surface as a
+  // parse crash or a misleading network error.
+  const http = await import("node:http");
+  const srv = http.createServer((_req, res) => {
+    res.writeHead(502, { "Content-Type": "text/html" });
+    res.end("<html><body>502 Bad Gateway</body></html>");
+  });
+  await new Promise((r) => srv.listen(0, r));
+  const port = srv.address().port;
+
+  const call = JSON.stringify({
+    jsonrpc: "2.0", id: 2, method: "tools/call",
+    params: { name: "search", arguments: { query: "x" } },
+  });
+  const r = await startServer(
+    { OCTEN_API_URL: `http://127.0.0.1:${port}`,
+      HTTPS_PROXY: "", https_proxy: "", HTTP_PROXY: "", http_proxy: "" },
+    call + "\n"
+  );
+  srv.close();
+
+  const reply = r.out.split("\n").filter(Boolean).map(JSON.parse).find((m) => m.id === 2);
+  const text = reply?.result?.content?.[0]?.text ?? "";
+  assert.match(text, /returned non-JSON \(HTTP 502\)/, `got: ${text}`);
 });

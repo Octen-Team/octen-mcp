@@ -44,9 +44,19 @@ went wrong when it doesn't.
   corporate proxy the server could not reach the API at all while every other
   tool on the machine could.
 - One retry with backoff on connection-level failures (`ECONNRESET`,
-  `UND_ERR_CONNECT_TIMEOUT`, …), which also covers the keep-alive race where the
-  origin closes an idle socket exactly as we dispatch on it. The request never
-  reached the server, so the retry is safe. Permanent failures are not retried.
+  `UND_ERR_CONNECT_TIMEOUT`, …), covering in particular the keep-alive race
+  where the origin reaps an idle socket exactly as we dispatch on it — which
+  holding sockets for 240s makes *more* likely, not less. Permanent failures
+  are not retried, and neither is anything that produced a response.
+
+  Worth stating precisely, because the obvious justification is not quite true:
+  `ECONNREFUSED` / `EAI_AGAIN` / `UND_ERR_CONNECT_TIMEOUT` genuinely cannot have
+  reached the server, but `ECONNRESET` / `UND_ERR_SOCKET` are raised whenever
+  the socket errors — before the request was written *or* after the server
+  began acting on it — and the two are indistinguishable by error code. We
+  retry both: these are read-only queries, so a duplicate costs quota rather
+  than correctness. But it is a duplicate billed call, and for `broad_search`
+  the whole server-side fan-out runs twice. Set `OCTEN_RETRY=off` to disable.
 - An `x-request-id` correlation id per logical call, stable across the retry and
   echoed in error messages. Octen's own `request_id` is generated server-side
   and only comes back on success, so a failed call previously had no identifier
@@ -56,9 +66,15 @@ went wrong when it doesn't.
   found in Octen's logs.
 - `OCTEN_MCP_DEBUG=1` — per-request timing, status, retry and correlation id on
   **stderr** (stdout carries MCP protocol framing).
-- Tunables: `OCTEN_KEEP_ALIVE_MS`, `OCTEN_CONNECT_TIMEOUT_MS`, `OCTEN_HTTP2`.
-  HTTP/2 is off by default: it measured no faster for the usual
-  one-request-at-a-time pattern and is not reliable through every CONNECT proxy.
+- Tunables: `OCTEN_KEEP_ALIVE_MS`, `OCTEN_KEEP_ALIVE_MAX_MS`,
+  `OCTEN_CONNECT_TIMEOUT_MS`, `OCTEN_HTTP2`, `OCTEN_RETRY`. HTTP/2 is off by
+  default: it measured no faster for the usual one-request-at-a-time pattern
+  and is not reliable through every CONNECT proxy.
+
+### Notes
+
+- The timeout is a deadline for the whole call, not per attempt: the retry
+  draws down the same budget, so a 30s timeout cannot become 60s.
 
 ### Changed
 - New runtime dependency on `undici` (^6), required to configure a dispatcher —

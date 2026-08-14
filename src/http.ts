@@ -7,9 +7,11 @@
  *
  *  - `keepAliveTimeout` is 4s, so a socket idle longer than that is closed and
  *    the next tool call pays a full TCP + TLS handshake again. Measured against
- *    api.octen.ai: 824ms cold vs 260ms on a warm socket — the handshake is ~68%
- *    of a call whose server-side latency is ~1ms. Agent tool calls are almost
- *    always more than 4s apart, so nearly every call paid it.
+ *    api.octen.ai, four calls spanning 16s of idle: 785ms per post-idle call
+ *    over 3 connections, against 272ms over 1 once the socket is held. The
+ *    handshake was ~515ms, about 65% of a call whose server-side latency is
+ *    ~1ms. Agent tool calls are almost always more than 4s apart, so nearly
+ *    every call paid it.
  *  - the proxy environment (`HTTPS_PROXY` & co.) is ignored entirely, unlike
  *    curl / most SDKs, so behind a corporate proxy the server cannot reach the
  *    API at all while every other tool on the machine can.
@@ -35,9 +37,16 @@ function envInt(name: string, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }
 
+const FALSEY = ["false", "0", "off", "no"];
+
 function envFlag(name: string): boolean {
   const v = (process.env[name] ?? "").trim().toLowerCase();
-  return v !== "" && !["false", "0", "off", "no"].includes(v);
+  return v !== "" && !FALSEY.includes(v);
+}
+
+/** Same, for flags that are on unless explicitly switched off. */
+function envFlagDefaultOn(name: string): boolean {
+  return !FALSEY.includes((process.env[name] ?? "").trim().toLowerCase());
 }
 
 export const DEBUG = envFlag("OCTEN_MCP_DEBUG");
@@ -86,16 +95,34 @@ debug(
   `h2=${agentOptions.allowH2}`
 );
 
-/** Connection-level failures: the request never reached the server, so a retry is safe. */
-const RETRYABLE_CODES = new Set([
-  "ECONNRESET",       // idle keep-alive socket reaped by the peer mid-dispatch
-  "ECONNREFUSED",
-  "EPIPE",
-  "ETIMEDOUT",
-  "EAI_AGAIN",        // transient DNS failure
-  "UND_ERR_CONNECT_TIMEOUT",
-  "UND_ERR_SOCKET",
-]);
+/**
+ * Failures worth one retry.
+ *
+ * The first group cannot have reached the server — the connection was never
+ * established — so retrying them is unambiguously safe.
+ *
+ * The second group is ambiguous, and the distinction matters enough to state
+ * plainly: undici raises `ECONNRESET` / `UND_ERR_SOCKET` whenever the socket
+ * errors, whether that happened before the request was written or after the
+ * server had already begun acting on it. The case we specifically need to
+ * cover is the keep-alive race — the origin reaping an idle socket exactly as
+ * we dispatch on it, which raising `keepAliveTimeout` to 240s makes *more*
+ * likely, not less — and that case is indistinguishable from a mid-flight
+ * reset by error code alone.
+ *
+ * We retry them anyway. These endpoints are read-only queries, so a duplicate
+ * costs quota rather than correctness, and the availability win is large (in
+ * the field report that prompted this, five of five manual retries succeeded).
+ * But it is a duplicate *billed* call, and for `broad_search` that means its
+ * whole server-side fan-out runs twice. Set `OCTEN_RETRY=off` to disable.
+ */
+const RETRYABLE_PRE_SEND = ["ECONNREFUSED", "EAI_AGAIN", "UND_ERR_CONNECT_TIMEOUT"];
+const RETRYABLE_AMBIGUOUS = ["ECONNRESET", "EPIPE", "ETIMEDOUT", "UND_ERR_SOCKET"];
+const RETRYABLE_CODES = new Set(
+  envFlagDefaultOn("OCTEN_RETRY")
+    ? [...RETRYABLE_PRE_SEND, ...RETRYABLE_AMBIGUOUS]
+    : []
+);
 
 /** Pull the useful diagnosis out of a `fetch` rejection. */
 function describeError(e: unknown): { code: string; detail: string } {
@@ -150,6 +177,13 @@ export async function postJson(opts: PostJsonOptions): Promise<Response> {
   const payload = JSON.stringify(body);
 
   let lastDetail = "";
+  // ONE deadline for the whole call, created before the loop so the retry
+  // draws down the same budget rather than starting a fresh one. Building it
+  // per attempt would let a 30s timeout run for 60s — reintroducing, at a
+  // higher threshold, the "tool call that never returns" this module exists to
+  // prevent.
+  const deadline = AbortSignal.timeout(effectiveTimeoutSec * 1000);
+
   // Two attempts: the second exists for the keep-alive race, where the origin
   // closes an idle socket at the moment we dispatch on it.
   for (let attempt = 1; attempt <= 2; attempt++) {
@@ -163,7 +197,7 @@ export async function postJson(opts: PostJsonOptions): Promise<Response> {
           "x-request-id": requestId,
         },
         body: payload,
-        signal: AbortSignal.timeout(effectiveTimeoutSec * 1000),
+        signal: deadline,
         // @ts-expect-error — `dispatcher` is an undici extension to RequestInit
         // that Node honours but the DOM `fetch` types do not declare.
         dispatcher,
@@ -182,9 +216,11 @@ export async function postJson(opts: PostJsonOptions): Promise<Response> {
         throw new OctenHttpError(
           `${label} timed out after ${effectiveTimeoutSec}s ` +
           `(request_id=${requestId})` +
-          (timeoutSec === undefined
-            ? ` — this is the client default; pass \`timeout\` to change it.`
-            : "")
+          // Deliberately not phrased as "the client default": for `extract` the
+          // ceiling is derived from the caller's own per-URL `timeout`, so
+          // calling it a default would be false. Raising `timeout` raises the
+          // ceiling in both cases, which is the actionable part.
+          (timeoutSec === undefined ? " — pass `timeout` to raise this ceiling." : "")
         );
       }
 

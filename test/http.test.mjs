@@ -114,12 +114,20 @@ test("failures surface the correlation id so a ticket maps to server logs", asyn
   assert.match(textOf(await handleSearch({ query: "hi" })), /request_id=[0-9a-f-]{36}/);
 });
 
-test("a timeout says so, and names the client default when the caller set none", async () => {
+test("a timeout says so, and points at the knob when the caller set none", async () => {
   scriptFetch([Object.assign(new Error("The operation was aborted"), { name: "TimeoutError" })]);
   const out = await handleSearch({ query: "hi" });
   assert.equal(out.isError, true);
   assert.match(textOf(out), /timed out after 30s/);
-  assert.match(textOf(out), /client default/);
+  assert.match(textOf(out), /raise this ceiling/);
+});
+
+test("extract's timeout hint is not called a `default` — it derives from the caller's own value", async () => {
+  scriptFetch([Object.assign(new Error("The operation was aborted"), { name: "TimeoutError" })]);
+  const out = await handleExtract({ urls: ["https://example.com"], timeout: 45 });
+  // 45s per-URL budget + 90s headroom.
+  assert.match(textOf(out), /timed out after 135s/);
+  assert.doesNotMatch(textOf(out), /default/, "135s is derived from timeout=45, not a default");
 });
 
 test("broad_search gets the longer default budget (server-side fan-out)", async () => {
@@ -132,6 +140,23 @@ test("a caller-supplied `timeout` still wins over the default", async () => {
   const out = await handleSearch({ query: "hi", timeout: 5 });
   assert.match(textOf(out), /timed out after 5s/);
   assert.doesNotMatch(textOf(out), /client default/);
+});
+
+test("the retry shares the first attempt's deadline instead of starting a fresh one", async () => {
+  const attempts = scriptFetch([
+    fetchFailed(Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" })),
+    OK_BODY,
+  ]);
+  await handleSearch({ query: "hi" });
+  assert.equal(attempts.length, 2);
+  // Same AbortSignal instance on both attempts. Building it per attempt would
+  // give the retry a full fresh budget, so a 30s timeout could run for 60s —
+  // the "tool call that never returns" failure this module exists to prevent.
+  assert.strictEqual(
+    attempts[0].init.signal,
+    attempts[1].init.signal,
+    "retry got a fresh timeout budget rather than the remainder of the original"
+  );
 });
 
 test("requests go through the tuned dispatcher, not undici's 4s-keepalive global", async () => {

@@ -108,7 +108,7 @@ keywords: find images, image search, photos, pictures, screenshots, visual refer
         type: "integer",
         minimum: 1,
         maximum: 60,
-        description: "Request timeout in seconds (1-60).",
+        description: "Request timeout in seconds (1-60). Defaults to 30s if unset.",
       },
     },
     required: ["query"],

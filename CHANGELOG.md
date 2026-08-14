@@ -13,11 +13,12 @@ Reliability and latency fixes in the HTTP layer. No tool, schema, or parameter
 changes — every tool behaves the same, it just gets there faster and says what
 went wrong when it doesn't.
 
-Released as a minor rather than a patch, because three things change underneath
-a caller who upgrades without reading: the minimum Node version rises (an
-install failure on 18.0–18.16), a runtime dependency appears, and requests that
-previously ran untimed and un-retried now do both — a retry costs quota. None of
-that should arrive silently via `~0.3.x`.
+Released as a minor rather than a patch, because two things change underneath a
+caller who upgrades without reading: a runtime dependency appears where there
+had been only the MCP SDK, and requests that previously ran untimed and
+un-retried now do both — and a retry costs quota. Neither should arrive silently
+via `~0.3.x`. The declared Node floor also moves, but that one changes nothing
+in practice; see Changed.
 
 ### Fixed
 - **Network failures are now diagnosable.** `fetch` rejects with a bare
@@ -96,8 +97,16 @@ that should arrive silently via `~0.3.x`.
   and is not reliable through every CONNECT proxy.
 
 ### Changed
-- **`engines.node` tightened from `>=18` to `>=18.17`** to match undici 6.
-  Installs on Node 18.0–18.16 will now fail rather than silently misbehave.
+- `engines.node` tightened from `>=18` to `>=18.17`, to match undici 6.
+
+  **In practice this excludes nobody, and nobody needs to upgrade Node for it.**
+  npm treats `engines` as advisory: on Node 18.16 the install prints an
+  `EBADENGINE` warning and then proceeds, and the server runs normally — checked,
+  including a live search call. It only blocks under `engine-strict=true`, and
+  there the binding constraint is not ours: `@hono/node-server`, reached through
+  `@modelcontextprotocol/sdk`, already requires Node `>=20`, so 0.3.7 fails to
+  install on 18.16 for the same reason 0.4.0 does. The declaration is here to be
+  truthful about what this package is tested against, not to force an upgrade.
 - New runtime dependency on `undici` (^6), required to configure a dispatcher —
   Node exposes no core API for it. It is the same project that Node bundles for
   `fetch`, though not necessarily the same major version: Node 18 ships undici 5

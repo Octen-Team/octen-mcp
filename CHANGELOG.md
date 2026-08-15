@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-08-15
+
+### Fixed
+- A response whose 200 headers arrived but whose body stalled mid-stream was
+  reported as `returned non-JSON (HTTP 200)` — pointing whoever read the error
+  at a serialization problem when the actual event was a stalled connection.
+  The client deadline governs body consumption too; when it aborts a stalled
+  body read, all five tools now report
+  `timed out while reading the response body` instead. Found by rebuilding the
+  0.4.0 field report's failure shapes on real sockets; the regression test
+  drives the built server against an upstream that sends half a body and goes
+  silent.
+
 ## [0.4.0] — 2026-08-14
 
 Reliability and latency fixes in the HTTP layer. No tool, schema, or parameter

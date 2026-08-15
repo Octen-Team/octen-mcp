@@ -288,7 +288,13 @@ export async function handleSearch(rawArgs: Record<string, unknown>): Promise<Ca
   let data: any;
   try {
     data = await resp.json();
-  } catch {
+  } catch (e) {
+    // The deadline also governs body consumption: a response whose headers
+    // arrived but whose body stalls aborts HERE, not in the fetch above, and
+    // must be reported as the timeout it is — not as a malformed response.
+    if ((e as Error).name === "TimeoutError" || (e as Error).name === "AbortError") {
+      return errorResult(`Octen Search timed out while reading the response body (HTTP ${resp.status})`);
+    }
     return errorResult(`Octen Search returned non-JSON (HTTP ${resp.status})`);
   }
 
@@ -439,7 +445,13 @@ export async function handleBroadSearch(rawArgs: Record<string, unknown>): Promi
   let data: any;
   try {
     data = await resp.json();
-  } catch {
+  } catch (e) {
+    // The deadline also governs body consumption: a response whose headers
+    // arrived but whose body stalls aborts HERE, not in the fetch above, and
+    // must be reported as the timeout it is — not as a malformed response.
+    if ((e as Error).name === "TimeoutError" || (e as Error).name === "AbortError") {
+      return errorResult(`Octen Broad Search timed out while reading the response body (HTTP ${resp.status})`);
+    }
     return errorResult(`Octen Broad Search returned non-JSON (HTTP ${resp.status})`);
   }
 

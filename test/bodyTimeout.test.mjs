@@ -78,9 +78,8 @@ test("a response whose body stalls mid-stream is reported as a timeout, not as m
     const text = result.content[0].text;
     assert.match(text, /timed out while reading the response body \(HTTP 200\)/, `got: ${text}`);
     assert.doesNotMatch(text, /non-JSON/, "a stalled stream must not be misreported as malformed JSON");
-    // No client UUID in user-facing text: support cannot look it up, and an
-    // id labelled request_id reads like one they could. (The local upstream
-    // sends no x-azure-ref either, so no id at all is the correct output.)
+    // No id at all in user-facing text for body-read failures: neither the
+    // client UUID nor the edge ref is searchable on Octen's side today.
     assert.doesNotMatch(text, /request_id=/, "client UUID leaked into a user-facing message");
     // And it is the 2s deadline doing the aborting, at real elapsed time.
     assert.ok(elapsed >= 1900 && elapsed < 9000, `deadline fired at ${elapsed}ms, expected ~2000ms`);
@@ -129,7 +128,11 @@ test("a connection torn down mid-body is reported as a lost connection, not as m
   }
 });
 
-test("when the edge stamped the response, body-read failures carry x-azure-ref — the id support CAN search", async () => {
+test("body-read failures carry NO id — nothing Octen can search exists for them today", async () => {
+  // The upstream DOES stamp an x-azure-ref, so this asserts active
+  // suppression, not absence of input: edge access logging is not enabled on
+  // Octen's side (verified 2026-08-15), so showing the ref would recreate the
+  // unsearchable-id dead-end. Re-flip this test when edge logging lands.
   const upstream = http.createServer((_req, res) => {
     res.writeHead(200, { "Content-Type": "application/json", "x-azure-ref": "EDGE-REF-TEST-123" });
     res.write('{"code":0,"data'); // then silence
@@ -141,7 +144,7 @@ test("when the edge stamped the response, body-read failures carry x-azure-ref �
       { query: "x", timeout: 2 }
     );
     const text = result.content[0].text;
-    assert.match(text, /x-azure-ref=EDGE-REF-TEST-123/, `got: ${text}`);
+    assert.doesNotMatch(text, /x-azure-ref=/, `an unsearchable id leaked into user-facing text: ${text}`);
     assert.doesNotMatch(text, /request_id=/, "client UUID must stay out of user-facing text");
   } finally { upstream.close(); }
 });

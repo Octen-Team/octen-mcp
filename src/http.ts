@@ -343,16 +343,17 @@ export interface PostJsonOptions {
  * guess — the codes and correlation id are the actionable part.
  */
 export function bodyReadFailure(label: string, resp: Response, e: unknown): string {
-  // The only id worth putting in front of a user is one the other side can
-  // look up. The client's own correlation UUID is NOT that — the gateway does
-  // not record the x-request-id header yet, so a support ticket quoting it
-  // dead-ends, which is precisely the mutual-unaccountability failure the 0.4.0
-  // incident was about. The edge's x-azure-ref IS searchable today, and for a
-  // body-read failure the response headers carrying it have already arrived.
-  // The client UUID lives only in the OCTEN_MCP_DEBUG trace, where it ties
-  // retry attempts together.
-  const edgeRef = resp.headers?.get?.("x-azure-ref");
-  const suffix = edgeRef ? ` x-azure-ref=${edgeRef}` : "";
+  // No id in these messages, verified rather than assumed: the only id worth
+  // putting in front of a user is one the other side can look up, and for a
+  // body-read failure nothing qualifies today. The client's correlation UUID
+  // is not recorded by the gateway; the edge's x-azure-ref is stamped on the
+  // response but edge access logging is not enabled, so Octen cannot search it
+  // either (checked 2026-08-15: no AFD diagnostic settings, zero hits in
+  // ingress and gateway logs). An id that support cannot find recreates the
+  // mutual-unaccountability dead-end the 0.4.0 incident was about. Both ids
+  // remain in the OCTEN_MCP_DEBUG trace; re-add x-azure-ref here once edge
+  // logging is on.
+  const suffix = "";
   const err = e as (Error & { cause?: { code?: string } }) | undefined;
   if (err?.name === "TimeoutError" || err?.name === "AbortError") {
     return `${label} timed out while reading the response body (HTTP ${resp.status})${suffix}`;

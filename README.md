@@ -214,16 +214,15 @@ Each field answers a specific question:
 - **`elapsed`** vs **`handler_total`** — time in the HTTP request vs time in the tool
   handler. A large gap means the cost is in request assembly or response formatting,
   not the network.
-- **`x-azure-ref`** — stamped by the edge on every request that reaches it, and
-  already present in Octen's own logs. Quote it in a support report. Its *absence*
-  on a failure is itself informative: the request never arrived.
+- **`x-azure-ref`** — stamped by the edge on every request that reaches it. Its
+  *absence* on a failure is itself informative: the request never arrived.
 - **`request_id`** — in *this trace only*: the client-generated correlation id,
   stable across the retry, tying a call's attempts together. It never appears in
   user-facing error messages, deliberately: Octen support cannot look it up (the
   gateway does not record the header), and an id labelled `request_id` reads
-  like one they could. Error messages carry only server-searchable ids — the
-  server's own `request_id` from an API error envelope, or the edge's
-  `x-azure-ref`.
+  like one they could. Error messages carry only ids verified searchable on
+  Octen's side — today that is exactly one: the server's own `request_id` from
+  an API error envelope.
 
 Failures name the cause rather than `fetch failed`:
 

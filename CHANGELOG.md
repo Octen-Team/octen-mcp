@@ -22,9 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     cut of this fix and caught by its review;
   - genuinely malformed bytes — keeps `returned non-JSON`.
 
-  All three now carry the call's `request_id`, matching every sibling error
-  path — a body-read failure was the one network error a support ticket could
-  not trace. The classification is centralised in one helper rather than five
+  The classification is centralised in one helper rather than five
   copy-pasted catch blocks. Found by rebuilding the 0.4.0 field report's
   failure shapes on real sockets; regression tests drive the built server
   against an upstream that stalls, and one that RSTs, mid-body.
@@ -33,13 +31,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   id Octen support can search. They cannot — the gateway does not record the
   `x-request-id` header — so a ticket quoting it dead-ends: the same
   mutual-unaccountability failure the 0.4.0 incident was about, rebuilt in
-  miniature. Error messages now carry only server-searchable ids: the server's
-  own `request_id` from an API error envelope, and (new) the edge's
-  `x-azure-ref` on body-read failures, whose response headers have already
-  arrived. The client UUID remains in the `OCTEN_MCP_DEBUG` trace, where it
-  ties retry attempts together, and the `x-request-id` header still accompanies
-  every call so gateway-side recording can light it up later without a client
-  change.
+  miniature. Error messages now carry only ids verified to be searchable on
+  Octen's side — which, checked against the live infrastructure, is exactly
+  one: the server's `request_id` from an API error envelope (confirmed
+  retrievable in gateway logs). The edge's `x-azure-ref` was considered and
+  deliberately left out: edge access logging is not enabled, so Octen cannot
+  search it either. Both the client UUID and the edge ref remain in the
+  `OCTEN_MCP_DEBUG` trace, and the `x-request-id` header still accompanies
+  every call, so server-side recording can light either up later without a
+  client change.
 - README claimed `broad_search`'s default timeout is 60s; it has been 120s
   (raisable to 300s) since 0.4.0.
 
@@ -124,9 +124,11 @@ in practice; see Changed.
   - whether the call reused a connection or paid for a handshake
     (`socket=new` / `socket=reused`), and what the handshake cost;
   - connection failures by phase and error code, rather than after the fact;
-  - `x-azure-ref` from the edge, which unlike our own correlation id is already
-    present in Octen's infrastructure logs — and whose absence on a failure is
-    itself evidence the request never arrived.
+  - `x-azure-ref` from the edge — whose absence on a failure is itself evidence
+    the request never arrived. (Correction, 0.4.1: this entry originally claimed
+    the ref was "already present in Octen's infrastructure logs"; edge access
+    logging is in fact not enabled, so it is not currently searchable on
+    Octen's side.)
 - Tunables: `OCTEN_KEEP_ALIVE_MS`, `OCTEN_KEEP_ALIVE_MAX_MS`,
   `OCTEN_CONNECT_TIMEOUT_MS`, `OCTEN_HTTP2`, `OCTEN_RETRY`. HTTP/2 is off by
   default: it measured no faster for the usual one-request-at-a-time pattern

@@ -214,8 +214,13 @@ Each field answers a specific question:
 - **`elapsed`** vs **`handler_total`** — time in the HTTP request vs time in the tool
   handler. A large gap means the cost is in request assembly or response formatting,
   not the network.
-- **`x-azure-ref`** — stamped by the edge on every request that reaches it. Its
-  *absence* on a failure is itself informative: the request never arrived.
+- **`x-azure-ref`** — stamped by the edge on every request that reaches it, and
+  recorded in this trace for the two uses that need no lookup: its *absence* on
+  a failure proves the request never arrived, and it identifies the request in
+  an Azure-side escalation. **Do not quote it to Octen support expecting a
+  search** — edge access logging is not currently enabled on Octen's side, so
+  it cannot be looked up there yet. (Which is also why it does not appear in
+  error messages.)
 - **`request_id`** — in *this trace only*: the client-generated correlation id,
   stable across the retry, tying a call's attempts together. It never appears in
   user-facing error messages, deliberately: Octen support cannot look it up (the

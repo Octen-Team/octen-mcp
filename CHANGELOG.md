@@ -34,12 +34,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   miniature. Error messages now carry only ids verified to be searchable on
   Octen's side — which, checked against the live infrastructure, is exactly
   one: the server's `request_id` from an API error envelope (confirmed
-  retrievable in gateway logs). The edge's `x-azure-ref` was considered and
-  deliberately left out: edge access logging is not enabled, so Octen cannot
-  search it either. Both the client UUID and the edge ref remain in the
+  retrievable in gateway logs). The client UUID remains in the
   `OCTEN_MCP_DEBUG` trace, and the `x-request-id` header still accompanies
-  every call, so server-side recording can light either up later without a
-  client change.
+  every call, so server-side recording can light it up later without a client
+  change.
+- **The `x-azure-ref` edge reference is removed everywhere** — the debug
+  trace, the docs, and (briefly, within this release's own review cycle) error
+  messages. Verified against the live infrastructure: edge access logging is
+  not enabled, so the reference cannot be looked up at Octen, and an
+  identifier surfaced anywhere in the product reads as a capability. A guard
+  test now asserts infrastructure response headers never leak into user-facing
+  text.
 - README claimed `broad_search`'s default timeout is 60s; it has been 120s
   (raisable to 300s) since 0.4.0.
 
@@ -124,11 +129,10 @@ in practice; see Changed.
   - whether the call reused a connection or paid for a handshake
     (`socket=new` / `socket=reused`), and what the handshake cost;
   - connection failures by phase and error code, rather than after the fact;
-  - `x-azure-ref` from the edge — whose absence on a failure is itself evidence
-    the request never arrived. (Correction, 0.4.1: this entry originally claimed
-    the ref was "already present in Octen's infrastructure logs"; edge access
-    logging is in fact not enabled, so it is not currently searchable on
-    Octen's side.)
+  - `x-azure-ref` from the edge. (Removed in 0.4.1: this entry originally
+    claimed the ref was "already present in Octen's infrastructure logs" —
+    edge access logging is in fact not enabled, so the reference could not be
+    looked up at Octen and only misled.)
 - Tunables: `OCTEN_KEEP_ALIVE_MS`, `OCTEN_KEEP_ALIVE_MAX_MS`,
   `OCTEN_CONNECT_TIMEOUT_MS`, `OCTEN_HTTP2`, `OCTEN_RETRY`. HTTP/2 is off by
   default: it measured no faster for the usual one-request-at-a-time pattern

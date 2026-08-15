@@ -344,26 +344,22 @@ export interface PostJsonOptions {
  */
 export function bodyReadFailure(label: string, resp: Response, e: unknown): string {
   // No id in these messages, verified rather than assumed: the only id worth
-  // putting in front of a user is one the other side can look up, and for a
-  // body-read failure nothing qualifies today. The client's correlation UUID
-  // is not recorded by the gateway; the edge's x-azure-ref is stamped on the
-  // response but edge access logging is not enabled, so Octen cannot search it
-  // either (checked 2026-08-15: no AFD diagnostic settings, zero hits in
-  // ingress and gateway logs). An id that support cannot find recreates the
-  // mutual-unaccountability dead-end the 0.4.0 incident was about. Both ids
-  // remain in the OCTEN_MCP_DEBUG trace; re-add x-azure-ref here once edge
-  // logging is on.
-  const suffix = "";
+  // putting in front of a user is one Octen can actually look up, and for a
+  // body-read failure nothing qualifies (checked 2026-08-15 against the live
+  // infrastructure). An id that support cannot find recreates the
+  // mutual-unaccountability dead-end the 0.4.0 incident was about. The
+  // client's correlation UUID stays in the OCTEN_MCP_DEBUG trace, where it
+  // ties retry attempts together.
   const err = e as (Error & { cause?: { code?: string } }) | undefined;
   if (err?.name === "TimeoutError" || err?.name === "AbortError") {
-    return `${label} timed out while reading the response body (HTTP ${resp.status})${suffix}`;
+    return `${label} timed out while reading the response body (HTTP ${resp.status})`;
   }
   const code = err?.cause?.code;
   if (code) {
     return `${label}: connection lost while reading the response body ` +
-      `(HTTP ${resp.status}, code=${code})${suffix}`;
+      `(HTTP ${resp.status}, code=${code})`;
   }
-  return `${label} returned non-JSON (HTTP ${resp.status})${suffix}`;
+  return `${label} returned non-JSON (HTTP ${resp.status})`;
 }
 
 /** Thrown by {@link postJson}; `message` is already formatted for the LLM. */
@@ -420,23 +416,14 @@ async function postJsonInner(opts: PostJsonOptions): Promise<Response> {
         // that Node honours but the DOM `fetch` types do not declare.
         dispatcher,
       });
-      // Guarded rather than left to `debug()` to discard: the message reads
-      // response headers, and building it on every request would be wasted work
-      // whenever tracing is off.
       if (DEBUG) {
-        // Azure Front Door stamps every response that reaches the edge. Not
-        // currently searchable on Octen's side (edge access logging is off,
-        // verified 2026-08-15) — recorded in the trace so it lights up the
-        // moment that changes, and for Azure-side escalation meanwhile.
-        const edgeRef = resp.headers?.get?.("x-azure-ref");
         debug(
           `${path} attempt=${attempt} status=${resp.status} ` +
           `elapsed=${Date.now() - started}ms ` +
           // Whether this call paid for a handshake is the difference between
           // "the service is slow" and "we threw the connection away".
           `socket=${socketKind()} ` +
-          `request_id=${requestId}` +
-          (edgeRef ? ` x-azure-ref=${edgeRef}` : "")
+          `request_id=${requestId}`
         );
       }
       return resp;

@@ -128,13 +128,18 @@ test("a connection torn down mid-body is reported as a lost connection, not as m
   }
 });
 
-test("body-read failures carry NO id — nothing Octen can search exists for them today", async () => {
-  // The upstream DOES stamp an x-azure-ref, so this asserts active
-  // suppression, not absence of input: edge access logging is not enabled on
-  // Octen's side (verified 2026-08-15), so showing the ref would recreate the
-  // unsearchable-id dead-end. Re-flip this test when edge logging lands.
+test("infrastructure response headers never leak into user-facing error text", async () => {
+  // Policy guard: identifiers that Octen cannot look up must not surface —
+  // an id shown to a user is a promise that quoting it somewhere helps, and
+  // an unkeepable promise recreates the dead-end the 0.4.0 incident was
+  // about. The upstream stamps tracking-style headers precisely so this
+  // asserts active suppression, not absence of input.
   const upstream = http.createServer((_req, res) => {
-    res.writeHead(200, { "Content-Type": "application/json", "x-azure-ref": "EDGE-REF-TEST-123" });
+    res.writeHead(200, {
+      "Content-Type": "application/json",
+      "x-azure-ref": "EDGE-REF-TEST-123",
+      "x-cache": "TCP_MISS",
+    });
     res.write('{"code":0,"data'); // then silence
   });
   await new Promise((r) => upstream.listen(0, r));
@@ -144,7 +149,8 @@ test("body-read failures carry NO id — nothing Octen can search exists for the
       { query: "x", timeout: 2 }
     );
     const text = result.content[0].text;
-    assert.doesNotMatch(text, /x-azure-ref=/, `an unsearchable id leaked into user-facing text: ${text}`);
+    assert.doesNotMatch(text, /EDGE-REF-TEST-123|azure|TCP_MISS/i,
+      `an infrastructure header leaked into user-facing text: ${text}`);
     assert.doesNotMatch(text, /request_id=/, "client UUID must stay out of user-facing text");
   } finally { upstream.close(); }
 });

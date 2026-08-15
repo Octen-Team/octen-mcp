@@ -196,7 +196,7 @@ With it on, every call is traced to stderr:
 ```
 [octen-mcp 2026-08-14T04:36:36.219Z] call #1 received tool=search
 [octen-mcp 2026-08-14T04:36:36.637Z] connect #1 established to api.octen.ai in 410ms
-[octen-mcp 2026-08-14T04:36:37.155Z] /search attempt=1 status=200 elapsed=935ms socket=new request_id=42cd56a5-… x-azure-ref=20260814T043636Z-16d98fb8cd8…
+[octen-mcp 2026-08-14T04:36:37.155Z] /search attempt=1 status=200 elapsed=935ms socket=new request_id=42cd56a5-…
 [octen-mcp 2026-08-14T04:36:37.157Z] call #1 returning tool=search handler_total=938ms
 ```
 
@@ -214,13 +214,6 @@ Each field answers a specific question:
 - **`elapsed`** vs **`handler_total`** — time in the HTTP request vs time in the tool
   handler. A large gap means the cost is in request assembly or response formatting,
   not the network.
-- **`x-azure-ref`** — stamped by the edge on every request that reaches it, and
-  recorded in this trace for the two uses that need no lookup: its *absence* on
-  a failure proves the request never arrived, and it identifies the request in
-  an Azure-side escalation. **Do not quote it to Octen support expecting a
-  search** — edge access logging is not currently enabled on Octen's side, so
-  it cannot be looked up there yet. (Which is also why it does not appear in
-  error messages.)
 - **`request_id`** — in *this trace only*: the client-generated correlation id,
   stable across the retry, tying a call's attempts together. It never appears in
   user-facing error messages, deliberately: Octen support cannot look it up (the

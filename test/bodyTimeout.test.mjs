@@ -148,3 +148,23 @@ test("body-read failures carry NO id — nothing Octen can search exists for the
     assert.doesNotMatch(text, /request_id=/, "client UUID must stay out of user-facing text");
   } finally { upstream.close(); }
 });
+
+test("an upstream that accepts and never answers hits the tool deadline at real elapsed time", async () => {
+  // The in-process suite fakes TimeoutError objects; this one earns it: the
+  // socket connects fine and then nothing ever comes back.
+  const upstream = http.createServer(() => { /* accept, read, say nothing */ });
+  await new Promise((r) => upstream.listen(0, r));
+  try {
+    const t0 = Date.now();
+    const result = await callViaStdio(
+      { OCTEN_API_URL: `http://127.0.0.1:${upstream.address().port}` },
+      { query: "x", timeout: 2 }
+    );
+    const elapsed = Date.now() - t0;
+    assert.equal(result.isError, true);
+    assert.match(result.content[0].text, /timed out after 2s/);
+    assert.doesNotMatch(result.content[0].text, /reading the response body/,
+      "headers never arrived; this is the pre-response deadline, not the body one");
+    assert.ok(elapsed >= 1900 && elapsed < 9000, `deadline fired at ${elapsed}ms`);
+  } finally { upstream.close(); }
+});

@@ -268,3 +268,36 @@ test("a gateway that returns HTML instead of JSON is reported as such", async ()
   const text = reply?.result?.content?.[0]?.text ?? "";
   assert.match(text, /returned non-JSON \(HTTP 502\)/, `got: ${text}`);
 });
+
+test("a missing API key is reported as configuration guidance, before any network attempt", async () => {
+  const call = JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call",
+    params: { name: "search", arguments: { query: "x" } } });
+  const r = await startServer(
+    { OCTEN_API_KEY: "", OCTEN_API_URL: "http://127.0.0.1:45999",
+      HTTPS_PROXY: "", https_proxy: "", HTTP_PROXY: "", http_proxy: "" },
+    call + "\n"
+  );
+  const reply = r.out.split("\n").filter(Boolean).map(JSON.parse).find((m) => m.id === 2);
+  const text = reply?.result?.content?.[0]?.text ?? "";
+  assert.match(text, /OCTEN_API_KEY env var is not set/, `got: ${text}`);
+  assert.doesNotMatch(text, /ECONNREFUSED/, "a config problem must not surface as a network error");
+});
+
+test("when a proxy is configured, connection failures say the proxy was in the path", async () => {
+  // The error's job is to stop the 'works in curl, fails in the MCP server'
+  // confusion cold: if a proxy was used, the message must say so, because the
+  // proxy is then the first suspect — not our server, not the API.
+  const call = JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call",
+    params: { name: "search", arguments: { query: "x" } } });
+  const dead = "http://127.0.0.1:45997"; // nothing listens here
+  const r = await startServer(
+    { OCTEN_API_URL: "http://192.0.2.55",
+      HTTPS_PROXY: dead, https_proxy: dead, HTTP_PROXY: dead, http_proxy: dead },
+    call + "\n"
+  );
+  const reply = r.out.split("\n").filter(Boolean).map(JSON.parse).find((m) => m.id === 2);
+  const text = reply?.result?.content?.[0]?.text ?? "";
+  assert.match(text, /proxy=env/, `got: ${text}`);
+  assert.match(text, /a proxy is configured in the environment and was used/,
+    "the proxy-specific hint must replace the generic set-HTTPS_PROXY advice");
+});

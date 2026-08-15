@@ -424,9 +424,10 @@ async function postJsonInner(opts: PostJsonOptions): Promise<Response> {
       // response headers, and building it on every request would be wasted work
       // whenever tracing is off.
       if (DEBUG) {
-        // Azure Front Door stamps every response that reaches the edge. Unlike
-        // our own correlation id, this one already exists in Octen's
-        // infrastructure logs, so it is the handle that works today.
+        // Azure Front Door stamps every response that reaches the edge. Not
+        // currently searchable on Octen's side (edge access logging is off,
+        // verified 2026-08-15) — recorded in the trace so it lights up the
+        // moment that changes, and for Azure-side escalation meanwhile.
         const edgeRef = resp.headers?.get?.("x-azure-ref");
         debug(
           `${path} attempt=${attempt} status=${resp.status} ` +

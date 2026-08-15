@@ -217,7 +217,13 @@ Each field answers a specific question:
 - **`x-azure-ref`** — stamped by the edge on every request that reaches it, and
   already present in Octen's own logs. Quote it in a support report. Its *absence*
   on a failure is itself informative: the request never arrived.
-- **`request_id`** — our client-generated correlation id, stable across the retry.
+- **`request_id`** — a correlation id, and its *format* tells you which system can
+  look it up. A UUID (with dashes, e.g. `d6ad2a98-…`) is client-generated: it appears
+  when the request never produced an Octen response (network errors, timeouts,
+  body-read failures) and ties the error to the retry attempts in this trace. A
+  20+-char id starting with a timestamp (e.g. `20260814053244…`) came from Octen's
+  server inside an API error envelope — quote that one to Octen support, it is
+  directly searchable in service logs.
 
 Failures name the cause rather than `fetch failed`:
 

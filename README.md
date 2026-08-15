@@ -231,7 +231,7 @@ If this machine requires an HTTP proxy, set HTTPS_PROXY.
 means it was established and then torn down, and `ENOTFOUND` means DNS — three
 different problems with three different owners.
 
-Request timeouts: `search` and the media tools default to 30s, `broad_search` to 60s,
+Request timeouts: `search` and the media tools default to 30s, `broad_search` to 120s (raisable to 300s),
 and `extract` to its per-URL budget plus headroom. The search tools accept a
 `timeout` parameter to override; `extract`'s `timeout` is the *server-side,
 per-URL* fetch budget, so the client ceiling is derived from it rather than

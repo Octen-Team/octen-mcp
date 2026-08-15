@@ -13,7 +13,7 @@
  * note `meta` sits at the TOP level here (sibling of `data`), not under `data`.
  */
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
-import { postJson, OctenHttpError } from "./http.js";
+import { postJson, OctenHttpError, bodyReadFailure } from "./http.js";
 
 const API_KEY = process.env.OCTEN_API_KEY;
 
@@ -289,13 +289,10 @@ export async function handleSearch(rawArgs: Record<string, unknown>): Promise<Ca
   try {
     data = await resp.json();
   } catch (e) {
-    // The deadline also governs body consumption: a response whose headers
-    // arrived but whose body stalls aborts HERE, not in the fetch above, and
-    // must be reported as the timeout it is — not as a malformed response.
-    if ((e as Error).name === "TimeoutError" || (e as Error).name === "AbortError") {
-      return errorResult(`Octen Search timed out while reading the response body (HTTP ${resp.status})`);
-    }
-    return errorResult(`Octen Search returned non-JSON (HTTP ${resp.status})`);
+    // Body reads fail three distinct ways (deadline abort, connection torn
+    // down mid-stream, genuinely malformed bytes); bodyReadFailure names
+    // which one happened instead of lumping them as a parse error.
+    return errorResult(bodyReadFailure(`Octen Search`, resp, e));
   }
 
   // Envelope-level error: surface code + msg verbatim.
@@ -446,13 +443,10 @@ export async function handleBroadSearch(rawArgs: Record<string, unknown>): Promi
   try {
     data = await resp.json();
   } catch (e) {
-    // The deadline also governs body consumption: a response whose headers
-    // arrived but whose body stalls aborts HERE, not in the fetch above, and
-    // must be reported as the timeout it is — not as a malformed response.
-    if ((e as Error).name === "TimeoutError" || (e as Error).name === "AbortError") {
-      return errorResult(`Octen Broad Search timed out while reading the response body (HTTP ${resp.status})`);
-    }
-    return errorResult(`Octen Broad Search returned non-JSON (HTTP ${resp.status})`);
+    // Body reads fail three distinct ways (deadline abort, connection torn
+    // down mid-stream, genuinely malformed bytes); bodyReadFailure names
+    // which one happened instead of lumping them as a parse error.
+    return errorResult(bodyReadFailure(`Octen Broad Search`, resp, e));
   }
 
   if (typeof data?.code === "number" && data.code !== 0) {

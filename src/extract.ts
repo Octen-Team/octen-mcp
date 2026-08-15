@@ -9,7 +9,7 @@
  * None of these are in Firecrawl / Exa / Tavily today.
  */
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
-import { postJson, OctenHttpError } from "./http.js";
+import { postJson, OctenHttpError, bodyReadFailure } from "./http.js";
 
 const API_KEY = process.env.OCTEN_API_KEY;
 
@@ -143,13 +143,10 @@ export async function handleExtract(rawArgs: Record<string, unknown>): Promise<C
   try {
     data = await resp.json();
   } catch (e) {
-    // The deadline also governs body consumption: a response whose headers
-    // arrived but whose body stalls aborts HERE, not in the fetch above, and
-    // must be reported as the timeout it is — not as a malformed response.
-    if ((e as Error).name === "TimeoutError" || (e as Error).name === "AbortError") {
-      return errorResult(`Octen Extract timed out while reading the response body (HTTP ${resp.status})`);
-    }
-    return errorResult(`Octen Extract returned non-JSON (HTTP ${resp.status})`);
+    // Body reads fail three distinct ways (deadline abort, connection torn
+    // down mid-stream, genuinely malformed bytes); bodyReadFailure names
+    // which one happened instead of lumping them as a parse error.
+    return errorResult(bodyReadFailure(`Octen Extract`, resp, e));
   }
 
   // Envelope-level error: surface code + msg verbatim.

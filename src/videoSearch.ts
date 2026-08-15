@@ -13,7 +13,7 @@
  */
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 import { formatMeta, errorResult } from "./search.js";
-import { postJson, OctenHttpError } from "./http.js";
+import { postJson, OctenHttpError, bodyReadFailure } from "./http.js";
 
 /** Client-side ceiling when the caller passes no `timeout`. */
 const VIDEO_SEARCH_TIMEOUT_SEC = 30;
@@ -129,13 +129,10 @@ export async function handleVideoSearch(rawArgs: Record<string, unknown>): Promi
   try {
     data = await resp.json();
   } catch (e) {
-    // The deadline also governs body consumption: a response whose headers
-    // arrived but whose body stalls aborts HERE, not in the fetch above, and
-    // must be reported as the timeout it is — not as a malformed response.
-    if ((e as Error).name === "TimeoutError" || (e as Error).name === "AbortError") {
-      return errorResult(`Octen Video Search timed out while reading the response body (HTTP ${resp.status})`);
-    }
-    return errorResult(`Octen Video Search returned non-JSON (HTTP ${resp.status})`);
+    // Body reads fail three distinct ways (deadline abort, connection torn
+    // down mid-stream, genuinely malformed bytes); bodyReadFailure names
+    // which one happened instead of lumping them as a parse error.
+    return errorResult(bodyReadFailure(`Octen Video Search`, resp, e));
   }
 
   // Envelope-level error: surface code + msg verbatim.

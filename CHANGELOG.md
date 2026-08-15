@@ -10,15 +10,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.4.1] — 2026-08-15
 
 ### Fixed
-- A response whose 200 headers arrived but whose body stalled mid-stream was
-  reported as `returned non-JSON (HTTP 200)` — pointing whoever read the error
-  at a serialization problem when the actual event was a stalled connection.
-  The client deadline governs body consumption too; when it aborts a stalled
-  body read, all five tools now report
-  `timed out while reading the response body` instead. Found by rebuilding the
-  0.4.0 field report's failure shapes on real sockets; the regression test
-  drives the built server against an upstream that sends half a body and goes
-  silent.
+- **Body-read failures were lumped into `returned non-JSON`.** `resp.json()`
+  can fail three distinct ways, and two of them are not parse errors:
+  - the client deadline aborting a stalled read — now
+    `timed out while reading the response body (HTTP <status>)`;
+  - the connection dying mid-body with no timeout involved (RST, FIN, or a
+    Content-Length the origin never honored; undici surfaces these as a bare
+    `TypeError: terminated` with the diagnosis on `cause.code`) — now
+    `connection lost while reading the response body (HTTP <status>,
+    code=ECONNRESET|UND_ERR_SOCKET|…)`. This shape was missed by the first
+    cut of this fix and caught by its review;
+  - genuinely malformed bytes — keeps `returned non-JSON`.
+
+  All three now carry the call's `request_id`, matching every sibling error
+  path — a body-read failure was the one network error a support ticket could
+  not trace. The classification is centralised in one helper rather than five
+  copy-pasted catch blocks. Found by rebuilding the 0.4.0 field report's
+  failure shapes on real sockets; regression tests drive the built server
+  against an upstream that stalls, and one that RSTs, mid-body.
+- README claimed `broad_search`'s default timeout is 60s; it has been 120s
+  (raisable to 300s) since 0.4.0.
 
 ## [0.4.0] — 2026-08-14
 

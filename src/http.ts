@@ -321,6 +321,49 @@ export interface PostJsonOptions {
   canRaiseTimeout?: boolean;
 }
 
+/**
+ * Correlation id of the call that produced a Response, for error paths that
+ * fire AFTER `postJson` resolves (body reads happen in the handlers). Keyed
+ * weakly so retention follows the Response's own lifetime.
+ */
+const responseRequestIds = new WeakMap<object, string>();
+
+/**
+ * Classify a `resp.json()` rejection into a message that names what actually
+ * happened. Body reads can fail three distinct ways, and two of them are not
+ * parse errors:
+ *
+ *  - the shared deadline aborts a stalled read (`TimeoutError`/`AbortError`);
+ *  - the connection dies mid-body — RST, FIN, or a Content-Length the origin
+ *    never honored. undici surfaces these as a bare `TypeError: terminated`
+ *    with the diagnosis on `cause.code` (ECONNRESET, UND_ERR_SOCKET,
+ *    UND_ERR_RES_CONTENT_LENGTH_MISMATCH), exactly the `err.cause` pattern
+ *    this module exists to unwrap;
+ *  - the bytes are genuinely not JSON (`SyntaxError`).
+ *
+ * Centralised because the first fix for this lived as five identical
+ * copy-pasted catch blocks, and its own review found the second bullet missing
+ * from every one of them.
+ *
+ * No "raise `timeout`" advice on any branch: a stalled or torn-down stream is
+ * indistinguishable from a slow one at this point, so the advice would be a
+ * guess — the codes and correlation id are the actionable part.
+ */
+export function bodyReadFailure(label: string, resp: Response, e: unknown): string {
+  const rid = responseRequestIds.get(resp);
+  const suffix = rid ? ` request_id=${rid}` : "";
+  const err = e as (Error & { cause?: { code?: string } }) | undefined;
+  if (err?.name === "TimeoutError" || err?.name === "AbortError") {
+    return `${label} timed out while reading the response body (HTTP ${resp.status})${suffix}`;
+  }
+  const code = err?.cause?.code;
+  if (code) {
+    return `${label}: connection lost while reading the response body ` +
+      `(HTTP ${resp.status}, code=${code})${suffix}`;
+  }
+  return `${label} returned non-JSON (HTTP ${resp.status})${suffix}`;
+}
+
 /** Thrown by {@link postJson}; `message` is already formatted for the LLM. */
 export class OctenHttpError extends Error {}
 
@@ -393,6 +436,7 @@ async function postJsonInner(opts: PostJsonOptions): Promise<Response> {
           (edgeRef ? ` x-azure-ref=${edgeRef}` : "")
         );
       }
+      responseRequestIds.set(resp, requestId);
       return resp;
     } catch (e) {
       const elapsed = Date.now() - started;

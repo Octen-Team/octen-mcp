@@ -15,7 +15,7 @@
  */
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 import { formatMeta, errorResult } from "./search.js";
-import { postJson, OctenHttpError } from "./http.js";
+import { postJson, OctenHttpError, bodyReadFailure } from "./http.js";
 
 /** Client-side ceiling when the caller passes no `timeout`. */
 const IMAGE_SEARCH_TIMEOUT_SEC = 30;
@@ -183,8 +183,11 @@ export async function handleImageSearch(rawArgs: Record<string, unknown>): Promi
   let data: any;
   try {
     data = await resp.json();
-  } catch {
-    return errorResult(`Octen Image Search returned non-JSON (HTTP ${resp.status})`);
+  } catch (e) {
+    // Body reads fail three distinct ways (deadline abort, connection torn
+    // down mid-stream, genuinely malformed bytes); bodyReadFailure names
+    // which one happened instead of lumping them as a parse error.
+    return errorResult(bodyReadFailure(`Octen Image Search`, resp, e));
   }
 
   // Envelope-level error: surface code + msg verbatim.

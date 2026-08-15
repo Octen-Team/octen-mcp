@@ -13,7 +13,7 @@
  * note `meta` sits at the TOP level here (sibling of `data`), not under `data`.
  */
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
-import { postJson, OctenHttpError } from "./http.js";
+import { postJson, OctenHttpError, bodyReadFailure } from "./http.js";
 
 const API_KEY = process.env.OCTEN_API_KEY;
 
@@ -288,8 +288,11 @@ export async function handleSearch(rawArgs: Record<string, unknown>): Promise<Ca
   let data: any;
   try {
     data = await resp.json();
-  } catch {
-    return errorResult(`Octen Search returned non-JSON (HTTP ${resp.status})`);
+  } catch (e) {
+    // Body reads fail three distinct ways (deadline abort, connection torn
+    // down mid-stream, genuinely malformed bytes); bodyReadFailure names
+    // which one happened instead of lumping them as a parse error.
+    return errorResult(bodyReadFailure(`Octen Search`, resp, e));
   }
 
   // Envelope-level error: surface code + msg verbatim.
@@ -439,8 +442,11 @@ export async function handleBroadSearch(rawArgs: Record<string, unknown>): Promi
   let data: any;
   try {
     data = await resp.json();
-  } catch {
-    return errorResult(`Octen Broad Search returned non-JSON (HTTP ${resp.status})`);
+  } catch (e) {
+    // Body reads fail three distinct ways (deadline abort, connection torn
+    // down mid-stream, genuinely malformed bytes); bodyReadFailure names
+    // which one happened instead of lumping them as a parse error.
+    return errorResult(bodyReadFailure(`Octen Broad Search`, resp, e));
   }
 
   if (typeof data?.code === "number" && data.code !== 0) {

@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-08-15
+
+### Fixed
+- **Body-read failures were lumped into `returned non-JSON`.** `resp.json()`
+  can fail three distinct ways, and two of them are not parse errors:
+  - the client deadline aborting a stalled read — now
+    `timed out while reading the response body (HTTP <status>)`;
+  - the connection dying mid-body with no timeout involved (RST, FIN, or a
+    Content-Length the origin never honored; undici surfaces these as a bare
+    `TypeError: terminated` with the diagnosis on `cause.code`) — now
+    `connection lost while reading the response body (HTTP <status>,
+    code=ECONNRESET|UND_ERR_SOCKET|…)`. This shape was missed by the first
+    cut of this fix and caught by its review;
+  - genuinely malformed bytes — keeps `returned non-JSON`.
+
+  The classification is centralised in one helper rather than five
+  copy-pasted catch blocks. Found by rebuilding the 0.4.0 field report's
+  failure shapes on real sockets; regression tests drive the built server
+  against an upstream that stalls, and one that RSTs, mid-body.
+- **The client-generated correlation UUID no longer appears in user-facing
+  error messages.** 0.4.0 echoed it as `request_id=<uuid>`, which reads like an
+  id Octen support can search. They cannot — the gateway does not record the
+  `x-request-id` header — so a ticket quoting it dead-ends: the same
+  mutual-unaccountability failure the 0.4.0 incident was about, rebuilt in
+  miniature. Error messages now carry only ids verified to be searchable on
+  Octen's side — which, checked against the live infrastructure, is exactly
+  one: the server's `request_id` from an API error envelope (confirmed
+  retrievable in gateway logs). The client UUID remains in the
+  `OCTEN_MCP_DEBUG` trace, and the `x-request-id` header still accompanies
+  every call, so server-side recording can light it up later without a client
+  change.
+- **The `x-azure-ref` edge reference is removed everywhere** — the debug
+  trace, the docs, and (briefly, within this release's own review cycle) error
+  messages. Verified against the live infrastructure: edge access logging is
+  not enabled, so the reference cannot be looked up at Octen, and an
+  identifier surfaced anywhere in the product reads as a capability. A guard
+  test now asserts infrastructure response headers never leak into user-facing
+  text.
+- README claimed `broad_search`'s default timeout is 60s; it has been 120s
+  (raisable to 300s) since 0.4.0.
+
 ## [0.4.0] — 2026-08-14
 
 Reliability and latency fixes in the HTTP layer. No tool, schema, or parameter
@@ -31,7 +72,9 @@ in practice; see Changed.
   passed it explicitly — otherwise no `AbortSignal` was attached at all and a
   stalled request sat on undici's 300s `headersTimeout`, which an agent sees as
   a tool call that never returns. Defaults: 30s for `search` / `news_search` /
-  `image_search` / `video_search`, 60s for `broad_search`. `extract` had no
+  `image_search` / `video_search`, 120s for `broad_search` (this entry
+  originally said 60s in error — the shipped 0.4.0 code already defaulted to
+  120s, raisable to 300s; corrected in 0.4.1). `extract` had no
   client timeout whatsoever; its `timeout` is the server-side per-URL budget, so
   the client ceiling is now derived from it with headroom.
 - **Connections are reused between tool calls.** The server used undici's global
@@ -88,9 +131,10 @@ in practice; see Changed.
   - whether the call reused a connection or paid for a handshake
     (`socket=new` / `socket=reused`), and what the handshake cost;
   - connection failures by phase and error code, rather than after the fact;
-  - `x-azure-ref` from the edge, which unlike our own correlation id is already
-    present in Octen's infrastructure logs — and whose absence on a failure is
-    itself evidence the request never arrived.
+  - `x-azure-ref` from the edge. (Removed in 0.4.1: this entry originally
+    claimed the ref was "already present in Octen's infrastructure logs" —
+    edge access logging is in fact not enabled, so the reference could not be
+    looked up at Octen and only misled.)
 - Tunables: `OCTEN_KEEP_ALIVE_MS`, `OCTEN_KEEP_ALIVE_MAX_MS`,
   `OCTEN_CONNECT_TIMEOUT_MS`, `OCTEN_HTTP2`, `OCTEN_RETRY`. HTTP/2 is off by
   default: it measured no faster for the usual one-request-at-a-time pattern
@@ -274,7 +318,9 @@ Aligns the `extract` tool with the current Extract API reference
 - `OCTEN_API_KEY` env var for authentication.
 - `OCTEN_API_URL` override for staging or self-hosted endpoints.
 
-[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.7...HEAD
+[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/Octen-Team/octen-mcp/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.7...v0.4.0
 [0.3.7]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.6...v0.3.7
 [0.3.6]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.5...v0.3.6
 [0.3.5]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.4...v0.3.5

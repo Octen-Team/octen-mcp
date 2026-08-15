@@ -1,8 +1,8 @@
 {
   "name": "octen-mcp",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "mcpName": "io.github.Octen-Team/octen-mcp",
-  "description": "MCP server for Octen — web search plus URL extract: LLM-ready markdown with query-driven highlights, category, and page_structure classification.",
+  "description": "MCP server for Octen \u2014 web search plus URL extract: LLM-ready markdown with query-driven highlights, category, and page_structure classification.",
   "license": "MIT",
   "author": "Octen <hello@octen.ai>",
   "homepage": "https://github.com/Octen-Team/octen-mcp#readme",

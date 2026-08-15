@@ -195,8 +195,8 @@ With it on, every call is traced to stderr:
 
 ```
 [octen-mcp 2026-08-14T04:36:36.219Z] call #1 received tool=search
-[octen-mcp 2026-08-14T04:36:36.637Z] connect #1 established to api.octen.ai in 410ms
-[octen-mcp 2026-08-14T04:36:37.155Z] /search attempt=1 status=200 elapsed=935ms socket=new request_id=42cd56a5-… x-azure-ref=20260814T043636Z-16d98fb8cd8…
+[octen-mcp 2026-08-14T04:36:36.637Z] connect #1 established to api.octen.ai in 410ms peer=203.0.113.10:443 tls=TLSv1.3 alpn=http/1.1
+[octen-mcp 2026-08-14T04:36:37.155Z] /search attempt=1 status=200 elapsed=935ms socket=new request_id=42cd56a5-…
 [octen-mcp 2026-08-14T04:36:37.157Z] call #1 returning tool=search handler_total=938ms
 ```
 
@@ -208,22 +208,29 @@ Each field answers a specific question:
   client-side stopwatch alone cannot separate that from time we are responsible for.
 - **`connect … established in Xms`** — a handshake happened, and what it cost.
   `connect FAILED` names the phase and error code instead.
+- **`peer=` / `tls=` / `alpn=`** — which address the connection actually reached
+  (the API hostname is anycast, so the hostname alone cannot tell you which
+  edge), and the negotiated TLS version and protocol — a mismatch there
+  otherwise presents as an unexplained slow or failed handshake.
 - **`socket=new` / `socket=reused`** — whether this call paid for a handshake. This
   is the difference between "the service is slow" and "the connection was thrown
   away between calls".
 - **`elapsed`** vs **`handler_total`** — time in the HTTP request vs time in the tool
   handler. A large gap means the cost is in request assembly or response formatting,
   not the network.
-- **`x-azure-ref`** — stamped by the edge on every request that reaches it, and
-  already present in Octen's own logs. Quote it in a support report. Its *absence*
-  on a failure is itself informative: the request never arrived.
-- **`request_id`** — our client-generated correlation id, stable across the retry.
+- **`request_id`** — in *this trace only*: the client-generated correlation id,
+  stable across the retry, tying a call's attempts together. It never appears in
+  user-facing error messages, deliberately: Octen support cannot look it up (the
+  gateway does not record the header), and an id labelled `request_id` reads
+  like one they could. Error messages carry only ids verified searchable on
+  Octen's side — today that is exactly one: the server's own `request_id` from
+  an API error envelope.
 
 Failures name the cause rather than `fetch failed`:
 
 ```
 Network error calling Octen Search: code=ECONNREFUSED cause=connect ECONNREFUSED 203.0.113.9:443
-address=203.0.113.9:443 request_id=d6ad2a98-… — could not establish a connection.
+address=203.0.113.9:443 — could not establish a connection.
 If this machine requires an HTTP proxy, set HTTPS_PROXY.
 ```
 
@@ -231,7 +238,7 @@ If this machine requires an HTTP proxy, set HTTPS_PROXY.
 means it was established and then torn down, and `ENOTFOUND` means DNS — three
 different problems with three different owners.
 
-Request timeouts: `search` and the media tools default to 30s, `broad_search` to 60s,
+Request timeouts: `search` and the media tools default to 30s, `broad_search` to 120s (raisable to 300s),
 and `extract` to its per-URL budget plus headroom. The search tools accept a
 `timeout` parameter to override; `extract`'s `timeout` is the *server-side,
 per-URL* fetch budget, so the client ceiling is derived from it rather than

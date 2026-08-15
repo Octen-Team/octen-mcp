@@ -111,9 +111,22 @@ test("one correlation id is sent, and stays stable across the retry", async () =
   assert.equal(ids[0], ids[1], "retry used a different correlation id");
 });
 
-test("failures surface the correlation id so a ticket maps to server logs", async () => {
+test("network errors carry NO client-generated request_id — support cannot look it up", async () => {
+  // A UUID labelled request_id reads like something Octen support can search.
+  // They cannot (the gateway does not record the x-request-id header), so a
+  // ticket quoting it dead-ends — the exact mutual-unaccountability failure
+  // the 0.4.0 incident was about. The UUID belongs to the debug trace only.
   scriptFetch([fetchFailed(Object.assign(new Error("nope"), { code: "CERT_HAS_EXPIRED" }))]);
-  assert.match(textOf(await handleSearch({ query: "hi" })), /request_id=[0-9a-f-]{36}/);
+  const text = textOf(await handleSearch({ query: "hi" }));
+  assert.doesNotMatch(text, /request_id=[0-9a-f-]{36}/,
+    "client UUID leaked into a user-facing message");
+  assert.match(text, /CERT_HAS_EXPIRED/, "the actionable part (the code) must remain");
+});
+
+test("server envelope errors DO carry the server's request_id — the one support can search", async () => {
+  scriptFetch([{ code: 401, msg: "Invalid API Key", request_id: "20260815SRVID0000001" }]);
+  const text = textOf(await handleSearch({ query: "hi" }));
+  assert.match(text, /request_id=20260815SRVID0000001/);
 });
 
 test("a timeout says so, and points at the knob when the caller set none", async () => {
@@ -200,4 +213,90 @@ test("no retry when the remaining budget cannot fit one", async () => {
   const out = await handleSearch({ query: "hi", timeout: 1 });
   assert.equal(calls, 1, "retried into a budget that could not fit it");
   assert.match(textOf(out), /ECONNRESET/, "lost the specific diagnosis to a generic timeout");
+});
+
+// ---------------------------------------------------------------------------
+// Branch-completeness: every tool × every body-read failure shape.
+// The real-socket suite proves the shapes are real (bodyTimeout.test.mjs) but
+// only exercises `search`; this pins the shared classifier's wiring — label
+// and branch — for all five handlers, in-process where coverage can see it.
+// ---------------------------------------------------------------------------
+const { handleImageSearch } = await import("../dist/imageSearch.js");
+const { handleVideoSearch } = await import("../dist/videoSearch.js");
+
+const ALL_TOOLS = [
+  ["Octen Search", () => handleSearch({ query: "x" })],
+  ["Octen Broad Search", () => handleBroadSearch({ query: "x" })],
+  ["Octen Extract", () => handleExtract({ urls: ["https://e.com"] })],
+  ["Octen Image Search", () => handleImageSearch({ query: "x" })],
+  ["Octen Video Search", () => handleVideoSearch({ query: "x" })],
+];
+
+function stubJsonReject(err) {
+  globalThis.fetch = async () => ({ status: 200, headers: new Headers(), json: async () => { throw err; } });
+}
+
+test("every tool classifies all three body-read failure shapes under its own label", async () => {
+  const SHAPES = [
+    [Object.assign(new Error("aborted"), { name: "TimeoutError" }),
+      (label) => new RegExp(`^${label} timed out while reading the response body \\(HTTP 200\\)$`)],
+    [Object.assign(new TypeError("terminated"), { cause: { code: "ECONNRESET" } }),
+      (label) => new RegExp(`^${label}: connection lost while reading the response body \\(HTTP 200, code=ECONNRESET\\)$`)],
+    [new SyntaxError("Unexpected token"),
+      (label) => new RegExp(`^${label} returned non-JSON \\(HTTP 200\\)$`)],
+  ];
+  for (const [label, invoke] of ALL_TOOLS) {
+    for (const [err, expect] of SHAPES) {
+      stubJsonReject(err);
+      const out = await invoke();
+      assert.equal(out.isError, true, `${label}: expected error for ${err.name}`);
+      const text = textOf(out);
+      assert.match(text, expect(label), `${label} / ${err.name}: got "${text}"`);
+    }
+  }
+});
+
+test("every tool relays a server envelope error verbatim with the server's request_id", async () => {
+  for (const [label, invoke] of ALL_TOOLS) {
+    globalThis.fetch = async () => ({
+      status: 200, headers: new Headers(),
+      json: async () => ({ code: 403, msg: "Beta access required", request_id: "20260815SRVENV000001" }),
+    });
+    const out = await invoke();
+    assert.equal(out.isError, true, label);
+    const text = textOf(out);
+    assert.match(text, new RegExp(`^${label}: code=403 msg=Beta access required`), `${label}: got "${text}"`);
+    assert.match(text, /request_id=20260815SRVENV000001/, `${label}: server request_id missing`);
+  }
+});
+
+test("every tool rejects empty input before touching the network", async () => {
+  let fetched = false;
+  globalThis.fetch = async () => { fetched = true; throw new Error("must not be called"); };
+  const EMPTY = [
+    () => handleSearch({ query: "  " }),
+    () => handleBroadSearch({ query: "" }),
+    () => handleExtract({ urls: [] }),
+    () => handleImageSearch({ query: "  " }),
+    () => handleVideoSearch({ query: "" }),
+  ];
+  for (const invoke of EMPTY) {
+    const out = await invoke();
+    assert.equal(out.isError, true);
+    assert.match(textOf(out), /must be a non-empty/);
+  }
+  assert.equal(fetched, false, "validation failures must not reach the network");
+});
+
+test("happy-eyeballs failures report every distinct address family's code, not just the first", async () => {
+  // IPv6 blackholed + IPv4 refused fail with different codes; reporting only
+  // errors[0] hides half the diagnosis.
+  const agg = new AggregateError([
+    Object.assign(new Error("connect ETIMEDOUT"), { code: "ETIMEDOUT", address: "2001:db8::1", port: 443 }),
+    Object.assign(new Error("connect ENETUNREACH"), { code: "ENETUNREACH", address: "192.0.2.9", port: 443 }),
+  ], "all attempts failed");
+  scriptFetch([fetchFailed(agg), fetchFailed(agg)]);
+  const text = textOf(await handleSearch({ query: "x" }));
+  assert.match(text, /code=ETIMEDOUT/);
+  assert.match(text, /also=ENETUNREACH/, `second family's code dropped: "${text}"`);
 });

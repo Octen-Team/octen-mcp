@@ -9,7 +9,7 @@
  * None of these are in Firecrawl / Exa / Tavily today.
  */
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
-import { postJson, OctenHttpError } from "./http.js";
+import { postJson, OctenHttpError, bodyReadFailure } from "./http.js";
 
 const API_KEY = process.env.OCTEN_API_KEY;
 
@@ -142,8 +142,11 @@ export async function handleExtract(rawArgs: Record<string, unknown>): Promise<C
   let data: any;
   try {
     data = await resp.json();
-  } catch {
-    return errorResult(`Octen Extract returned non-JSON (HTTP ${resp.status})`);
+  } catch (e) {
+    // Body reads fail three distinct ways (deadline abort, connection torn
+    // down mid-stream, genuinely malformed bytes); bodyReadFailure names
+    // which one happened instead of lumping them as a parse error.
+    return errorResult(bodyReadFailure(`Octen Extract`, resp, e));
   }
 
   // Envelope-level error: surface code + msg verbatim.

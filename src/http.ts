@@ -321,6 +321,47 @@ export interface PostJsonOptions {
   canRaiseTimeout?: boolean;
 }
 
+/**
+ * Classify a `resp.json()` rejection into a message that names what actually
+ * happened. Body reads can fail three distinct ways, and two of them are not
+ * parse errors:
+ *
+ *  - the shared deadline aborts a stalled read (`TimeoutError`/`AbortError`);
+ *  - the connection dies mid-body — RST, FIN, or a Content-Length the origin
+ *    never honored. undici surfaces these as a bare `TypeError: terminated`
+ *    with the diagnosis on `cause.code` (ECONNRESET, UND_ERR_SOCKET,
+ *    UND_ERR_RES_CONTENT_LENGTH_MISMATCH), exactly the `err.cause` pattern
+ *    this module exists to unwrap;
+ *  - the bytes are genuinely not JSON (`SyntaxError`).
+ *
+ * Centralised because the first fix for this lived as five identical
+ * copy-pasted catch blocks, and its own review found the second bullet missing
+ * from every one of them.
+ *
+ * No "raise `timeout`" advice on any branch: a stalled or torn-down stream is
+ * indistinguishable from a slow one at this point, so the advice would be a
+ * guess — the codes and correlation id are the actionable part.
+ */
+export function bodyReadFailure(label: string, resp: Response, e: unknown): string {
+  // No id in these messages, verified rather than assumed: the only id worth
+  // putting in front of a user is one Octen can actually look up, and for a
+  // body-read failure nothing qualifies (checked 2026-08-15 against the live
+  // infrastructure). An id that support cannot find recreates the
+  // mutual-unaccountability dead-end the 0.4.0 incident was about. The
+  // client's correlation UUID stays in the OCTEN_MCP_DEBUG trace, where it
+  // ties retry attempts together.
+  const err = e as (Error & { cause?: { code?: string } }) | undefined;
+  if (err?.name === "TimeoutError" || err?.name === "AbortError") {
+    return `${label} timed out while reading the response body (HTTP ${resp.status})`;
+  }
+  const code = err?.cause?.code;
+  if (code) {
+    return `${label}: connection lost while reading the response body ` +
+      `(HTTP ${resp.status}, code=${code})`;
+  }
+  return `${label} returned non-JSON (HTTP ${resp.status})`;
+}
+
 /** Thrown by {@link postJson}; `message` is already formatted for the LLM. */
 export class OctenHttpError extends Error {}
 
@@ -375,22 +416,14 @@ async function postJsonInner(opts: PostJsonOptions): Promise<Response> {
         // that Node honours but the DOM `fetch` types do not declare.
         dispatcher,
       });
-      // Guarded rather than left to `debug()` to discard: the message reads
-      // response headers, and building it on every request would be wasted work
-      // whenever tracing is off.
       if (DEBUG) {
-        // Azure Front Door stamps every response that reaches the edge. Unlike
-        // our own correlation id, this one already exists in Octen's
-        // infrastructure logs, so it is the handle that works today.
-        const edgeRef = resp.headers?.get?.("x-azure-ref");
         debug(
           `${path} attempt=${attempt} status=${resp.status} ` +
           `elapsed=${Date.now() - started}ms ` +
           // Whether this call paid for a handshake is the difference between
           // "the service is slow" and "we threw the connection away".
           `socket=${socketKind()} ` +
-          `request_id=${requestId}` +
-          (edgeRef ? ` x-azure-ref=${edgeRef}` : "")
+          `request_id=${requestId}`
         );
       }
       return resp;
@@ -404,8 +437,10 @@ async function postJsonInner(opts: PostJsonOptions): Promise<Response> {
           `socket=${socketKind()} request_id=${requestId}`
         );
         throw new OctenHttpError(
-          `${label} timed out after ${effectiveTimeoutSec}s ` +
-          `(request_id=${requestId})` +
+          // No id here: nothing reached the server, so there is nothing the
+          // other side could look up — and a client-generated id labelled
+          // request_id reads like one they could.
+          `${label} timed out after ${effectiveTimeoutSec}s` +
           // Deliberately not phrased as "the client default": for `extract` the
           // ceiling is derived from the caller's own per-URL `timeout`, so
           // calling it a default would be false. Raising `timeout` raises the
@@ -442,7 +477,7 @@ async function postJsonInner(opts: PostJsonOptions): Promise<Response> {
       }
 
       throw new OctenHttpError(
-        `Network error calling ${label}: ${detail} request_id=${requestId}` +
+        `Network error calling ${label}: ${detail}` +
         (code === "UND_ERR_CONNECT_TIMEOUT" || code === "ECONNREFUSED"
           ? proxyConfigured
             ? " — a proxy is configured in the environment and was used; check it allows api.octen.ai."
@@ -453,5 +488,5 @@ async function postJsonInner(opts: PostJsonOptions): Promise<Response> {
   }
 
   /* c8 ignore next */
-  throw new OctenHttpError(`Network error calling ${label}: ${lastDetail} request_id=${requestId}`);
+  throw new OctenHttpError(`Network error calling ${label}: ${lastDetail}`);
 }

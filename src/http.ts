@@ -322,13 +322,6 @@ export interface PostJsonOptions {
 }
 
 /**
- * Correlation id of the call that produced a Response, for error paths that
- * fire AFTER `postJson` resolves (body reads happen in the handlers). Keyed
- * weakly so retention follows the Response's own lifetime.
- */
-const responseRequestIds = new WeakMap<object, string>();
-
-/**
  * Classify a `resp.json()` rejection into a message that names what actually
  * happened. Body reads can fail three distinct ways, and two of them are not
  * parse errors:
@@ -350,8 +343,16 @@ const responseRequestIds = new WeakMap<object, string>();
  * guess — the codes and correlation id are the actionable part.
  */
 export function bodyReadFailure(label: string, resp: Response, e: unknown): string {
-  const rid = responseRequestIds.get(resp);
-  const suffix = rid ? ` request_id=${rid}` : "";
+  // The only id worth putting in front of a user is one the other side can
+  // look up. The client's own correlation UUID is NOT that — the gateway does
+  // not record the x-request-id header yet, so a support ticket quoting it
+  // dead-ends, which is precisely the mutual-unaccountability failure the 0.4.0
+  // incident was about. The edge's x-azure-ref IS searchable today, and for a
+  // body-read failure the response headers carrying it have already arrived.
+  // The client UUID lives only in the OCTEN_MCP_DEBUG trace, where it ties
+  // retry attempts together.
+  const edgeRef = resp.headers?.get?.("x-azure-ref");
+  const suffix = edgeRef ? ` x-azure-ref=${edgeRef}` : "";
   const err = e as (Error & { cause?: { code?: string } }) | undefined;
   if (err?.name === "TimeoutError" || err?.name === "AbortError") {
     return `${label} timed out while reading the response body (HTTP ${resp.status})${suffix}`;
@@ -436,7 +437,6 @@ async function postJsonInner(opts: PostJsonOptions): Promise<Response> {
           (edgeRef ? ` x-azure-ref=${edgeRef}` : "")
         );
       }
-      responseRequestIds.set(resp, requestId);
       return resp;
     } catch (e) {
       const elapsed = Date.now() - started;
@@ -448,8 +448,10 @@ async function postJsonInner(opts: PostJsonOptions): Promise<Response> {
           `socket=${socketKind()} request_id=${requestId}`
         );
         throw new OctenHttpError(
-          `${label} timed out after ${effectiveTimeoutSec}s ` +
-          `(request_id=${requestId})` +
+          // No id here: nothing reached the server, so there is nothing the
+          // other side could look up — and a client-generated id labelled
+          // request_id reads like one they could.
+          `${label} timed out after ${effectiveTimeoutSec}s` +
           // Deliberately not phrased as "the client default": for `extract` the
           // ceiling is derived from the caller's own per-URL `timeout`, so
           // calling it a default would be false. Raising `timeout` raises the
@@ -486,7 +488,7 @@ async function postJsonInner(opts: PostJsonOptions): Promise<Response> {
       }
 
       throw new OctenHttpError(
-        `Network error calling ${label}: ${detail} request_id=${requestId}` +
+        `Network error calling ${label}: ${detail}` +
         (code === "UND_ERR_CONNECT_TIMEOUT" || code === "ECONNREFUSED"
           ? proxyConfigured
             ? " — a proxy is configured in the environment and was used; check it allows api.octen.ai."
@@ -497,5 +499,5 @@ async function postJsonInner(opts: PostJsonOptions): Promise<Response> {
   }
 
   /* c8 ignore next */
-  throw new OctenHttpError(`Network error calling ${label}: ${lastDetail} request_id=${requestId}`);
+  throw new OctenHttpError(`Network error calling ${label}: ${lastDetail}`);
 }

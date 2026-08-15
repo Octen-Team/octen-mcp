@@ -217,19 +217,19 @@ Each field answers a specific question:
 - **`x-azure-ref`** — stamped by the edge on every request that reaches it, and
   already present in Octen's own logs. Quote it in a support report. Its *absence*
   on a failure is itself informative: the request never arrived.
-- **`request_id`** — a correlation id, and its *format* tells you which system can
-  look it up. A UUID (with dashes, e.g. `d6ad2a98-…`) is client-generated: it appears
-  when the request never produced an Octen response (network errors, timeouts,
-  body-read failures) and ties the error to the retry attempts in this trace. A
-  20+-char id starting with a timestamp (e.g. `20260814053244…`) came from Octen's
-  server inside an API error envelope — quote that one to Octen support, it is
-  directly searchable in service logs.
+- **`request_id`** — in *this trace only*: the client-generated correlation id,
+  stable across the retry, tying a call's attempts together. It never appears in
+  user-facing error messages, deliberately: Octen support cannot look it up (the
+  gateway does not record the header), and an id labelled `request_id` reads
+  like one they could. Error messages carry only server-searchable ids — the
+  server's own `request_id` from an API error envelope, or the edge's
+  `x-azure-ref`.
 
 Failures name the cause rather than `fetch failed`:
 
 ```
 Network error calling Octen Search: code=ECONNREFUSED cause=connect ECONNREFUSED 203.0.113.9:443
-address=203.0.113.9:443 request_id=d6ad2a98-… — could not establish a connection.
+address=203.0.113.9:443 — could not establish a connection.
 If this machine requires an HTTP proxy, set HTTPS_PROXY.
 ```
 

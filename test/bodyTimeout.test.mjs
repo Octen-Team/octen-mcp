@@ -78,9 +78,10 @@ test("a response whose body stalls mid-stream is reported as a timeout, not as m
     const text = result.content[0].text;
     assert.match(text, /timed out while reading the response body \(HTTP 200\)/, `got: ${text}`);
     assert.doesNotMatch(text, /non-JSON/, "a stalled stream must not be misreported as malformed JSON");
-    // Same correlation id every sibling error path carries — a body-read
-    // failure must not be the one network error a support ticket cannot trace.
-    assert.match(text, /request_id=[0-9a-f-]{36}/, "body-read failures must carry the correlation id");
+    // No client UUID in user-facing text: support cannot look it up, and an
+    // id labelled request_id reads like one they could. (The local upstream
+    // sends no x-azure-ref either, so no id at all is the correct output.)
+    assert.doesNotMatch(text, /request_id=/, "client UUID leaked into a user-facing message");
     // And it is the 2s deadline doing the aborting, at real elapsed time.
     assert.ok(elapsed >= 1900 && elapsed < 9000, `deadline fired at ${elapsed}ms, expected ~2000ms`);
   } finally {
@@ -121,9 +122,26 @@ test("a connection torn down mid-body is reported as a lost connection, not as m
     );
     assert.doesNotMatch(text, /non-JSON/, "a torn-down connection must not be misreported as malformed JSON");
     assert.doesNotMatch(text, /timed out/, "no timeout fired here and the message must not claim one");
-    assert.match(text, /request_id=[0-9a-f-]{36}/);
+    assert.doesNotMatch(text, /request_id=/, "client UUID leaked into a user-facing message");
     assert.ok(elapsed < 10000, `failed fast at ${elapsed}ms — the 30s deadline was not the trigger`);
   } finally {
     upstream.close();
   }
+});
+
+test("when the edge stamped the response, body-read failures carry x-azure-ref — the id support CAN search", async () => {
+  const upstream = http.createServer((_req, res) => {
+    res.writeHead(200, { "Content-Type": "application/json", "x-azure-ref": "EDGE-REF-TEST-123" });
+    res.write('{"code":0,"data'); // then silence
+  });
+  await new Promise((r) => upstream.listen(0, r));
+  try {
+    const result = await callViaStdio(
+      { OCTEN_API_URL: `http://127.0.0.1:${upstream.address().port}` },
+      { query: "x", timeout: 2 }
+    );
+    const text = result.content[0].text;
+    assert.match(text, /x-azure-ref=EDGE-REF-TEST-123/, `got: ${text}`);
+    assert.doesNotMatch(text, /request_id=/, "client UUID must stay out of user-facing text");
+  } finally { upstream.close(); }
 });

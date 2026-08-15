@@ -28,6 +28,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   copy-pasted catch blocks. Found by rebuilding the 0.4.0 field report's
   failure shapes on real sockets; regression tests drive the built server
   against an upstream that stalls, and one that RSTs, mid-body.
+- **The client-generated correlation UUID no longer appears in user-facing
+  error messages.** 0.4.0 echoed it as `request_id=<uuid>`, which reads like an
+  id Octen support can search. They cannot — the gateway does not record the
+  `x-request-id` header — so a ticket quoting it dead-ends: the same
+  mutual-unaccountability failure the 0.4.0 incident was about, rebuilt in
+  miniature. Error messages now carry only server-searchable ids: the server's
+  own `request_id` from an API error envelope, and (new) the edge's
+  `x-azure-ref` on body-read failures, whose response headers have already
+  arrived. The client UUID remains in the `OCTEN_MCP_DEBUG` trace, where it
+  ties retry attempts together, and the `x-request-id` header still accompanies
+  every call so gateway-side recording can light it up later without a client
+  change.
 - README claimed `broad_search`'s default timeout is 60s; it has been 120s
   (raisable to 300s) since 0.4.0.
 

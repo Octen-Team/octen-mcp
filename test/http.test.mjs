@@ -111,9 +111,22 @@ test("one correlation id is sent, and stays stable across the retry", async () =
   assert.equal(ids[0], ids[1], "retry used a different correlation id");
 });
 
-test("failures surface the correlation id so a ticket maps to server logs", async () => {
+test("network errors carry NO client-generated request_id — support cannot look it up", async () => {
+  // A UUID labelled request_id reads like something Octen support can search.
+  // They cannot (the gateway does not record the x-request-id header), so a
+  // ticket quoting it dead-ends — the exact mutual-unaccountability failure
+  // the 0.4.0 incident was about. The UUID belongs to the debug trace only.
   scriptFetch([fetchFailed(Object.assign(new Error("nope"), { code: "CERT_HAS_EXPIRED" }))]);
-  assert.match(textOf(await handleSearch({ query: "hi" })), /request_id=[0-9a-f-]{36}/);
+  const text = textOf(await handleSearch({ query: "hi" }));
+  assert.doesNotMatch(text, /request_id=[0-9a-f-]{36}/,
+    "client UUID leaked into a user-facing message");
+  assert.match(text, /CERT_HAS_EXPIRED/, "the actionable part (the code) must remain");
+});
+
+test("server envelope errors DO carry the server's request_id — the one support can search", async () => {
+  scriptFetch([{ code: 401, msg: "Invalid API Key", request_id: "20260815SRVID0000001" }]);
+  const text = textOf(await handleSearch({ query: "hi" }));
+  assert.match(text, /request_id=20260815SRVID0000001/);
 });
 
 test("a timeout says so, and points at the knob when the caller set none", async () => {

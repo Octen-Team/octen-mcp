@@ -195,7 +195,7 @@ With it on, every call is traced to stderr:
 
 ```
 [octen-mcp 2026-08-14T04:36:36.219Z] call #1 received tool=search
-[octen-mcp 2026-08-14T04:36:36.637Z] connect #1 established to api.octen.ai in 410ms
+[octen-mcp 2026-08-14T04:36:36.637Z] connect #1 established to api.octen.ai in 410ms peer=203.0.113.10:443 tls=TLSv1.3 alpn=http/1.1
 [octen-mcp 2026-08-14T04:36:37.155Z] /search attempt=1 status=200 elapsed=935ms socket=new request_id=42cd56a5-…
 [octen-mcp 2026-08-14T04:36:37.157Z] call #1 returning tool=search handler_total=938ms
 ```
@@ -208,6 +208,10 @@ Each field answers a specific question:
   client-side stopwatch alone cannot separate that from time we are responsible for.
 - **`connect … established in Xms`** — a handshake happened, and what it cost.
   `connect FAILED` names the phase and error code instead.
+- **`peer=` / `tls=` / `alpn=`** — which address the connection actually reached
+  (the API hostname is anycast, so the hostname alone cannot tell you which
+  edge), and the negotiated TLS version and protocol — a mismatch there
+  otherwise presents as an unexplained slow or failed handshake.
 - **`socket=new` / `socket=reused`** — whether this call paid for a handshake. This
   is the difference between "the service is slow" and "the connection was thrown
   away between calls".

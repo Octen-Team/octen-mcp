@@ -72,7 +72,9 @@ in practice; see Changed.
   passed it explicitly — otherwise no `AbortSignal` was attached at all and a
   stalled request sat on undici's 300s `headersTimeout`, which an agent sees as
   a tool call that never returns. Defaults: 30s for `search` / `news_search` /
-  `image_search` / `video_search`, 60s for `broad_search`. `extract` had no
+  `image_search` / `video_search`, 120s for `broad_search` (this entry
+  originally said 60s in error — the shipped 0.4.0 code already defaulted to
+  120s, raisable to 300s; corrected in 0.4.1). `extract` had no
   client timeout whatsoever; its `timeout` is the server-side per-URL budget, so
   the client ceiling is now derived from it with headroom.
 - **Connections are reused between tool calls.** The server used undici's global
@@ -316,7 +318,9 @@ Aligns the `extract` tool with the current Extract API reference
 - `OCTEN_API_KEY` env var for authentication.
 - `OCTEN_API_URL` override for staging or self-hosted endpoints.
 
-[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.7...HEAD
+[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/Octen-Team/octen-mcp/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.7...v0.4.0
 [0.3.7]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.6...v0.3.7
 [0.3.6]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.5...v0.3.6
 [0.3.5]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.4...v0.3.5

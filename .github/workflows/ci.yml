@@ -12,7 +12,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ['18', '20', '22']
+        # 24 and 26 are load-bearing: they embed undici 7/8, whose dispatch
+        # handler protocol rejected our packaged v6 dispatcher in 0.4.1
+        # (UND_ERR_INVALID_ARG on every call, from Node 26). The real-socket
+        # tests only exercise that coupling on a host that actually embeds a
+        # newer undici.
+        node: ['18', '20', '22', '24', '26']
     steps:
       - uses: actions/checkout@v4
 

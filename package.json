@@ -1,6 +1,6 @@
 {
   "name": "octen-mcp",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "mcpName": "io.github.Octen-Team/octen-mcp",
   "description": "MCP server for Octen \u2014 web search plus URL extract: LLM-ready markdown with query-driven highlights, category, and page_structure classification.",
   "license": "MIT",
@@ -49,7 +49,7 @@
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
-    "undici": "^6.21.0"
+    "undici": "^6.28.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

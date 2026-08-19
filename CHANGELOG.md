@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] — 2026-08-19
+
+### Fixed
+- **Every call failed on Node 26+ (`code=UND_ERR_INVALID_ARG cause=invalid
+  onError method`).** Since 0.4.0 the server built its tuned connection agent
+  from the packaged undici 6 and handed it as `dispatcher` to the host's
+  global `fetch` — coupling two undici versions across the dispatch-handler
+  protocol. undici 8, which Node embeds from 26, removed the legacy handler
+  compatibility that v7 still carried, so the host's fetch rejects the v6
+  dispatcher at validation before a single byte is sent: 100% of tool calls
+  fail on such hosts. 0.4.1 and below need Node <= 24; from 0.4.2 all
+  supported Node versions (>= 18.17) work.
+
+  The fix makes the HTTP stack self-contained — `fetch` and the dispatcher
+  both come from the packaged undici, so the host's embedded undici version
+  is out of the picture entirely, for this incompatibility and for future
+  protocol changes alike. Requests now also pin `accept-encoding` to exactly
+  what the packaged undici can decode (`gzip, deflate, br`) instead of
+  inheriting a scheme- and version-dependent default. CI runs the suite on
+  Node 18/20/22/24/26; a real-socket regression test drives the built server
+  through the packaged stack on the host's own Node, and a lint-style guard
+  keeps global `fetch` / `Response` / `Headers` / `Request` usage out of
+  `src/`.
+
 ## [0.4.1] — 2026-08-15
 
 ### Fixed
@@ -318,7 +342,8 @@ Aligns the `extract` tool with the current Extract API reference
 - `OCTEN_API_KEY` env var for authentication.
 - `OCTEN_API_URL` override for staging or self-hosted endpoints.
 
-[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/Octen-Team/octen-mcp/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/Octen-Team/octen-mcp/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.7...v0.4.0
 [0.3.7]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.6...v0.3.7

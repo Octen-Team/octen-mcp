@@ -25,8 +25,19 @@
  * with a bare `TypeError: fetch failed`; the actual reason (ECONNRESET,
  * UND_ERR_CONNECT_TIMEOUT, ENOTFOUND, …) only exists on `err.cause.code`, and
  * dropping it is what made support tickets undiagnosable.
+ *
+ * The `fetch` itself must come from the same packaged undici as the
+ * dispatcher, never from the host's global. The global fetch is backed by
+ * whatever undici the running Node embeds, and handing it a dispatcher built
+ * from ours couples two undici versions across their dispatch-handler
+ * protocol. undici 8 (embedded from Node 26) removed the legacy handler
+ * compatibility that v7 still carried, so a v6 dispatcher is rejected at
+ * validation — `InvalidArgumentError: invalid onError method` — before any
+ * bytes are sent, failing 100% of calls on those hosts (0.4.1 in the field).
+ * Same-origin fetch + dispatcher makes the HTTP stack self-contained and
+ * immune to whatever the host Node embeds.
  */
-import { Agent, EnvHttpProxyAgent, type Dispatcher } from "undici";
+import { fetch as undiciFetch, Agent, EnvHttpProxyAgent, type Dispatcher } from "undici";
 import { randomUUID } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 
@@ -237,6 +248,19 @@ function buildDispatcher(): Dispatcher {
 
 const dispatcher: Dispatcher = buildDispatcher();
 
+/**
+ * Test seam only. The suite scripts outcomes (a scripted ECONNRESET, a
+ * TimeoutError, a canned envelope) that MockAgent cannot express while the
+ * assertions still need the raw `init` — signal identity across the retry,
+ * the dispatcher being attached. Production code must never call this;
+ * calling it with no argument restores the packaged fetch.
+ */
+let fetchImpl: typeof undiciFetch = undiciFetch;
+
+export function _setFetchForTests(f?: typeof undiciFetch): void {
+  fetchImpl = f ?? undiciFetch;
+}
+
 debug(
   `dispatcher=${proxyConfigured ? "EnvHttpProxyAgent" : "Agent"} ` +
   `keepAlive=${agentOptions.keepAliveTimeout}ms connect=${agentOptions.connectTimeout}ms ` +
@@ -403,19 +427,26 @@ async function postJsonInner(opts: PostJsonOptions): Promise<Response> {
   for (let attempt = 1; attempt <= 2; attempt++) {
     const started = Date.now();
     try {
-      const resp = await fetch(`${API_BASE}${path}`, {
+      // The cast bridges a types-only gap: undici 6's bundled `Response` type
+      // predates `bytes()`, which the runtime object has (verified on 6.28.0).
+      // Keeping the global `Response` as this module's currency means callers
+      // and `bodyReadFailure` need no undici types in their signatures.
+      const resp = (await fetchImpl(`${API_BASE}${path}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-api-key": apiKey,
           "x-request-id": requestId,
+          // Pinned to exactly what the packaged undici can decode. Left to a
+          // default it varies by scheme (no `br` over plain http) and by
+          // whichever undici is doing the fetching; an origin that honours an
+          // encoding we cannot decode turns every response into garbage.
+          "accept-encoding": "gzip, deflate, br",
         },
         body: payload,
         signal: deadline,
-        // @ts-expect-error — `dispatcher` is an undici extension to RequestInit
-        // that Node honours but the DOM `fetch` types do not declare.
         dispatcher,
-      });
+      })) as unknown as Response;
       if (DEBUG) {
         debug(
           `${path} attempt=${attempt} status=${resp.status} ` +

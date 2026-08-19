@@ -5,7 +5,10 @@
  * the caller passed `timeout`, reported `err.message` ("fetch failed") while
  * discarding `err.cause`, never retried, and sent no correlation id.
  *
- * Global `fetch` is stubbed, so no network traffic happens.
+ * The HTTP layer's fetch is stubbed through its test seam, so no network
+ * traffic happens. Stubbing `globalThis.fetch` would be a no-op: since the
+ * undici-8 host incompatibility fix, the module fetches through the packaged
+ * undici, never through the global.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -14,6 +17,7 @@ process.env.OCTEN_API_KEY = process.env.OCTEN_API_KEY ?? "test-key";
 
 const { handleSearch, handleBroadSearch, broadSearchTool } = await import("../dist/search.js");
 const { handleExtract } = await import("../dist/extract.js");
+const { _setFetchForTests } = await import("../dist/http.js");
 
 const OK_BODY = { code: 0, data: { results: [] } };
 
@@ -21,14 +25,14 @@ const OK_BODY = { code: 0, data: { results: [] } };
 function scriptFetch(outcomes) {
   const attempts = [];
   let i = 0;
-  globalThis.fetch = async (url, init) => {
+  _setFetchForTests(async (url, init) => {
     attempts.push({ url: String(url), init });
     const outcome = outcomes[Math.min(i++, outcomes.length - 1)];
     if (outcome instanceof Error) throw outcome;
     // Carry a real `headers` object: the debug path reads response headers, and
     // a stub without them hides breakage there behind a passing test.
     return { status: 200, headers: new Headers(), json: async () => outcome };
-  };
+  });
   return attempts;
 }
 
@@ -205,11 +209,11 @@ test("no retry when the remaining budget cannot fit one", async () => {
   // `timeout: 1` — attempt 1 burns most of it, so retrying would abort instantly
   // and replace a real ECONNRESET diagnosis with a generic timeout.
   let calls = 0;
-  globalThis.fetch = async () => {
+  _setFetchForTests(async () => {
     calls++;
     await new Promise((r) => setTimeout(r, 900));
     throw fetchFailed(Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" }));
-  };
+  });
   const out = await handleSearch({ query: "hi", timeout: 1 });
   assert.equal(calls, 1, "retried into a budget that could not fit it");
   assert.match(textOf(out), /ECONNRESET/, "lost the specific diagnosis to a generic timeout");
@@ -233,7 +237,7 @@ const ALL_TOOLS = [
 ];
 
 function stubJsonReject(err) {
-  globalThis.fetch = async () => ({ status: 200, headers: new Headers(), json: async () => { throw err; } });
+  _setFetchForTests(async () => ({ status: 200, headers: new Headers(), json: async () => { throw err; } }));
 }
 
 test("every tool classifies all three body-read failure shapes under its own label", async () => {
@@ -258,10 +262,10 @@ test("every tool classifies all three body-read failure shapes under its own lab
 
 test("every tool relays a server envelope error verbatim with the server's request_id", async () => {
   for (const [label, invoke] of ALL_TOOLS) {
-    globalThis.fetch = async () => ({
+    _setFetchForTests(async () => ({
       status: 200, headers: new Headers(),
       json: async () => ({ code: 403, msg: "Beta access required", request_id: "20260815SRVENV000001" }),
-    });
+    }));
     const out = await invoke();
     assert.equal(out.isError, true, label);
     const text = textOf(out);
@@ -272,7 +276,7 @@ test("every tool relays a server envelope error verbatim with the server's reque
 
 test("every tool rejects empty input before touching the network", async () => {
   let fetched = false;
-  globalThis.fetch = async () => { fetched = true; throw new Error("must not be called"); };
+  _setFetchForTests(async () => { fetched = true; throw new Error("must not be called"); });
   const EMPTY = [
     () => handleSearch({ query: "  " }),
     () => handleBroadSearch({ query: "" }),

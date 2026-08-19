@@ -1,8 +1,10 @@
 /**
  * Unit tests for request-body assembly in the search tools (built output).
  *
- * Run with `npm test` (builds first, then `node --test test/`). Global `fetch`
- * is stubbed so no network traffic happens; we assert on the outgoing payload.
+ * Run with `npm test` (builds first, then `node --test test/`). The HTTP
+ * layer's fetch is stubbed through its test seam so no network traffic
+ * happens; we assert on the outgoing payload. (`globalThis.fetch` would be a
+ * no-op to stub: the module fetches through the packaged undici.)
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -12,18 +14,19 @@ process.env.OCTEN_API_KEY = process.env.OCTEN_API_KEY ?? "test-key";
 
 const { searchTool, newsSearchTool, broadSearchTool, handleSearch, handleNewsSearch, handleBroadSearch } =
   await import("../dist/search.js");
+const { _setFetchForTests } = await import("../dist/http.js");
 
-/** Stub global fetch for one call; returns the captured {url, body}. */
+/** Stub the HTTP layer's fetch for one call; returns the captured {url, body}. */
 function captureFetch(responseData = { code: 0, data: { results: [] } }) {
   const captured = {};
-  globalThis.fetch = async (url, init) => {
+  _setFetchForTests(async (url, init) => {
     captured.url = String(url);
     captured.body = JSON.parse(init.body);
     return {
       status: 200,
       json: async () => responseData,
     };
-  };
+  });
   return captured;
 }
 

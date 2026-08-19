@@ -98,6 +98,35 @@ test("a real tool call succeeds through the packaged HTTP stack on the host's ow
   }
 });
 
+test("compressed response bodies decode through the packaged stack", async () => {
+  // The pinned accept-encoding is a promise: every encoding we advertise, the
+  // packaged undici must decode. If a future undici (or a header edit) breaks
+  // gzip or br decode, the body reaches JSON.parse as compressed bytes and the
+  // failure surfaces as "returned non-JSON" — a misdiagnosis, pointing at the
+  // origin when the bug is ours. This exercises the decode path for real; the
+  // header assertion above only proves what we advertise.
+  const { gzipSync, brotliCompressSync } = await import("node:zlib");
+  const envelope = Buffer.from(JSON.stringify({ code: 0, data: { results: [] }, meta: {} }));
+  let enc = "gzip";
+  const upstream = http.createServer((_req, res) => {
+    res.writeHead(200, { "Content-Type": "application/json", "Content-Encoding": enc });
+    res.end(enc === "br" ? brotliCompressSync(envelope) : gzipSync(envelope));
+  });
+  await new Promise((r) => upstream.listen(0, r));
+  try {
+    for (enc of ["gzip", "br"]) {
+      const result = await callViaStdio(
+        { OCTEN_API_URL: `http://127.0.0.1:${upstream.address().port}` },
+        { query: "decode probe" }
+      );
+      assert.notEqual(result.isError, true,
+        `${enc}-encoded body did not decode: ${result.content?.[0]?.text}`);
+    }
+  } finally {
+    upstream.close();
+  }
+});
+
 test("src/ never touches the host's fetch or its fetch classes", () => {
   // Lint-style guard. Passing global-fetch work off to the packaged dispatcher
   // is exactly the 0.4.1 bug; mixing the two families' Response / Headers /
@@ -112,7 +141,11 @@ test("src/ never touches the host's fetch or its fetch classes", () => {
       for (const pattern of [
         /\bglobalThis\.fetch\b/,
         /\bglobal\.fetch\b/,
-        /(?<![.\w])fetch\s*\(/,          // a bare call — `fetchImpl(`, `undiciFetch(` stay legal
+        // A bare call. The lookbehind rules out member calls (`.fetch(`) and
+        // suffixed look-alikes (`prefetch(`); `fetchImpl(` / `undiciFetch(`
+        // never match at all — no `(` right after `fetch`, and the pattern is
+        // case-sensitive.
+        /(?<![.\w])fetch\s*\(/,
         /\bnew\s+(Response|Headers|Request|FormData)\s*\(/,
         /instanceof\s+(Response|Headers|Request|FormData)\b/,
       ]) {

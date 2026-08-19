@@ -342,7 +342,8 @@ Aligns the `extract` tool with the current Extract API reference
 - `OCTEN_API_KEY` env var for authentication.
 - `OCTEN_API_URL` override for staging or self-hosted endpoints.
 
-[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/Octen-Team/octen-mcp/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/Octen-Team/octen-mcp/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.7...v0.4.0
 [0.3.7]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.6...v0.3.7

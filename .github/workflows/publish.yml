@@ -16,7 +16,10 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # npm@latest (12.x, needed for trusted publishing) requires
+          # node ^22.22 || ^24.15 || >=26; 24 is the active LTS and part of
+          # the CI test matrix.
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
           cache: 'npm'
 

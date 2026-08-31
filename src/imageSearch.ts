@@ -15,7 +15,7 @@
  */
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 import { formatMeta, errorResult } from "./search.js";
-import { postJson, OctenHttpError, bodyReadFailure } from "./http.js";
+import { postJson, OctenHttpError, bodyReadFailure, missingKeyMessage, type HandlerContext } from "./http.js";
 
 /** Client-side ceiling when the caller passes no `timeout`. */
 const IMAGE_SEARCH_TIMEOUT_SEC = 30;
@@ -26,7 +26,7 @@ const API_KEY = process.env.OCTEN_API_KEY;
 export const imageSearchTool: Tool = {
   name: "image_search",
   description:
-    `Find images on the web by text query, and optionally by a reference image — returns ranked results (title, source page, dimensions, thumbnail, description, summary). In Beta; contact us to request beta access. Pass a text \`query\`, and optionally an \`image_url\` to search by reference image. Set \`topic\` to \`design\` for UI design references — each result then carries a structured style \`summary\` and an \`html_snippet\` for building/restyling frontends. Use this when the user wants pictures, photos, diagrams, screenshots, or visual references — not for general text web search.
+    `Find images on the web by text query OR by a reference image — returns ranked results (title, source page, dimensions, thumbnail, description, summary). In Beta; contact us to request beta access. Pass exactly one of: a text \`query\`, an \`image_url\` (a picture already on the web), or \`image_data\` (base64, for a picture you hold). Never more than one. Set \`topic\` to \`design\` for UI design references — each result then carries a structured style \`summary\` and an \`html_snippet\` for building/restyling frontends. Use this when the user wants pictures, photos, diagrams, screenshots, or visual references — not for general text web search.
 
 keywords: find images, image search, photos, pictures, screenshots, visual reference, diagram, icon, illustration, UI design, reference image`,
   inputSchema: {
@@ -35,13 +35,26 @@ keywords: find images, image search, photos, pictures, screenshots, visual refer
       query: {
         type: "string",
         maxLength: 500,
-        description: "Text query describing the images to find.",
+        description: "Text query describing the images to find. Exactly one of `query`, `image_url` or `image_data` — never more than one.",
       },
       image_url: {
         type: "string",
         description:
-          "Optional public image URL to search by reference image (visual " +
-          "similarity), in addition to the text `query`.",
+          "Public image URL to search by visual similarity. Exactly one of " +
+          "`query`, `image_url` or `image_data` — never more than one.",
+      },
+      image_data: {
+        type: "string",
+        // 5 MiB is the encoded ceiling the API documents ("at most 5MB after
+        // encoding"), so it is measured on this string, not on the picture it
+        // decodes to.
+        maxLength: 5 * 1024 * 1024,
+        description:
+          "Base64-encoded image to search by visual similarity, for an image " +
+          "you hold rather than one already on the web. At most 5MB encoded; " +
+          "JPEG, PNG, WEBP, BMP, TIFF, ICO, DIB, ICNS or SGI. A `data:` URI is " +
+          "accepted — its payload is used. Exactly one of `query`, `image_url` " +
+          "or `image_data` — never more than one.",
       },
       topic: {
         type: "string",
@@ -68,21 +81,6 @@ keywords: find images, image search, photos, pictures, screenshots, visual refer
         items: { type: "string" },
         description: "Drop results from these domains.",
       },
-      time_range: {
-        type: "string",
-        enum: ["day", "week", "month", "year", "d", "w", "m", "y"],
-        description:
-          "Relative time window (e.g. `week`, `month`). Mutually exclusive with " +
-          "`start_time`/`end_time` — if both are given, the absolute range wins.",
-      },
-      start_time: {
-        type: "string",
-        description: "Lower bound for the time window, ISO 8601 (e.g. '2025-01-01T00:00:00Z').",
-      },
-      end_time: {
-        type: "string",
-        description: "Upper bound for the time window, ISO 8601.",
-      },
       safesearch: {
         type: "string",
         enum: ["off", "strict"],
@@ -99,8 +97,9 @@ keywords: find images, image search, photos, pictures, screenshots, visual refer
           max_tokens: {
             type: "integer",
             minimum: 100,
+            maximum: 100000,
             default: 5000,
-            description: "Max tokens per HTML snippet (min 100). Default 5000.",
+            description: "Max tokens per HTML snippet (100-100000). Default 5000.",
           },
         },
       },
@@ -111,7 +110,10 @@ keywords: find images, image search, photos, pictures, screenshots, visual refer
         description: "Request timeout in seconds (1-60). Defaults to 30s if unset.",
       },
     },
-    required: ["query"],
+    // No `required`: exactly one of `query` / `image_url` must be present, which
+    // JSON Schema can only say with `oneOf`. Requiring `query` here made the
+    // documented image-only search unreachable; the handler enforces the real
+    // rule and says which one is missing.
   },
 };
 
@@ -123,40 +125,71 @@ interface HtmlSnippetOptions {
 interface ImageSearchArgs {
   query: string;
   image_url?: string;
+  image_data?: string;
   topic?: "general" | "design";
   count?: number;
   include_domains?: string[];
   exclude_domains?: string[];
-  time_range?: "day" | "week" | "month" | "year" | "d" | "w" | "m" | "y";
-  start_time?: string;
-  end_time?: string;
   safesearch?: "off" | "strict";
   html_snippet?: HtmlSnippetOptions;
   timeout?: number;
 }
 
 /** Handler — POSTs to Octen Image Search and reshapes the response for the LLM. */
-export async function handleImageSearch(rawArgs: Record<string, unknown>): Promise<CallToolResult> {
+
+/** `data:image/png;base64,AAAA` → `AAAA`; anything else is returned unchanged. */
+function stripDataUri(v: string): string {
+  const m = /^data:[^;,]*;base64,(.*)$/s.exec(v.trim());
+  return m ? m[1] : v.trim();
+}
+
+export async function handleImageSearch(rawArgs: Record<string, unknown>, ctx?: HandlerContext): Promise<CallToolResult> {
   const args = rawArgs as unknown as ImageSearchArgs;
 
-  if (typeof args.query !== "string" || args.query.trim().length === 0) {
-    return errorResult("`query` must be a non-empty string");
-  }
-  if (!API_KEY) {
+  // Exactly one input — text, image URL, or image bytes. The API's `inputs`
+  // array is documented `maxItems: 1`, and sending two earns `Invalid params.
+  // Inputs exceeds 1 entries` from upstream. This tool used to require `query`
+  // and describe `image_url` as usable "in addition" to it, so the
+  // documented-and-supported combination (a reference image on its own) was
+  // unreachable while the unsupported one was the advertised path.
+  //
+  // The rule is enforced here rather than in the schema because expressing
+  // "exactly one of" needs `oneOf`, which the validator deliberately does not
+  // implement — see src/validate.ts.
+  const filled = (["query", "image_url", "image_data"] as const)
+    .filter((k) => typeof args[k] === "string" && (args[k] as string).trim() !== "");
+  if (filled.length > 1) {
     return errorResult(
-      "OCTEN_API_KEY env var is not set. Get a key at https://octen.ai " +
-      "and add it to your MCP client config (see README)."
-    );
+      `Pass exactly one of \`query\`, \`image_url\` or \`image_data\` — got ` +
+      `${filled.map((k) => "`" + k + "`").join(" and ")}. This search takes a single input.`);
+  }
+  if (filled.length === 0) {
+    return errorResult(
+      "Pass one of `query` (text to search for), `image_url` (a public image URL to " +
+      "match visually), or `image_data` (base64 of an image you hold).");
+  }
+  // When a transport supplies ctx, it is authoritative — no env fallback. The
+  // stdio entry resolves the env key into ctx itself; falling back here would
+  // let an unauthenticated HTTP caller silently ride the deployment's own
+  // credential. The bare fallback exists only for direct in-process callers
+  // (the unit suites) that invoke handlers without a transport.
+  const apiKey = ctx ? ctx.apiKey : API_KEY;
+  if (!apiKey) {
+    return errorResult(missingKeyMessage(ctx));
   }
 
   // `timeout` is an HTTP-client concern; `query`/`image_url` are flattened into `inputs`.
-  const { timeout, query, image_url, ...payloadArgs } = args;
+  const { timeout, query, image_url, image_data, ...payloadArgs } = args;
 
-  // Build the multimodal inputs array from the flattened fields.
-  const inputs: Array<Record<string, unknown>> = [{ type: "text", data: query }];
-  if (typeof image_url === "string" && image_url.length > 0) {
-    inputs.push({ type: "image", url: image_url });
-  }
+  // Exactly one entry — the branch above has already established which.
+  //
+  // A `data:` URI is unwrapped rather than refused: its payload *is* the
+  // base64 the API wants, and it is the form every browser and screenshot
+  // tool produces. Rejecting it would be pedantry about a container.
+  const inputs: Array<Record<string, unknown>> =
+    filled[0] === "query"     ? [{ type: "text", data: query }]
+  : filled[0] === "image_url" ? [{ type: "image", url: image_url }]
+  :                             [{ type: "image", data: stripDataUri(image_data as string) }];
 
   // Drop undefined fields so server defaults apply.
   const body: Record<string, unknown> = { inputs };
@@ -167,6 +200,7 @@ export async function handleImageSearch(rawArgs: Record<string, unknown>): Promi
   let resp: Response;
   try {
     resp = await postJson({
+      apiKey,
       path: "/image-search",
       body,
       label: "Octen Image Search",
@@ -203,7 +237,13 @@ export async function handleImageSearch(rawArgs: Record<string, unknown>): Promi
   const total = results.length;
 
   if (total === 0) {
-    return { content: [{ type: "text", text: `No image results for "${args.query}".` }] };
+    // Names whichever input was actually used. Interpolating `query` here
+    // printed `No image results for "undefined"` for an image search, which
+    // reads like a bug in the caller's arguments rather than an empty result.
+    const subject = filled[0] === "query" ? `"${args.query}"`
+      : filled[0] === "image_url" ? `image ${args.image_url}`
+      : "the supplied image";
+    return { content: [{ type: "text", text: `No image results for ${subject}.` }] };
   }
 
   const blocks = results.map((r: any, i: number) => formatResult(r, i + 1, total));

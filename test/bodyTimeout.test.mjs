@@ -61,7 +61,7 @@ function callViaStdio(env, args, { killAfterMs = 12000 } = {}) {
   });
 }
 
-test("a response whose body stalls mid-stream is reported as a timeout, not as malformed JSON", async () => {
+test("[stdio transport] a stalled response body is reported as a timeout, not as malformed JSON", async () => {
   const upstream = http.createServer((_req, res) => {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.write('{"code":0,"data":{"resul'); // half a body, then silence
@@ -155,7 +155,7 @@ test("infrastructure response headers never leak into user-facing error text", a
   } finally { upstream.close(); }
 });
 
-test("an upstream that accepts and never answers hits the tool deadline at real elapsed time", async () => {
+test("[stdio transport] an upstream that accepts and never answers hits the tool deadline at real elapsed time", async () => {
   // The in-process suite fakes TimeoutError objects; this one earns it: the
   // socket connects fine and then nothing ever comes back.
   const upstream = http.createServer(() => { /* accept, read, say nothing */ });

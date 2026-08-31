@@ -41,12 +41,24 @@ import { fetch as undiciFetch, Agent, EnvHttpProxyAgent, type Dispatcher } from 
 import { randomUUID } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 
-/** Read a positive-integer env override, falling back when unset/invalid. */
-function envInt(name: string, fallback: number): number {
+/**
+ * Read an integer env override, falling back when unset or unusable.
+ *
+ * The fallback on garbage is the whole point: a bare `Number(env)` yields NaN,
+ * and NaN silently disables whatever it configures — every comparison against
+ * it is false, so a size cap stops capping and a deadline is never reached.
+ * That failure is invisible until the moment the limit was supposed to save
+ * you, so it must not be reachable by typo.
+ *
+ * `min` exists because 0 is meaningful for some settings and catastrophic for
+ * others: `PORT=0` legitimately means "pick an ephemeral port", while a
+ * timeout of 0 would be a broken config dressed up as a valid one.
+ */
+export function envInt(name: string, fallback: number, min = 1): number {
   const raw = process.env[name];
   if (raw === undefined || raw.trim() === "") return fallback;
   const n = Number(raw);
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+  return Number.isFinite(n) && n >= min ? Math.floor(n) : fallback;
 }
 
 const FALSEY = ["false", "0", "off", "no"];
@@ -73,8 +85,36 @@ export const DEBUG = envFlag("OCTEN_MCP_DEBUG");
  * times, and a duration without an absolute time cannot be aligned with
  * anything.
  */
+/**
+ * `OCTEN_MCP_LOG=json` — structured JSON lines, for a hosted deployment's log
+ * pipeline. Off by default so stdio installs keep the human-readable format.
+ */
+const LOG_JSON = (process.env.OCTEN_MCP_LOG ?? "").trim().toLowerCase() === "json";
+
+/** Whether any tracing is emitted: debug mode (human text) or hosted mode (JSON). */
+export const LOGGING = DEBUG || LOG_JSON;
+
+/**
+ * One trace event, rendered per mode: a JSON line under `OCTEN_MCP_LOG=json`,
+ * the established human-readable line otherwise. Fields with `undefined`
+ * values are dropped so JSON lines stay dense. The API key must never appear
+ * in `fields` — only its 8-char prefix (CI asserts this).
+ */
+export function logEvent(event: string, fields: Record<string, unknown>, text?: string): void {
+  if (!LOGGING) return;
+  if (LOG_JSON) {
+    const clean: Record<string, unknown> = { ts: new Date().toISOString(), event };
+    for (const [k, v] of Object.entries(fields)) if (v !== undefined) clean[k] = v;
+    process.stderr.write(JSON.stringify(clean) + "\n");
+  } else {
+    process.stderr.write(
+      `[octen-mcp ${new Date().toISOString()}] ${text ?? `${event} ${JSON.stringify(fields)}`}\n`
+    );
+  }
+}
+
 export function debug(msg: string): void {
-  if (DEBUG) process.stderr.write(`[octen-mcp ${new Date().toISOString()}] ${msg}\n`);
+  logEvent("debug", { msg }, msg);
 }
 
 /**
@@ -86,8 +126,8 @@ export function debug(msg: string): void {
  * call took 900ms but not that 640ms of it was a TLS handshake we should not
  * have needed.
  *
- * Subscriptions are installed only under OCTEN_MCP_DEBUG so the normal path
- * carries no cost.
+ * Subscriptions are installed only when tracing is on (debug or hosted JSON
+ * mode) so the untraced path carries no cost.
  */
 /** Per-call connection bookkeeping. See {@link connectTrace}. */
 interface CallTrace {
@@ -135,7 +175,7 @@ function socketKind(): string {
 /** Monotonic label for connections, purely so log lines can be told apart. */
 let connectSeq = 0;
 
-if (DEBUG) {
+if (LOGGING) {
   const dc = await import("node:diagnostics_channel");
   dc.channel("undici:client:beforeConnect").subscribe(() => {
     const t = connectTrace.getStore();
@@ -146,31 +186,31 @@ if (DEBUG) {
     if (t) t.established++;
     const host = evt?.connectParams?.host ?? "?";
     const s = evt?.socket;
-    debug(
-      `connect #${++connectSeq} established to ${host}` +
-      (t?.startedAt ? ` in ${Date.now() - t.startedAt}ms` : "") +
-      // The peer address is the field that matters most when the origin is
-      // anycast: api.octen.ai resolves to whichever edge is nearest the
-      // client, so "which edge did this machine actually reach" is not
-      // answerable from the hostname, and an edge-local problem is invisible
-      // without it.
-      (s?.remoteAddress ? ` peer=${s.remoteAddress}:${s.remotePort}` : "") +
-      (s?.getProtocol?.() ? ` tls=${s.getProtocol()}` : "") +
-      (s?.alpnProtocol ? ` alpn=${s.alpnProtocol}` : "")
-    );
+    const seq = ++connectSeq;
+    const connect_ms = t?.startedAt ? Date.now() - t.startedAt : undefined;
+    // The peer address is the field that matters most when the origin is
+    // anycast: api.octen.ai resolves to whichever edge is nearest the client,
+    // so "which edge did this machine actually reach" is not answerable from
+    // the hostname, and an edge-local problem is invisible without it.
+    const peer = s?.remoteAddress ? `${s.remoteAddress}:${s.remotePort}` : undefined;
+    const tls = s?.getProtocol?.() || undefined;
+    const alpn = s?.alpnProtocol || undefined;
+    logEvent("connect", { seq, host, connect_ms, peer, tls, alpn },
+      `connect #${seq} established to ${host}` +
+      (connect_ms !== undefined ? ` in ${connect_ms}ms` : "") +
+      (peer ? ` peer=${peer}` : "") + (tls ? ` tls=${tls}` : "") + (alpn ? ` alpn=${alpn}` : ""));
   });
   dc.channel("undici:client:connectError").subscribe((evt: any) => {
     const t = connectTrace.getStore();
     const err = evt?.error;
     const p = evt?.connectParams;
-    debug(
-      `connect FAILED` +
-      (t?.startedAt ? ` after ${Date.now() - t.startedAt}ms` : "") +
-      ` code=${err?.code ?? err?.name ?? "?"} ` +
-      `host=${p?.hostname ?? "?"}` +
-      (err?.address ? ` peer=${err.address}${err.port ? ":" + err.port : ""}` : "") +
-      ` ${err?.message ?? ""}`
-    );
+    const connect_ms = t?.startedAt ? Date.now() - t.startedAt : undefined;
+    const code = err?.code ?? err?.name ?? "?";
+    const host = p?.hostname ?? "?";
+    const peer = err?.address ? `${err.address}${err.port ? ":" + err.port : ""}` : undefined;
+    logEvent("connect_failed", { connect_ms, code, host, peer, msg: err?.message },
+      `connect FAILED` + (connect_ms !== undefined ? ` after ${connect_ms}ms` : "") +
+      ` code=${code} host=${host}` + (peer ? ` peer=${peer}` : "") + ` ${err?.message ?? ""}`);
   });
 }
 
@@ -246,7 +286,15 @@ function buildDispatcher(): Dispatcher {
   }
 }
 
-const dispatcher: Dispatcher = buildDispatcher();
+/**
+ * Exported so every outbound call in this process shares it — including the
+ * OAuth side's JWKS and resolve-key calls. A `fetch` without it falls back to
+ * undici's global dispatcher, which is precisely the untuned configuration
+ * this module was written to escape: proxy environment ignored, 4s keep-alive.
+ * A second, differently-configured HTTP path is how "the proxy fix" ends up
+ * covering only some of the requests.
+ */
+export const dispatcher: Dispatcher = buildDispatcher();
 
 /**
  * Test seam only. The suite scripts outcomes (a scripted ECONNRESET, a
@@ -261,11 +309,15 @@ export function _setFetchForTests(f?: typeof undiciFetch): void {
   fetchImpl = f ?? undiciFetch;
 }
 
-debug(
+logEvent("startup", {
+  dispatcher: proxyConfigured ? "EnvHttpProxyAgent" : "Agent",
+  keepalive_ms: agentOptions.keepAliveTimeout,
+  connect_timeout_ms: agentOptions.connectTimeout,
+  h2: agentOptions.allowH2,
+},
   `dispatcher=${proxyConfigured ? "EnvHttpProxyAgent" : "Agent"} ` +
   `keepAlive=${agentOptions.keepAliveTimeout}ms connect=${agentOptions.connectTimeout}ms ` +
-  `h2=${agentOptions.allowH2}`
-);
+  `h2=${agentOptions.allowH2}`);
 
 /**
  * Failures worth one retry.
@@ -337,6 +389,14 @@ export interface PostJsonOptions {
   /** Applied when the caller passes no timeout. */
   defaultTimeoutSec: number;
   /**
+   * Credential for this call. Comes from the process environment under stdio,
+   * and from the request headers under the HTTP transport, where one process
+   * serves many keys — which is why it travels per call rather than living at
+   * module level. Callers verify presence before calling; this layer only
+   * forwards it.
+   */
+  apiKey: string;
+  /**
    * Whether raising `timeout` would actually buy more headroom. False when the
    * effective value already sits at the schema maximum — `broad_search`
    * defaults to 60s and cannot go higher — so we don't advise an agent to turn
@@ -386,6 +446,30 @@ export function bodyReadFailure(label: string, resp: Response, e: unknown): stri
   return `${label} returned non-JSON (HTTP ${resp.status})`;
 }
 
+/**
+ * Per-invocation context handed to tool handlers by the transport layer.
+ *
+ * Under stdio there is one user and the key lives in the environment, so this
+ * is absent. Under the HTTP transport one process serves many keys, so the
+ * credential must travel with the call — reading it from module state would
+ * hand one tenant's key to another's request.
+ */
+export interface HandlerContext {
+  apiKey?: string;
+  /** Only used to word the missing-key error usefully for the caller's setup. */
+  transport?: "stdio" | "http";
+}
+
+/** The missing-key error, phrased for how this particular caller would fix it. */
+export function missingKeyMessage(ctx?: HandlerContext): string {
+  return ctx?.transport === "http"
+    ? "No API key on this request. Send it in the `x-api-key` header (or " +
+      "`Authorization: Bearer <key>`, or the `octenApiKey` query parameter). " +
+      "Get a key at https://octen.ai."
+    : "OCTEN_API_KEY env var is not set. Get a key at https://octen.ai " +
+      "and add it to your MCP client config (see README).";
+}
+
 /** Thrown by {@link postJson}; `message` is already formatted for the LLM. */
 export class OctenHttpError extends Error {}
 
@@ -405,8 +489,7 @@ export function postJson(opts: PostJsonOptions): Promise<Response> {
 }
 
 async function postJsonInner(opts: PostJsonOptions): Promise<Response> {
-  const { path, body, label, timeoutSec, defaultTimeoutSec, canRaiseTimeout = true } = opts;
-  const apiKey = process.env.OCTEN_API_KEY!;
+  const { path, body, label, timeoutSec, defaultTimeoutSec, canRaiseTimeout = true, apiKey } = opts;
   const effectiveTimeoutSec = timeoutSec ?? defaultTimeoutSec;
   // One correlation id for the whole logical call, retry included, so a support
   // ticket maps to every attempt in the server logs.
@@ -447,15 +530,15 @@ async function postJsonInner(opts: PostJsonOptions): Promise<Response> {
         signal: deadline,
         dispatcher,
       })) as unknown as Response;
-      if (DEBUG) {
-        debug(
-          `${path} attempt=${attempt} status=${resp.status} ` +
-          `elapsed=${Date.now() - started}ms ` +
-          // Whether this call paid for a handshake is the difference between
-          // "the service is slow" and "we threw the connection away".
-          `socket=${socketKind()} ` +
-          `request_id=${requestId}`
-        );
+      if (LOGGING) {
+        const elapsed_ms = Date.now() - started;
+        // Whether this call paid for a handshake is the difference between
+        // "the service is slow" and "we threw the connection away".
+        const socket = socketKind();
+        logEvent("request",
+          { path, attempt, status: resp.status, elapsed_ms, socket, request_id: requestId },
+          `${path} attempt=${attempt} status=${resp.status} elapsed=${elapsed_ms}ms ` +
+          `socket=${socket} request_id=${requestId}`);
       }
       return resp;
     } catch (e) {
@@ -463,10 +546,9 @@ async function postJsonInner(opts: PostJsonOptions): Promise<Response> {
       const err = e as Error;
 
       if (err.name === "TimeoutError" || err.name === "AbortError") {
-        debug(
-          `${path} attempt=${attempt} TIMEOUT after ${elapsed}ms ` +
-          `socket=${socketKind()} request_id=${requestId}`
-        );
+        logEvent("request_timeout",
+          { path, attempt, elapsed_ms: elapsed, socket: socketKind(), request_id: requestId },
+          `${path} attempt=${attempt} TIMEOUT after ${elapsed}ms socket=${socketKind()} request_id=${requestId}`);
         throw new OctenHttpError(
           // No id here: nothing reached the server, so there is nothing the
           // other side could look up — and a client-generated id labelled
@@ -484,14 +566,12 @@ async function postJsonInner(opts: PostJsonOptions): Promise<Response> {
 
       const { code, detail } = describeError(e);
       lastDetail = detail;
-      debug(
-        // `socket=` on the failure path too, not just on success: a reused
-        // socket that fails is a stale keep-alive connection, a new one that
-        // fails is the network refusing us. Same error code, different owner.
-        `${path} attempt=${attempt} FAILED after ${elapsed}ms ` +
-        `socket=${socketKind()} ` +
-        `${detail} request_id=${requestId}`
-      );
+      // `socket=` on the failure path too, not just on success: a reused
+      // socket that fails is a stale keep-alive connection, a new one that
+      // fails is the network refusing us. Same error code, different owner.
+      logEvent("request_failed",
+        { path, attempt, elapsed_ms: elapsed, socket: socketKind(), code, detail, request_id: requestId },
+        `${path} attempt=${attempt} FAILED after ${elapsed}ms socket=${socketKind()} ${detail} request_id=${requestId}`);
 
       if (attempt === 1 && RETRYABLE_CODES.has(code)) {
         // Only retry if the shared deadline can still accommodate one. Sleeping
@@ -504,7 +584,8 @@ async function postJsonInner(opts: PostJsonOptions): Promise<Response> {
           await new Promise((r) => setTimeout(r, RETRY_BACKOFF_MS));
           continue;
         }
-        debug(`${path} not retrying: only ${remaining}ms of budget left request_id=${requestId}`);
+        logEvent("retry_skipped", { path, remaining_ms: remaining, request_id: requestId },
+          `${path} not retrying: only ${remaining}ms of budget left request_id=${requestId}`);
       }
 
       throw new OctenHttpError(

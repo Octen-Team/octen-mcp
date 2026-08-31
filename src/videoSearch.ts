@@ -13,7 +13,7 @@
  */
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 import { formatMeta, errorResult } from "./search.js";
-import { postJson, OctenHttpError, bodyReadFailure } from "./http.js";
+import { postJson, OctenHttpError, bodyReadFailure, missingKeyMessage, type HandlerContext } from "./http.js";
 
 /** Client-side ceiling when the caller passes no `timeout`. */
 const VIDEO_SEARCH_TIMEOUT_SEC = 30;
@@ -85,17 +85,20 @@ interface VideoSearchArgs {
 }
 
 /** Handler — POSTs to Octen Video Search and reshapes the response for the LLM. */
-export async function handleVideoSearch(rawArgs: Record<string, unknown>): Promise<CallToolResult> {
+export async function handleVideoSearch(rawArgs: Record<string, unknown>, ctx?: HandlerContext): Promise<CallToolResult> {
   const args = rawArgs as unknown as VideoSearchArgs;
 
   if (typeof args.query !== "string" || args.query.trim().length === 0) {
     return errorResult("`query` must be a non-empty string");
   }
-  if (!API_KEY) {
-    return errorResult(
-      "OCTEN_API_KEY env var is not set. Get a key at https://octen.ai " +
-      "and add it to your MCP client config (see README)."
-    );
+  // When a transport supplies ctx, it is authoritative — no env fallback. The
+  // stdio entry resolves the env key into ctx itself; falling back here would
+  // let an unauthenticated HTTP caller silently ride the deployment's own
+  // credential. The bare fallback exists only for direct in-process callers
+  // (the unit suites) that invoke handlers without a transport.
+  const apiKey = ctx ? ctx.apiKey : API_KEY;
+  if (!apiKey) {
+    return errorResult(missingKeyMessage(ctx));
   }
 
   // `timeout` is an HTTP-client concern; `query` is flattened into `inputs` (text only).
@@ -112,6 +115,7 @@ export async function handleVideoSearch(rawArgs: Record<string, unknown>): Promi
   let resp: Response;
   try {
     resp = await postJson({
+      apiKey,
       path: "/video-search",
       body,
       label: "Octen Video Search",

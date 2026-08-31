@@ -85,11 +85,33 @@ jobs:
             echo "version_tag=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # Platform pinned, not inherited from the runner. The cluster is amd64,
+      # and an image built for anything else is rejected at pull time with
+      # `no match for platform in manifest` — which is a deploy-time failure,
+      # far from whoever built it. GitHub is rolling out arm64 runners, so
+      # "ubuntu-latest happens to be amd64" is not something to rely on.
       - name: Build
         env:
           REPO: ${{ steps.tags.outputs.repo }}
           SHA: ${{ steps.tags.outputs.sha }}
-        run: docker build -t "$REPO:$SHA" .
+        run: docker build --platform linux/amd64 -t "$REPO:$SHA" .
+
+      # Asserted separately from the smoke test below, which cannot catch this:
+      # running the container on the machine that built it succeeds precisely
+      # when the architectures match. This is how an arm64 image reached the
+      # registry looking fully verified.
+      - name: Check the image is linux/amd64
+        env:
+          REPO: ${{ steps.tags.outputs.repo }}
+          SHA: ${{ steps.tags.outputs.sha }}
+        run: |
+          set -euo pipefail
+          got=$(docker image inspect "$REPO:$SHA" --format '{{.Os}}/{{.Architecture}}')
+          if [ "$got" != "linux/amd64" ]; then
+            echo "::error::image is $got, but the cluster pulls linux/amd64"
+            exit 1
+          fi
+          echo "platform ok: $got"
 
       # The point of building here is that nobody has to trust the build. A
       # container that starts, serves its health probe and answers an
@@ -103,7 +125,7 @@ jobs:
           VERSION: ${{ steps.tags.outputs.version }}
         run: |
           set -euo pipefail
-          cid=$(docker run -d -p 18080:8080 -e PORT=8080 "$REPO:$SHA")
+          cid=$(docker run -d --platform linux/amd64 -p 18080:8080 -e PORT=8080 "$REPO:$SHA")
           trap 'docker logs "$cid" 2>&1 | tail -40; docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
 
           for i in $(seq 1 30); do

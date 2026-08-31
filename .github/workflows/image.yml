@@ -1,0 +1,184 @@
+name: Image
+
+# Builds the remote HTTP entry into a container and pushes it to ACR.
+#
+# There was no such workflow: all ten existing tags in service/octen-mcp were
+# pushed by hand, and the newest of them sat thirteen commits behind the branch
+# — an image that predated base64 image input, the 6 MiB body cap and the
+# schema alignment, while reading as "the latest one".
+#
+# Deliberately NOT triggered by pull_request. This repository is public. GitHub
+# withholds secrets from fork pull requests, so such a run would fail rather
+# than leak, but a job holding registry credentials has no business running on
+# a proposed change at all. Use workflow_dispatch to build any branch — the ref
+# picker covers the "build my PR branch and test it" case.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      push:
+        description: "Push to ACR. Unchecked = build and smoke-test only."
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: image-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Fail here rather than at `docker push`, where the error is a registry
+      # authentication failure that reads like an outage.
+      # Named ACR_* rather than SERVER/USER/PWD: the latter two are standard
+      # shell variables. `PWD` is the working directory and `USER` the login
+      # name, so an emptiness check on them is always false and `docker login`
+      # would have been handed the working directory as a password.
+      - name: Check registry credentials are configured
+        if: inputs.push != false
+        env:
+          ACR_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+          ACR_USERNAME: ${{ secrets.ACR_USER }}
+          ACR_PASSWORD: ${{ secrets.ACR_PWD }}
+        run: |
+          missing=""
+          [ -n "$ACR_SERVER" ]   || missing="$missing ACR_LOGIN_SERVER"
+          [ -n "$ACR_USERNAME" ] || missing="$missing ACR_USER"
+          [ -n "$ACR_PASSWORD" ] || missing="$missing ACR_PWD"
+          if [ -n "$missing" ]; then
+            echo "::error::missing repository secret(s):$missing"
+            exit 1
+          fi
+
+      - name: Work out the tags
+        id: tags
+        env:
+          ACR_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+        run: |
+          set -euo pipefail
+          # Full SHA, matching every tag already in the registry and whatever
+          # the deployment manifests pin.
+          echo "sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "repo=${ACR_SERVER:-local}/service/octen-mcp" >> "$GITHUB_OUTPUT"
+
+          version=$(node -p "require('./package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          # A version tag must agree with package.json, or the image carries a
+          # name that does not describe what is inside it.
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            want="${GITHUB_REF_NAME#v}"
+            if [ "$want" != "$version" ]; then
+              echo "::error::tag ${GITHUB_REF_NAME} does not match package.json ($version)"
+              exit 1
+            fi
+            echo "version_tag=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "version_tag=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build
+        env:
+          REPO: ${{ steps.tags.outputs.repo }}
+          SHA: ${{ steps.tags.outputs.sha }}
+        run: docker build -t "$REPO:$SHA" .
+
+      # The point of building here is that nobody has to trust the build. A
+      # container that starts, serves its health probe and answers an
+      # unauthenticated tools/list is the smallest check that the image is
+      # actually runnable — a Dockerfile can build cleanly and still produce
+      # something that exits on boot.
+      - name: Smoke-test the image
+        env:
+          REPO: ${{ steps.tags.outputs.repo }}
+          SHA: ${{ steps.tags.outputs.sha }}
+          VERSION: ${{ steps.tags.outputs.version }}
+        run: |
+          set -euo pipefail
+          cid=$(docker run -d -p 18080:8080 -e PORT=8080 "$REPO:$SHA")
+          trap 'docker logs "$cid" 2>&1 | tail -40; docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18080/healthz >/dev/null 2>&1; then break; fi
+            if [ "$i" = 30 ]; then echo "::error::/healthz never came up"; exit 1; fi
+            sleep 1
+          done
+          echo "healthz ok"
+
+          # Both Accept types are required by the Streamable HTTP transport;
+          # sending only application/json gets a 406 that looks like a server
+          # fault. Judged on the HTTP status, not on the body — a JSON-RPC
+          # error still arrives as 200.
+          code=$(curl -sS -o /tmp/tools.json -w '%{http_code}' \
+            -X POST http://127.0.0.1:18080/mcp \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json, text/event-stream' \
+            -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}')
+          if [ "$code" != "200" ]; then
+            echo "::error::unauthenticated tools/list returned $code"
+            cat /tmp/tools.json
+            exit 1
+          fi
+          # The transport answers as SSE, so the body is a `data: {json}` line
+          # rather than bare JSON. Checked for a non-empty roster containing a
+          # known tool: `grep '"tools"'` alone also passes on `"tools":[]`,
+          # which is a server that came up with nothing registered.
+          roster=$(sed -n 's/^data: //p' /tmp/tools.json | head -1)
+          echo "$roster" | grep -q '"tools":\[{' || {
+            echo "::error::tools/list returned an empty or unparseable roster"
+            cat /tmp/tools.json; exit 1; }
+          echo "$roster" | grep -q '"name":"search"' || {
+            echo "::error::the roster does not contain the search tool"
+            cat /tmp/tools.json; exit 1; }
+          echo "tools/list ok"
+
+          # The image must report the version it was built from; a stale
+          # package.json copied into the wrong layer is otherwise invisible.
+          docker logs "$cid" 2>&1 | grep -q "v${VERSION}" || {
+            echo "::error::the container does not report v${VERSION}"; exit 1; }
+          echo "version ok: v${VERSION}"
+
+      - name: Push
+        if: inputs.push != false
+        env:
+          ACR_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+          ACR_USERNAME: ${{ secrets.ACR_USER }}
+          ACR_PASSWORD: ${{ secrets.ACR_PWD }}
+          REPO: ${{ steps.tags.outputs.repo }}
+          SHA: ${{ steps.tags.outputs.sha }}
+          VERSION: ${{ steps.tags.outputs.version }}
+          VERSION_TAG: ${{ steps.tags.outputs.version_tag }}
+        run: |
+          set -euo pipefail
+          printf %s "$ACR_PASSWORD" | docker login "$ACR_SERVER" -u "$ACR_USERNAME" --password-stdin
+          docker push "$REPO:$SHA"
+          if [ "$VERSION_TAG" = "true" ]; then
+            docker tag "$REPO:$SHA" "$REPO:v$VERSION"
+            docker push "$REPO:v$VERSION"
+          fi
+
+      - name: Summary
+        if: always()
+        env:
+          REPO: ${{ steps.tags.outputs.repo }}
+          SHA: ${{ steps.tags.outputs.sha }}
+          PUSHED: ${{ inputs.push != false }}
+        run: |
+          {
+            echo "\`$REPO:$SHA\`"
+            if [ "$PUSHED" = "true" ]; then
+              echo ""
+              echo "Pushed. Deploy by pinning this SHA — the manifests live with the deployment spec, not here."
+            else
+              echo ""
+              echo "Built and smoke-tested only; not pushed."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

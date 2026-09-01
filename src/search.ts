@@ -39,6 +39,14 @@ const BROAD_SEARCH_TIMEOUT_MAX_SEC = 300;
 /** Tool advertisement — clients see this in the list-tools response. */
 export const searchTool: Tool = {
   name: "search",
+  // Explicit MCP tool annotations: every Octen tool is a read-only query
+  // against the open web — it fetches and never mutates external state.
+  // Plugin-directory reviews require these three hints on every tool.
+  annotations: {
+    readOnlyHint: true,
+    openWorldHint: true,
+    destructiveHint: false,
+  },
   description:
     `Search the live web and return ranked results (title, url, snippet) — fast, fresh, real-time web search for one focused lookup. Set \`topic\` to \`news\` for news-focused results. Pass \`highlight\` to get a ranked snippet per result, or \`full_content\` to pull the cleaned page body inline (heavier — costs more context). Narrow with domain / text include-exclude filters, a \`language\` filter (ISO 639-1 codes), and a time window (published/crawled \`start_time\`/\`end_time\`, or a relative \`time_range\`). Set \`include_images\` to return image URLs per result.
 
@@ -196,6 +204,11 @@ const { topic: _omitTopic, ...newsProperties } =
 
 export const newsSearchTool: Tool = {
   name: "news_search",
+  annotations: {
+    readOnlyHint: true,
+    openWorldHint: true,
+    destructiveHint: false,
+  },
   description:
     `Search recent news and return ranked articles (title, url, snippet) — current events, headlines, timely reporting. This is \`search\` locked to \`topic: news\`; same options as \`search\` (domain / text filters, \`language\` filter, time window, highlight / full_content, media) except \`topic\`, which is fixed to news.
 
@@ -338,6 +351,11 @@ const { query: broadQueryProp, ...broadOptionProperties } = broadBaseProperties;
 
 export const broadSearchTool: Tool = {
   name: "broad_search",
+  annotations: {
+    readOnlyHint: true,
+    openWorldHint: true,
+    destructiveHint: false,
+  },
   description:
     `Search the web across many angles in one call — for comparisons, research, surveys, and questions with several distinct parts. Expands your question into multiple sub-queries and runs them concurrently.
 

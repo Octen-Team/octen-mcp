@@ -13,7 +13,7 @@
  * note `meta` sits at the TOP level here (sibling of `data`), not under `data`.
  */
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
-import { postJson, OctenHttpError, bodyReadFailure } from "./http.js";
+import { postJson, OctenHttpError, bodyReadFailure, missingKeyMessage, type HandlerContext } from "./http.js";
 
 const API_KEY = process.env.OCTEN_API_KEY;
 
@@ -40,7 +40,7 @@ const BROAD_SEARCH_TIMEOUT_MAX_SEC = 300;
 export const searchTool: Tool = {
   name: "search",
   description:
-    `Search the live web and return ranked results (title, url, snippet) — fast, fresh, real-time web search for one focused lookup. Set \`topic\` to \`news\` for news-focused results. Pass \`highlight\` to get a ranked snippet per result, or \`full_content\` to pull the cleaned page body inline (heavier — costs more context). Narrow with domain / text include-exclude filters, a \`language\` filter (ISO 639-1 codes), and a time window (published/crawled \`start_time\`/\`end_time\`, or a relative \`time_range\`). Set \`include_images\` / \`include_videos\` to return media URLs per result.
+    `Search the live web and return ranked results (title, url, snippet) — fast, fresh, real-time web search for one focused lookup. Set \`topic\` to \`news\` for news-focused results. Pass \`highlight\` to get a ranked snippet per result, or \`full_content\` to pull the cleaned page body inline (heavier — costs more context). Narrow with domain / text include-exclude filters, a \`language\` filter (ISO 639-1 codes), and a time window (published/crawled \`start_time\`/\`end_time\`, or a relative \`time_range\`). Set \`include_images\` to return image URLs per result.
 
 USE FOR a single focused lookup: one fact, one entity, one document. If the question spans several independent subtopics, load and use \`broad_search\` instead — a sequence of search calls is slower and gives worse coverage than one fan-out. To read a page you already have the URL for, use \`extract\`.
 
@@ -70,15 +70,15 @@ keywords: web search, search the web, look up, find, check, fact, current inform
       },
       include_domains: {
         type: "array",
-        items: { type: "string", maxLength: 30 },
-        maxItems: 1000,
-        description: "Only return results from these domains (e.g. 'arxiv.org'). Max 1000, each ≤30 chars.",
+        items: { type: "string", maxLength: 60 },
+        maxItems: 1200,
+        description: "Only return results from these domains (e.g. 'arxiv.org'). Max 1200, each ≤60 chars.",
       },
       exclude_domains: {
         type: "array",
-        items: { type: "string", maxLength: 30 },
-        maxItems: 150,
-        description: "Drop results from these domains. Max 150, each ≤30 chars.",
+        items: { type: "string", maxLength: 60 },
+        maxItems: 1200,
+        description: "Drop results from these domains. Max 1200, each ≤60 chars.",
       },
       include_text: {
         type: "array",
@@ -172,11 +172,6 @@ keywords: web search, search the web, look up, find, check, fact, current inform
         default: false,
         description: "Return image URLs (and a cover image) found on each result page.",
       },
-      include_videos: {
-        type: "boolean",
-        default: false,
-        description: "Return video URLs found on each result page.",
-      },
       timeout: {
         type: "integer",
         minimum: 1,
@@ -242,22 +237,24 @@ interface SearchArgs {
   highlight?: HighlightOptions;
   full_content?: FullContentOptions;
   include_images?: boolean;
-  include_videos?: boolean;
   timeout?: number;
 }
 
 /** Handler — POSTs to Octen Search and reshapes the response for the LLM. */
-export async function handleSearch(rawArgs: Record<string, unknown>): Promise<CallToolResult> {
+export async function handleSearch(rawArgs: Record<string, unknown>, ctx?: HandlerContext): Promise<CallToolResult> {
   const args = rawArgs as unknown as SearchArgs;
 
   if (typeof args.query !== "string" || args.query.trim().length === 0) {
     return errorResult("`query` must be a non-empty string");
   }
-  if (!API_KEY) {
-    return errorResult(
-      "OCTEN_API_KEY env var is not set. Get a key at https://octen.ai " +
-      "and add it to your MCP client config (see README)."
-    );
+  // When a transport supplies ctx, it is authoritative — no env fallback. The
+  // stdio entry resolves the env key into ctx itself; falling back here would
+  // let an unauthenticated HTTP caller silently ride the deployment's own
+  // credential. The bare fallback exists only for direct in-process callers
+  // (the unit suites) that invoke handlers without a transport.
+  const apiKey = ctx ? ctx.apiKey : API_KEY;
+  if (!apiKey) {
+    return errorResult(missingKeyMessage(ctx));
   }
 
   // `timeout` is an HTTP-client concern, not part of the search payload.
@@ -272,6 +269,7 @@ export async function handleSearch(rawArgs: Record<string, unknown>): Promise<Ca
   let resp: Response;
   try {
     resp = await postJson({
+      apiKey,
       path: "/search",
       body,
       label: "Octen Search",
@@ -320,9 +318,9 @@ export async function handleSearch(rawArgs: Record<string, unknown>): Promise<Ca
 }
 
 /** Handler — news search. Forces `topic=news`, ignoring any caller-supplied topic. */
-export async function handleNewsSearch(rawArgs: Record<string, unknown>): Promise<CallToolResult> {
+export async function handleNewsSearch(rawArgs: Record<string, unknown>, ctx?: HandlerContext): Promise<CallToolResult> {
   const { topic: _ignored, ...rest } = rawArgs ?? {};
-  return handleSearch({ ...rest, topic: "news" });
+  return handleSearch({ ...rest, topic: "news" }, ctx);
 }
 
 /**
@@ -399,17 +397,20 @@ interface BroadSearchArgs extends SearchArgs {
 }
 
 /** Handler — POSTs to Octen Broad Search and reshapes the grouped response. */
-export async function handleBroadSearch(rawArgs: Record<string, unknown>): Promise<CallToolResult> {
+export async function handleBroadSearch(rawArgs: Record<string, unknown>, ctx?: HandlerContext): Promise<CallToolResult> {
   const args = rawArgs as unknown as BroadSearchArgs;
 
   if (typeof args.query !== "string" || args.query.trim().length === 0) {
     return errorResult("`query` must be a non-empty string");
   }
-  if (!API_KEY) {
-    return errorResult(
-      "OCTEN_API_KEY env var is not set. Get a key at https://octen.ai " +
-      "and add it to your MCP client config (see README)."
-    );
+  // When a transport supplies ctx, it is authoritative — no env fallback. The
+  // stdio entry resolves the env key into ctx itself; falling back here would
+  // let an unauthenticated HTTP caller silently ride the deployment's own
+  // credential. The bare fallback exists only for direct in-process callers
+  // (the unit suites) that invoke handlers without a transport.
+  const apiKey = ctx ? ctx.apiKey : API_KEY;
+  if (!apiKey) {
+    return errorResult(missingKeyMessage(ctx));
   }
 
   // `timeout` is an HTTP-client concern; `query` and `max_queries` stay at the
@@ -427,6 +428,7 @@ export async function handleBroadSearch(rawArgs: Record<string, unknown>): Promi
   let resp: Response;
   try {
     resp = await postJson({
+      apiKey,
       path: "/broad-search",
       body,
       label: "Octen Broad Search",
@@ -481,6 +483,46 @@ export async function handleBroadSearch(rawArgs: Record<string, unknown>): Promi
   return { content: [{ type: "text", text }] };
 }
 
+/**
+ * How many media URLs to print per result before summarising the rest.
+ *
+ * A caller who sets `include_images` wants the URLs, so printing only a count
+ * — which is what this did — returns nothing they can act on. But the arrays
+ * are not small: one measured result carried 101 images, and pasting all of
+ * them into a model's context costs more than the answer is worth. So: list a
+ * usable number, then say plainly how many were left out. Truncating silently
+ * would trade one useless output for another.
+ */
+const MEDIA_LIST_LIMIT = 10;
+
+/**
+ * One media entry as `url — description`.
+ *
+ * The caption is not decoration: on news results it carries what was
+ * photographed, where, when, and the photographer's credit, which is often
+ * more of what the caller wanted than the URL itself. Dropping it leaves a
+ * bare link the model cannot say anything about.
+ */
+export function formatMediaItem(m: { url: string; description?: unknown }): string {
+  const caption = typeof m.description === "string" ? m.description.trim() : "";
+  return caption === "" ? m.url : `${m.url} — ${caption}`;
+}
+
+/** `[{url, description}]` → markdown lines, capped and honest about the cap. */
+export function formatMediaList(label: string, items: unknown): string[] {
+  if (!Array.isArray(items) || items.length === 0) return [];
+  const entries = items
+    .filter((m): m is { url: string; description?: unknown } =>
+      typeof (m as { url?: unknown })?.url === "string" && (m as { url: string }).url !== "");
+  if (entries.length === 0) return [];
+
+  const shown = entries.slice(0, MEDIA_LIST_LIMIT);
+  const head = entries.length > shown.length
+    ? `**${label}:** ${entries.length} — first ${shown.length}:`
+    : `**${label}:** ${entries.length}`;
+  return [head, ...shown.map((m) => `- ${formatMediaItem(m)}`)];
+}
+
 function formatResult(r: any, idx: number, total: number): string {
   const lines: string[] = [`## Result ${idx}/${total}: ${r.title ?? "(untitled)"}`];
   if (r.url) lines.push(r.url);
@@ -488,9 +530,16 @@ function formatResult(r: any, idx: number, total: number): string {
   if (r.time_published) lines.push(`**Published:** ${r.time_published}`);
   if (r.time_last_crawled) lines.push(`**Last crawled:** ${r.time_last_crawled}`);
   if (r.favicon) lines.push(`**Favicon:** ${r.favicon}`);
-  if (r.cover_image) lines.push(`**Cover image:** ${r.cover_image}`);
-  if (Array.isArray(r.images) && r.images.length) lines.push(`**Images:** ${r.images.length}`);
-  if (Array.isArray(r.videos) && r.videos.length) lines.push(`**Videos:** ${r.videos.length}`);
+  // `cover_image` is `{url, description}`, not a string — interpolating the
+  // object printed `**Cover image:** [object Object]` on every result that had
+  // one. `extract.ts` had this right; this copy did not.
+  if (r.cover_image?.url) lines.push(`**Cover image:** ${formatMediaItem(r.cover_image)}`);
+  lines.push(...formatMediaList("Images", r.images));
+  // No `include_videos` parameter — the API reference does not document one for
+  // search, so we do not advertise it. The renderer stays: if a response ever
+  // carries `videos` anyway, dropping them silently is the bug this block was
+  // written to fix.
+  lines.push(...formatMediaList("Videos", r.videos));
 
   if (typeof r.highlight === "string" && r.highlight.length > 0) {
     lines.push(`\n### Highlight\n${r.highlight}`);

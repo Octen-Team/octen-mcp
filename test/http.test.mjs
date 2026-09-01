@@ -277,17 +277,21 @@ test("every tool relays a server envelope error verbatim with the server's reque
 test("every tool rejects empty input before touching the network", async () => {
   let fetched = false;
   _setFetchForTests(async () => { fetched = true; throw new Error("must not be called"); });
+  // Each tool states its own rule, so each gets its own expected wording — a
+  // shared pattern would have to be so loose it stopped checking anything.
+  // `image_search` takes exactly one of two inputs rather than one required
+  // one, so "must be a non-empty query" is not what it should say.
   const EMPTY = [
-    () => handleSearch({ query: "  " }),
-    () => handleBroadSearch({ query: "" }),
-    () => handleExtract({ urls: [] }),
-    () => handleImageSearch({ query: "  " }),
-    () => handleVideoSearch({ query: "" }),
+    [() => handleSearch({ query: "  " }), /must be a non-empty/],
+    [() => handleBroadSearch({ query: "" }), /must be a non-empty/],
+    [() => handleExtract({ urls: [] }), /must be a non-empty/],
+    [() => handleImageSearch({}), /`query`.*`image_url`|`image_url`.*`query`/],
+    [() => handleVideoSearch({ query: "" }), /must be a non-empty/],
   ];
-  for (const invoke of EMPTY) {
+  for (const [invoke, expected] of EMPTY) {
     const out = await invoke();
     assert.equal(out.isError, true);
-    assert.match(textOf(out), /must be a non-empty/);
+    assert.match(textOf(out), expected);
   }
   assert.equal(fetched, false, "validation failures must not reach the network");
 });

@@ -9,7 +9,8 @@
  * None of these are in Firecrawl / Exa / Tavily today.
  */
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
-import { postJson, OctenHttpError, bodyReadFailure } from "./http.js";
+import { postJson, OctenHttpError, bodyReadFailure, missingKeyMessage, type HandlerContext } from "./http.js";
+import { formatMediaList, formatMediaItem } from "./search.js";
 
 const API_KEY = process.env.OCTEN_API_KEY;
 
@@ -38,10 +39,10 @@ keywords: read page, fetch url, scrape, page content, article text, parse webpag
     properties: {
       urls: {
         type: "array",
-        items: { type: "string" },
+        items: { type: "string", maxLength: 2048 },
         minItems: 1,
         maxItems: 20,
-        description: "URLs to extract. 1-20 per call. Bare hosts ok.",
+        description: "URLs to extract. 1-20 per call, each ≤2048 chars. Bare hosts ok.",
       },
       query: {
         type: "string",
@@ -57,6 +58,7 @@ keywords: read page, fetch url, scrape, page content, article text, parse webpag
       max_age_seconds: {
         type: "integer",
         minimum: 300,
+        maximum: 31536000,
         default: 86400,
         description:
           "Maximum age of cached content in seconds. Default 24h. Lower this " +
@@ -95,17 +97,20 @@ interface ExtractArgs {
 }
 
 /** Handler — POSTs to Octen Extract and reshapes the response for the LLM. */
-export async function handleExtract(rawArgs: Record<string, unknown>): Promise<CallToolResult> {
+export async function handleExtract(rawArgs: Record<string, unknown>, ctx?: HandlerContext): Promise<CallToolResult> {
   const args = rawArgs as unknown as ExtractArgs;
 
   if (!Array.isArray(args.urls) || args.urls.length === 0) {
     return errorResult("`urls` must be a non-empty array of strings");
   }
-  if (!API_KEY) {
-    return errorResult(
-      "OCTEN_API_KEY env var is not set. Get a key at https://octen.ai " +
-      "and add it to your MCP client config (see README)."
-    );
+  // When a transport supplies ctx, it is authoritative — no env fallback. The
+  // stdio entry resolves the env key into ctx itself; falling back here would
+  // let an unauthenticated HTTP caller silently ride the deployment's own
+  // credential. The bare fallback exists only for direct in-process callers
+  // (the unit suites) that invoke handlers without a transport.
+  const apiKey = ctx ? ctx.apiKey : API_KEY;
+  if (!apiKey) {
+    return errorResult(missingKeyMessage(ctx));
   }
 
   // Drop undefined fields so server defaults apply.
@@ -121,6 +126,7 @@ export async function handleExtract(rawArgs: Record<string, unknown>): Promise<C
   let resp: Response;
   try {
     resp = await postJson({
+      apiKey,
       path: "/extract",
       body,
       label: "Octen Extract",
@@ -191,10 +197,13 @@ function formatResult(r: any, idx: number, total: number): string {
   if (r.time_published) lines.push(`**Published:** ${r.time_published}`);
   if (r.time_last_crawled) lines.push(`**Last crawled:** ${r.time_last_crawled}`);
   if (r.favicon) lines.push(`**Favicon:** ${r.favicon}`);
-  if (r.cover_image?.url) lines.push(`**Cover image:** ${r.cover_image.url}`);
-  if (Array.isArray(r.images) && r.images.length) lines.push(`**Images:** ${r.images.length}`);
-  if (Array.isArray(r.videos) && r.videos.length) lines.push(`**Videos:** ${r.videos.length}`);
-  if (Array.isArray(r.audio)  && r.audio.length)  lines.push(`**Audio:** ${r.audio.length}`);
+  if (r.cover_image?.url) lines.push(`**Cover image:** ${formatMediaItem(r.cover_image)}`);
+  // Same renderer as search, imported rather than reimplemented: this whole
+  // defect began as two copies of the media block drifting apart — the copy
+  // here handled `cover_image` correctly while the one in search did not.
+  lines.push(...formatMediaList("Images", r.images));
+  lines.push(...formatMediaList("Videos", r.videos));
+  lines.push(...formatMediaList("Audio", r.audio));
 
   // Content body: highlights (if query supplied) take precedence, else full_content.
   if (Array.isArray(r.highlights) && r.highlights.length) {

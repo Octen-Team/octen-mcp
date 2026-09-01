@@ -7,6 +7,294 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-08-31
+
+### Added
+- **Remote HTTP transport (preview)** — `octen-mcp-http` runs the same server
+  over stateless Streamable HTTP, for hosting behind a URL instead of spawning
+  per client:
+  - without an authorization server configured, `initialize` and `tools/list`
+    are unauthenticated and credentials are enforced at `tools/call`, where a
+    missing key fails with header guidance rather than an opaque handshake
+    refusal. With one configured, an uncredentialed request is answered 401 +
+    `WWW-Authenticate` instead — see below;
+  - both `x-api-key: <key>` and `Authorization: Bearer <key>` are accepted —
+    some clients can only send the latter;
+  - one server instance per request, key bound by closure. The environment's
+    `OCTEN_API_KEY` is deliberately **not** a fallback for HTTP callers: an
+    unauthenticated request must fail, not silently ride the deployment's own
+    credential. Guarded by tests including a deterministic staggered-body
+    interleaving case, since the race window for shared-key-state bugs sits
+    inside the body-read await where ordinary concurrent tests cannot land;
+  - `GET /healthz` liveness with no upstream round-trip.
+
+  The stdio entry is unchanged in behavior; both entries now assemble the same
+  server from `src/server.ts`, so the transports cannot drift apart.
+
+- **OAuth 2.1 resource server** for the HTTP transport — enabled only when both
+  `OCTEN_OAUTH_AUTHORIZATION_SERVER` and `OCTEN_MCP_RESOURCE` are set, so a
+  self-hosted instance never advertises an authorization server it cannot
+  honour. RS256 access tokens are verified against the AS's JWKS with
+  `node:crypto` (no new dependency), then exchanged for the grant's API key
+  through an authenticated internal endpoint — the token itself never carries a
+  key. RFC 9728 protected-resource metadata is served at both the bare and the
+  resource-path-derived well-known, and any uncredentialed `POST /mcp` answers
+  a 401 challenge, which is what makes a client start the flow at all.
+
+  Token problems answer **401 + `WWW-Authenticate`** so clients auto-refresh;
+  backend problems answer **503** so a client does not burn its refresh flow on
+  our outage. Bare API keys never enter this path.
+
+- **Three ways to pass a key**, tried in order: `x-api-key`,
+  `Authorization: Bearer`, and an `octenApiKey` query parameter. The query
+  form exists for clients that can be handed nothing but a URL, e.g. a hosted
+  connector UI whose only input is the endpoint. It is not needed for Claude
+  Desktop: that config spawns `mcp-remote`, which does take `--header` and
+  `--header-file` (the latter keeps the key out of the process arguments).
+  A header always wins, so nothing that can send
+  one is downgraded. A key in a URL reaches proxy logs, browser history and
+  `Referer` headers — none of which this server controls — so the one thing it
+  can do, it does: query values are redacted from its own logs, whole rather
+  than truncated.
+- **`POST /mcp/oauth` and `?login` force the authorization challenge** even
+  when a credential is present. Without it there is no route from an
+  already-configured API key to OAuth, because the key stops the challenge from
+  ever being sent. (This is not the old `?login` gate returning: an
+  uncredentialed request is still challenged everywhere.)
+- **`?tools=a,b` narrows a connection's tool roster**, enforced on `tools/call`
+  as well as `tools/list` — filtering only the listing would leave every tool
+  callable and the filter decorative. Clients load every advertised tool's full
+  schema into the model's context, so this is a context saving rather than a
+  capability switch. An unknown name, or a selection that leaves nothing, is a
+  400 naming the bad entry and listing the real ones: silently narrowing
+  produces a connection that looks healthy and is missing a tool, which sends
+  whoever debugs it to look at the tool instead of at the spelling in their
+  URL. Beta tools that the Beta switch has turned off read as names that do not
+  exist, so a selection can never reach past that switch.
+
+- **Tool arguments are checked against the schema each tool publishes.** The
+  MCP SDK does not enforce `inputSchema`, so every constraint in it was
+  advertising: measured, `count: 999999` against `maximum: 100`, a
+  5000-character `query` against `maxLength: 500`, and a 5000-entry array
+  against `maxItems: 1000` were each relayed to the upstream API intact. An
+  agent that read the schema and respected it gained nothing over one that
+  ignored it, and when it did get something wrong the answer came back as an
+  opaque upstream 400 rather than a sentence naming the field.
+
+  The validator reads the same schema object that is sent to clients, never a
+  copy of its rules — a duplicated rule set drifts the first time someone edits
+  a schema, and drifts silently. It implements exactly the vocabulary those
+  schemas use, and a test asserts no schema ever declares a keyword it would
+  skip, since an ignored keyword turns a published constraint back into
+  advertising with nobody the wiser.
+
+  Parameters outside a tool's `properties` are refused rather than relayed:
+  the properties list is the published interface, and forwarding anything else
+  made this server a pass-through for arbitrary JSON. Note for existing
+  callers: `news_search` publishes no `topic` (it is fixed to news), so passing
+  one is now an error instead of being silently overridden.
+
+- **The HTTP body cap now defaults to 6 MiB**, so `image_search`'s `image_data`
+  works without configuration. A default below the largest argument a tool
+  accepts means the tool is advertised and unusable over that transport, and
+  the client sees a `413` with no obvious connection to the picture it sent.
+- **`OCTEN_MCP_MAX_INFLIGHT_BODY`** bounds the total bytes all in-flight bodies
+  hold at once, default 24 MiB. The per-request cap stops one enormous request
+  and does nothing about many ordinary ones: with the per-request cap at 6 MiB,
+  forty concurrent 5 MB bodies measured 772 MB resident against a 768 MiB
+  container — an OOM kill reachable by anyone holding a key, with no single
+  request breaking a rule. Over the budget, the newest request is shed with
+  `503` + `Retry-After`, because this is capacity rather than a bad call.
+
+  The budget is deliberately small relative to the bytes it guards: a 5 MB
+  ASCII body is ~10 MB as a UTF-16 string and exists two or three times over
+  (concatenated, parsed, re-serialised upstream), so resident cost runs about
+  ten times the budget. Verified in a real 768 MiB container: sixty concurrent
+  5 MB requests peak at 342 MiB with no OOM kill.
+
+- **Install documentation rebuilt around the hosted endpoint**
+  (`https://mcp.octen.ai/mcp`, now live). Remote is the first path a reader
+  meets; local stdio follows as the alternative for clients without remote
+  support. Per-client configuration is spelled out because the JSON key differs
+  between them — `url`, `serverUrl`, `httpUrl`, or `servers` with an explicit
+  `type` — and getting it wrong means the server is simply never contacted,
+  with nothing in any log to say so. Stdio-only clients get the `mcp-remote`
+  bridge, including the detail that `--header` takes no space after the colon.
+
+  Added: a parameter table per tool, transcribed from the schemas the tools
+  publish, and a troubleshooting section covering the failures that do not look
+  like what they are — a `406` from an incomplete `Accept` header reads as an
+  auth problem, and a wrong config key looks like the server being down.
+
+  Corrected: the README claimed `mcp-remote` has no `--header` option. It has
+  had one for several releases; the claim came from a report citing 0.2.4
+  against a current 0.8.2. The query-string credential remains for clients that
+  accept nothing but a URL, which is a smaller set than that claim implied.
+
+### Fixed
+- **`image_search` gained `image_data`.** The API's image input takes either a
+  URL or base64 bytes; only the URL form was offered, so an image you hold
+  rather than one already on the web could not be searched at all. Up to 5MB
+  encoded, matching the documented ceiling — measured on the encoded string,
+  which is what the API bounds. A `data:` URI is unwrapped rather than refused:
+  its payload *is* the base64, and it is the form every browser and screenshot
+  tool produces.
+
+  Note for the HTTP transport: base64 travels inside the JSON-RPC body, so
+  `OCTEN_MCP_MAX_BODY` (default 1 MiB) must be raised above the image or the
+  request is refused. The `413` now names that variable — a byte count alone
+  does not tell an operator which knob to turn.
+- **`image_search` advertised the one input combination the API refuses, and
+  could not express the one it documents.** The `inputs` array takes exactly one
+  entry — one text input or one image input, never both. This tool required
+  `query` and described `image_url` as usable "in addition" to it, so passing
+  both (the advertised path) was answered upstream with `Invalid params. Inputs
+  exceeds 1 entries`, while searching by reference image alone — documented and
+  supported — could not be expressed at all. `query` is no longer required,
+  exactly one of the two is, and asking for both is refused locally with a
+  message that names the choice instead of relaying a params error.
+- **`include_videos` removed from `search` / `news_search` / `broad_search`.**
+  The API reference documents no such parameter for that endpoint. It did have
+  an effect when sent — responses carried a `videos` field only with it set —
+  but advertising a parameter the API does not document is promising something
+  nobody has committed to, and since the schemas became a gate that promise is
+  enforced against callers. `extract` keeps all three of its media flags; those
+  are documented. The video renderer stays too: if a response ever carries
+  `videos` regardless, dropping them silently is the defect above.
+- **Declared parameter limits did not match the published API.** Seven of them,
+  across four tools. Two were rejecting calls the API serves: `exclude_domains`
+  was capped at 150 against a documented 1200, and every domain longer than 30
+  characters was refused against a documented 60. Three were missing entirely
+  (`urls` item length, `max_age_seconds` upper bound, `html_snippet.max_tokens`
+  upper bound), so nothing bounded them at all.
+
+  This mattered little while the schemas were advertising; it started costing
+  users the moment they became a gate. A limit stricter than the API's refuses
+  work the API would do, and a looser one defers the failure upstream where the
+  message is worse. `test/apiContract.test.mjs` now pins every documented
+  limit and enum, so the next divergence fails a test instead of a user's call.
+- **`include_images` / `include_videos` returned no URLs.** The tools promise,
+  in their own descriptions, to "return media URLs per result"; what came back
+  was a count. Measured against the live API: a search whose result carried 101
+  image URLs rendered as the single line `**Images:** 101`, and the only image
+  links anywhere in the output were favicons. `extract` did the same for its
+  images, videos and audio — 37 / 14 / 3 URLs, none of them printed. Setting
+  the flag cost an upstream fetch and returned nothing actionable.
+
+  Each entry now prints as `url — description`, capped at ten per list with the
+  true total stated alongside. The caption matters as much as the link: on news
+  results it carries what was photographed, where, when, and the photographer's
+  credit, and a bare URL leaves a model with nothing it can say about the
+  picture. The cap is there because one result really can carry a hundred
+  images, and pasting all of them into a model's context costs more than the
+  answer is worth — but a cap the reader cannot see is the same silent drop in
+  a smaller size, so the total is always stated.
+- **`cover_image` rendered as `[object Object]`.** The field arrives as
+  `{url, description}` and search interpolated the object. `extract` had
+  already been reading `.url` correctly — the two had drifted, which is also
+  how the counting bug above came to exist in two places. Both now share one
+  renderer rather than a copy each.
+- **The OAuth flow never started.** The 401 challenge — the only trigger MCP
+  clients act on — fired solely on a `?login` entrypoint, so a client given the
+  plain `/mcp` URL got 200 from `initialize`, concluded the server needed no
+  authorization, listed tools, and failed at the first `tools/call` with a
+  message pointing at manual API-key setup. Connected, and never able to
+  authorize. Confirmed on pre before the fix: `initialize`, `tools/list` and
+  `tools/call` all answered 200 with no `WWW-Authenticate` on any of them.
+
+  An uncredentialed request now gets 401 + `WWW-Authenticate` on every method
+  when an authorization server is configured. The trade is that anonymous
+  `tools/list` is no longer possible against such a deployment; deployments
+  without an authorization server are unchanged, since there would be nowhere
+  to send the client.
+- **JWTs this server cannot verify were retried as API keys.** The structural
+  gate that routes a bearer value to the OAuth path or the API-key path
+  required `alg: RS256` *and* a `kid`, so anything token-shaped but
+  unverifiable fell through to the key path: measured, `alg: none`, an HS256
+  token, and one missing `kid` were each forwarded verbatim to the upstream as
+  an API key and answered HTTP 200 with a tool-level "Invalid API Key". A
+  client holding a bearer token needs 401 + a challenge to know it should
+  re-authorize; a tool error reads as a backend fault to retry, so it never
+  does. It also put a whole bearer token — possibly minted for another
+  audience — into the API gateway's logs as if it were a key. The gate is now
+  shape-only (three segments, header with a string `alg`), and the specific
+  reason comes back as a 401. Values that are not token-shaped are still keys,
+  and a wrong key still earns the tool-level "check your key" error.
+
+  Not affected, verified rather than assumed: an *expired* token already took
+  the OAuth path and answered 401, because tokens from the authorization server
+  always carry a `kid`.
+- **The request-size cap could be answered with a connection reset instead of a
+  413.** Hanging up while the client is still sending resets the connection,
+  and a reset discards the response bytes still in flight — measured both ways:
+  a client that stopped after 128 KB received the 413, one that kept sending
+  received only `ECONNRESET`. The body is now drained and discarded (bounded by
+  `OCTEN_MCP_BODY_DRAIN_MS`, default 2s) so the answer survives the close.
+- **Remote kill via a hostile token header.** A `kid` containing CRLF reached
+  `res.writeHead` through the `WWW-Authenticate` challenge; the resulting
+  `ERR_INVALID_CHAR` escaped an async handler as an unhandled rejection and
+  ended the process. Unauthenticated and one request per kill — with a single
+  replica that is a full outage. Fixed in three places: the value is sanitised
+  at its source, `error_description` is filtered to the RFC 6750 charset, and
+  the request handler now has an error boundary so no future throw can exceed
+  one failed request.
+- **JWKS amplification.** An unknown `kid` triggered a JWKS refetch per
+  request, with no cross-request limit — measured at 11 fetches from 10
+  unauthenticated requests, aimed at our own authorization server. Refetches
+  are now rate-limited and concurrent misses share one fetch. Rotation still
+  picks up a new key, delayed by at most the cooldown.
+- **A misconfigured resource URL used to pass startup and every health probe**,
+  then kill the process on the first `?login` — a pod that is healthy until
+  someone uses it. Both OAuth URLs are now parsed at startup and an unusable
+  value stops the process there.
+- **The OAuth path bypassed the tuned HTTP dispatcher**, so JWKS and grant
+  resolution ignored the proxy environment (the 0.4.0 fix, missing from the
+  code added after it) and re-handshaked on every call.
+- **Generic failures replaced with specific ones.** `fetch failed`,
+  `Authorization backend temporarily unavailable`, `Invalid or expired access
+  token` and `Internal server error` each fit a dozen unrelated causes, which
+  is what makes a report unactionable. Every failure now names the dependency
+  and the reason: which endpoint, which transport code or HTTP status, how long
+  a token has been expired, both sides of an audience mismatch, and whether the
+  caller should retry or re-authorize. Internal addresses are still never
+  disclosed.
+- **Environment overrides could be disabled by a typo.** `OCTEN_MCP_MAX_BODY`
+  and `OCTEN_DRAIN_TIMEOUT_MS` were parsed with a bare `Number()`, so a
+  non-numeric value became `NaN` — silently removing the body cap and turning
+  the drain deadline into an infinite one. Both now fall back, and the drain
+  logs the budget it actually resolved to.
+- **Requests blocked in credential resolution were invisible to the drain**, so
+  SIGTERM could exit underneath one. They are counted from arrival now.
+- **A trailing slash on `OCTEN_OAUTH_AUTHORIZATION_SERVER` refused every
+  token.** The value is used two ways and a trailing slash breaks both: the
+  JWKS URL becomes `…//api/oauth/jwks`, and `iss` is compared byte-for-byte
+  against a value no authorization server emits with a trailing slash. The
+  process started, every health probe passed, and 100% of tokens were rejected
+  — measured. Refused at startup now, because the rejection message prints two
+  strings that differ by the one character nobody sees.
+- **A trailing slash on the endpoint answered 404.** `…/mcp/` is the commonest
+  paste artifact in a URL a human copies into a client config; answering it
+  with 404 makes a working deployment look broken for a reason nobody
+  inspects. Both spellings are accepted now.
+- **A burst on one grant made one resolve-key call per request** — measured at
+  eight for eight simultaneous calls. That burst is what an agent firing
+  several tools at once right after authorizing looks like, so the
+  dependency's worst moment was also its most likely one. In-flight
+  resolutions are shared now, as the JWKS path already did.
+- **The advertised metadata URL was hardcoded to `/mcp`** rather than derived
+  from the resource path, so an instance mounted elsewhere pointed clients at a
+  document it does not serve.
+
+### Changed
+- The grant→key cache lifetime is now `OCTEN_OAUTH_RESOLVE_CACHE_TTL_MS`
+  (default 60000, `0` disables caching). This is the revocation-propagation
+  window — measured on pre, a revoked token still worked at t=45s and was
+  refused at t=60s — and it is a deliberate trade rather than an implementation
+  detail: resolving on every call would put a synchronous dependency on the
+  authorization server in front of every tool call. It is also an increment on
+  top of the access token's own ~3600s lifetime, not the whole exposure.
+
+
 ## [0.4.2] — 2026-08-19
 
 ### Fixed

@@ -138,9 +138,36 @@ not `url`:
 }
 ```
 
-**Clients that only speak stdio** (Claude Desktop, Zed, Warp, Raycast, Cline)
-reach a remote server through the `mcp-remote` bridge. Note there is **no space
-after the colon** in `--header` — the value is split on the first one:
+**Claude Desktop** takes the URL directly — no config file, no bridge. In
+**Settings → Connectors**, click **Add custom connector**, name it `Octen`, and
+enter:
+
+```
+https://mcp.octen.ai/mcp
+```
+
+Leave the Advanced settings empty: the OAuth Client ID and Secret fields are
+for servers that cannot register a client on their own, and ours can. Claude
+will offer to sign you in, and an Octen key is issued to that connection when
+you approve.
+
+The connector dialog has no field for request headers, so an **API key** goes
+in the URL instead:
+
+```
+https://mcp.octen.ai/mcp?octenApiKey=your-key-here
+```
+
+Signing in is the better of the two — a URL is not a secret-carrying medium,
+and the sign-in flow can be revoked from your account without editing anything
+on this side. Note also that Claude connects from Anthropic's servers rather
+than from your machine, so a self-hosted deployment has to be reachable from
+the public internet for this to work at all; a private one wants the bridge
+below.
+
+**Clients that only speak stdio** (Zed, Warp, Raycast, Cline) reach a remote
+server through the `mcp-remote` bridge. Note there is **no space after the
+colon** in `--header` — the value is split on the first one:
 
 ```json
 {
@@ -211,11 +238,11 @@ that quietly comes up short.
 | Gemini CLI | `gemini mcp add octen -e OCTEN_API_KEY=your-key-here -- npx -y octen-mcp` |
 | VS Code | `code --add-mcp '{"name":"octen","command":"npx","args":["-y","octen-mcp"],"env":{"OCTEN_API_KEY":"your-key-here"}}'` (or click a badge above) |
 | Cursor | [Add to Cursor](https://cursor.com/en/install-mcp?name=octen&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIm9jdGVuLW1jcCJdLCJlbnYiOnsiT0NURU5fQVBJX0tFWSI6InlvdXIta2V5LWhlcmUifX0%3D) (then edit the key), or use the JSON above in `~/.cursor/mcp.json` |
-| Claude Desktop | No CLI — add the JSON above to the config file (see below) |
+| Claude Desktop | No CLI. For the hosted endpoint use **Settings → Connectors → Add custom connector** (above); for a local install, the config file (below) |
 
 ### Config file locations
 
-- **Claude Desktop**: `~/Library/Application\ Support/Claude/claude_desktop_config.json`
+- **Claude Desktop**: `~/Library/Application\ Support/Claude/claude_desktop_config.json` — only needed for a local (stdio) install; the hosted endpoint is added as a connector instead
 - **Cursor**: `~/.cursor/mcp.json`
 - **VS Code workspace**: `.vscode/mcp.json` (use `servers` instead of `mcpServers`)
 - **Windsurf**: `~/.codeium/windsurf/mcp_config.json`

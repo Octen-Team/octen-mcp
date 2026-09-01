@@ -43,7 +43,11 @@ jobs:
       # name, so an emptiness check on them is always false and `docker login`
       # would have been handed the working directory as a password.
       - name: Check registry credentials are configured
-        if: inputs.push != false
+        # Not `inputs.push != false`: on a tag push `inputs` is empty, and
+        # GitHub compares null against false by casting both to 0 — so that
+        # reads as equal and skips the step. The release build then reports
+        # success having pushed nothing.
+        if: github.event_name != 'workflow_dispatch' || inputs.push
         env:
           ACR_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
           ACR_USERNAME: ${{ secrets.ACR_USER }}
@@ -169,7 +173,7 @@ jobs:
           echo "version ok: v${VERSION}"
 
       - name: Push
-        if: inputs.push != false
+        if: github.event_name != 'workflow_dispatch' || inputs.push
         env:
           ACR_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
           ACR_USERNAME: ${{ secrets.ACR_USER }}
@@ -192,7 +196,7 @@ jobs:
         env:
           REPO: ${{ steps.tags.outputs.repo }}
           SHA: ${{ steps.tags.outputs.sha }}
-          PUSHED: ${{ inputs.push != false }}
+          PUSHED: ${{ github.event_name != 'workflow_dispatch' || inputs.push }}
         run: |
           {
             echo "\`$REPO:$SHA\`"

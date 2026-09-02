@@ -28,10 +28,12 @@ const EXTRACT_CLIENT_TIMEOUT_CAP_SEC = 180;
 /** Tool advertisement — clients see this in the list-tools response. */
 export const extractTool: Tool = {
   name: "extract",
+  title: "URL Extract",
   // Explicit MCP tool annotations: every Octen tool is a read-only query
   // against the open web — it fetches and never mutates external state.
   // Plugin-directory reviews require these three hints on every tool.
   annotations: {
+    title: "URL Extract",
     readOnlyHint: true,
     openWorldHint: true,
     destructiveHint: false,

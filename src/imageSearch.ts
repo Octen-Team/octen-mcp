@@ -25,10 +25,12 @@ const API_KEY = process.env.OCTEN_API_KEY;
 /** Tool advertisement — clients see this in the list-tools response. */
 export const imageSearchTool: Tool = {
   name: "image_search",
+  title: "Image Search",
   // Explicit MCP tool annotations: every Octen tool is a read-only query
   // against the open web — it fetches and never mutates external state.
   // Plugin-directory reviews require these three hints on every tool.
   annotations: {
+    title: "Image Search",
     readOnlyHint: true,
     openWorldHint: true,
     destructiveHint: false,

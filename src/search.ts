@@ -39,10 +39,12 @@ const BROAD_SEARCH_TIMEOUT_MAX_SEC = 300;
 /** Tool advertisement — clients see this in the list-tools response. */
 export const searchTool: Tool = {
   name: "search",
+  title: "Web Search",
   // Explicit MCP tool annotations: every Octen tool is a read-only query
   // against the open web — it fetches and never mutates external state.
   // Plugin-directory reviews require these three hints on every tool.
   annotations: {
+    title: "Web Search",
     readOnlyHint: true,
     openWorldHint: true,
     destructiveHint: false,
@@ -204,7 +206,9 @@ const { topic: _omitTopic, ...newsProperties } =
 
 export const newsSearchTool: Tool = {
   name: "news_search",
+  title: "News Search",
   annotations: {
+    title: "News Search",
     readOnlyHint: true,
     openWorldHint: true,
     destructiveHint: false,
@@ -351,7 +355,9 @@ const { query: broadQueryProp, ...broadOptionProperties } = broadBaseProperties;
 
 export const broadSearchTool: Tool = {
   name: "broad_search",
+  title: "Broad Search",
   annotations: {
+    title: "Broad Search",
     readOnlyHint: true,
     openWorldHint: true,
     destructiveHint: false,

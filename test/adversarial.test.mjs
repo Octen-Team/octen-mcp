@@ -1688,3 +1688,69 @@ test("the advertised metadata URL is derived from the resource path, and is serv
     await assertAlive(stack.srv, "path-derived metadata");
   } finally { stack.stop(); }
 });
+
+test("an empty or whitespace-only query is refused before any upstream call", async () => {
+  // Two different gates, both required. `""` is a schema violation and is
+  // judged before dispatch; `"   "` satisfies minLength and is caught by the
+  // handler's trim guard. Either way the caller gets a sentence naming the
+  // problem and the API never sees the request.
+  const stack = await startStack();
+  try {
+    for (const [tool, args] of [
+      ["search", { query: "" }],
+      ["search", { query: "   " }],
+      ["news_search", { query: "" }],
+      ["news_search", { query: "\t\n" }],
+      ["broad_search", { query: "" }],
+      ["broad_search", { query: "  " }],
+    ]) {
+      const res = await fetch(`http://127.0.0.1:${stack.srv.port}/mcp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", "x-api-key": "k" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: tool, arguments: args } }),
+      });
+      const text = await res.text();
+      const result = JSON.parse(text.split("\n").filter((l) => l.startsWith("data: ")).pop().slice(6)).result;
+      assert.equal(result.isError, true,
+        `${tool} accepted ${JSON.stringify(args)}`);
+    }
+    assert.equal(stack.up.seenKeys.length, 0,
+      "an empty query was relayed upstream");
+    await assertAlive(stack.srv, "empty query rejections");
+  } finally { stack.stop(); }
+});
+
+test("out-of-range numeric bounds and nulls are refused before any upstream call", async () => {
+  // These already worked; the point is that they keep working. Each is a value
+  // the published schema excludes, and for two of them the server is known to
+  // behave differently from the documentation (`max_queries: 0` becomes its
+  // default of 5 upstream, extract's `timeout` bounds are not enforced there).
+  // The client's job is to hold the published contract either way.
+  const stack = await startStack();
+  try {
+    const cases = [
+      ["extract", { urls: ["https://a.com"], timeout: 0 }],
+      ["extract", { urls: ["https://a.com"], timeout: 61 }],
+      ["extract", { urls: ["https://a.com"], timeout: null }],
+      ["broad_search", { query: "q", max_queries: 0 }],
+      ["broad_search", { query: "q", max_queries: 31 }],
+      ["broad_search", { query: "q", max_queries: null }],
+      ["search", { query: "q", count: null }],
+      ["search", { query: "q", count: 0 }],
+      ["search", { query: "q", count: 101 }],
+    ];
+    for (const [tool, args] of cases) {
+      const res = await fetch(`http://127.0.0.1:${stack.srv.port}/mcp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", "x-api-key": "k" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: tool, arguments: args } }),
+      });
+      const text = await res.text();
+      const result = JSON.parse(text.split("\n").filter((l) => l.startsWith("data: ")).pop().slice(6)).result;
+      assert.equal(result.isError, true, `${tool} accepted ${JSON.stringify(args)}`);
+    }
+    assert.equal(stack.up.seenKeys.length, 0,
+      "an out-of-contract value was relayed upstream");
+    await assertAlive(stack.srv, "bounds rejections");
+  } finally { stack.stop(); }
+});

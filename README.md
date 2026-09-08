@@ -287,6 +287,13 @@ request; it is the one an engineer can look up.
 | `image_search` | _In Beta — contact us for beta access._ Search the web for images by text query (optional reference `image_url`) | finding pictures, photos, visual references |
 | `video_search` | _In Beta — contact us for beta access._ Search the web for videos by text query | finding videos, clips, footage |
 
+These six are the whole surface, on purpose. Embeddings, chat completions,
+Answer and Research are Octen APIs that this server deliberately does not
+expose — reach them through the [Python SDK](https://pypi.org/project/octen/)
+or the [CLI](https://www.npmjs.com/package/@octen.ai/cli). A tool an agent can
+see is a tool it will try, so the roster stays the set that earns its place in
+a tool list.
+
 Reference docs:
 
 - Search: [docs.octen.ai/api-reference/search](https://docs.octen.ai/api-reference/search)
@@ -301,14 +308,29 @@ the field. The limits track the
 two drift apart.
 
 `image_search` takes **exactly one** of `query`, `image_url` or `image_data`.
-Every tool also accepts `timeout` (seconds) — a client-side deadline, not sent
-to the API.
+
+`query` must be non-empty: an empty string is refused by the schema, and a
+whitespace-only one by the handler. Neither reaches the API.
+
+**`timeout` means two different things.** On `search`, `news_search`,
+`broad_search`, `image_search` and `video_search` it is this server's own HTTP
+deadline for the call — it is removed from the request body and never sent to
+the API. On `extract` it is the API's documented **per-URL fetch budget**
+(1-60s) and does travel in the body; the local deadline for an extract call is
+derived from it with headroom, so raising `timeout` raises both.
+
+Overlapping `include_domains` and `exclude_domains` are passed through as
+given. The API currently answers a domain listed in both with a validation
+error; the published
+[reference](https://docs.octen.ai/api-reference/search) describes exclusion
+taking precedence. Until those agree, this server neither silently drops nor
+reorders your filters — you get the API's answer.
 
 #### `search`
 
 | Parameter | Type | Required | Limits | Default |
 |---|---|---|---|---|
-| `query` | string | yes | ≤500 chars |  |
+| `query` | string | yes | 1–500 chars |  |
 | `topic` | string |  | `general` / `news` | `"general"` |
 | `count` | integer |  | 1–100 | `5` |
 | `include_domains` | array |  | ≤1200 items; each ≤60 |  |
@@ -331,7 +353,7 @@ to the API.
 
 | Parameter | Type | Required | Limits | Default |
 |---|---|---|---|---|
-| `query` | string | yes | ≤500 chars |  |
+| `query` | string | yes | 1–500 chars |  |
 | `count` | integer |  | 1–100 | `5` |
 | `include_domains` | array |  | ≤1200 items; each ≤60 |  |
 | `exclude_domains` | array |  | ≤1200 items; each ≤60 |  |
@@ -353,7 +375,7 @@ to the API.
 
 | Parameter | Type | Required | Limits | Default |
 |---|---|---|---|---|
-| `query` | string | yes | ≤500 chars |  |
+| `query` | string | yes | 1–500 chars |  |
 | `max_queries` | integer |  | 1–30 | `5` |
 | `topic` | string |  | `general` / `news` | `"general"` |
 | `count` | integer |  | 1–100 | `5` |
@@ -405,7 +427,7 @@ to the API.
 
 | Parameter | Type | Required | Limits | Default |
 |---|---|---|---|---|
-| `query` | string | yes | ≤500 chars |  |
+| `query` | string | yes | 1–500 chars |  |
 | `count` | integer |  | 1–10 | `5` |
 | `time_range` | string |  | `day` / `week` / `month` / `year` / `d` / `w` / `m` / `y` |  |
 | `start_time` | string |  |  |  |

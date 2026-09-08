@@ -308,3 +308,41 @@ test("happy-eyeballs failures report every distinct address family's code, not j
   assert.match(text, /code=ETIMEDOUT/);
   assert.match(text, /also=ENETUNREACH/, `second family's code dropped: "${text}"`);
 });
+
+test("`timeout` is stripped from a search body and kept in an extract body", async () => {
+  // The same parameter name, two different meanings. On search it is our HTTP
+  // deadline and must not reach the API; on extract it is the API's own
+  // per-URL fetch budget and must arrive unchanged. Asserting the exact bodies
+  // is deliberate: a `!== undefined` check on one field would still pass if
+  // the other tool's handling were inverted.
+  const searchAttempts = scriptFetch([OK_BODY]);
+  await handleSearch({ query: "hi", count: 3, timeout: 45 });
+  assert.deepEqual(JSON.parse(searchAttempts[0].init.body), { query: "hi", count: 3 },
+    "search relayed the client-side `timeout` upstream");
+
+  const extractAttempts = scriptFetch([OK_BODY]);
+  await handleExtract({ urls: ["https://example.com"], timeout: 45 });
+  assert.deepEqual(JSON.parse(extractAttempts[0].init.body),
+    { urls: ["https://example.com"], timeout: 45 },
+    "extract dropped a published API parameter");
+});
+
+test("extract keeps its documented timeout at both ends of the published range", async () => {
+  for (const value of [1, 60]) {
+    const attempts = scriptFetch([OK_BODY]);
+    await handleExtract({ urls: ["https://example.com"], timeout: value });
+    assert.equal(JSON.parse(attempts[0].init.body).timeout, value);
+  }
+});
+
+test("a non-zero envelope code is an error carrying the server's request_id", async () => {
+  // HTTP 200 with `code != 0` is a failure. Already handled correctly; this
+  // pins it, because the CLI and the Python SDK were both getting it wrong.
+  scriptFetch([{ code: 7, msg: "application failure", request_id: "20260908REQ000000001" }]);
+  const out = await handleSearch({ query: "hi" });
+  assert.equal(out.isError, true);
+  const text = textOf(out);
+  assert.match(text, /code=7/);
+  assert.match(text, /msg=application failure/);
+  assert.match(text, /request_id=20260908REQ000000001/);
+});

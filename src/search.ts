@@ -58,8 +58,9 @@ keywords: web search, search the web, look up, find, check, fact, current inform
     properties: {
       query: {
         type: "string",
+        minLength: 1,
         maxLength: 500,
-        description: "Search query. Max 500 chars.",
+        description: "Non-empty search query. Max 500 chars.",
       },
       topic: {
         type: "string",

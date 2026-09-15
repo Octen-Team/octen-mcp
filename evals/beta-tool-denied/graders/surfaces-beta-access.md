@@ -1,5 +1,5 @@
 ---
 type: regex
-pattern: 'orchard|4\.37'
+pattern: 'beta'
 flags: i
 ---

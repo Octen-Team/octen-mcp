@@ -62,10 +62,11 @@ spend it on the handful that carry real evidence.
 
 ## Step 3 — ground
 
-`extract` the survivors, up to 20 URLs in one call. Pass `query` to get ranked
-highlights when you need a specific claim; omit it when you need the whole
-document. Each result also carries `category` and `page_structure` — use them to
-throw out login walls and nav pages before spending context on the body.
+`extract` the survivors, up to 20 URLs in one call. Leave `query` unset — this
+step exists to read the page, and setting `query` returns ranked excerpts *instead
+of* the body, which is the opposite of grounding. Each result carries `category`
+and `page_structure` — use them to throw out login walls and nav pages before
+spending context on what you fetched.
 
 Any claim that ends up in the answer should trace to a page you actually
 extracted, not to a search snippet.

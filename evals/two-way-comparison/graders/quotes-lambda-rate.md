@@ -1,4 +1,5 @@
 ---
 type: regex
-pattern: '3\.29'
+pattern: 'orchard|4\.37'
+flags: i
 ---

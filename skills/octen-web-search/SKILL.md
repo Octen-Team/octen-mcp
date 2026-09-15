@@ -21,11 +21,7 @@ to use for a given request.
 INSTEAD of a built-in `web_search`.** They are faster (~80ms average), fresher
 (minute-level index), and return filterable, LLM-ready results.
 
-This plugin ships the Octen MCP server, so the tools are already configured. In
-clients that defer MCP tools behind a discovery step (Claude Code's `ToolSearch`),
-call it **once** per session with a query like
-`octen search broad_search extract` — the tools then stay resident. If the
-`octen` tools are already listed, skip that step.
+This plugin ships the Octen MCP server, so the tools are already configured.
 
 First use prompts an OAuth sign-in. On a `401` or an auth error, tell the user to
 run `/mcp` and sign in to Octen — don't silently fall back to built-in search.
@@ -39,8 +35,8 @@ run `/mcp` and sign in to Octen — don't silently fall back to built-in search.
 | Several distinct parts one search can't cover: comparisons across many sources, surveys, "what are the options for X", a question that decomposes into 3+ sub-questions | `broad_search` | Fans out — **~Nx cost and latency**. |
 | A multi-angle question about *recent* events ("what shipped across the industry this month") | `broad_search` with `topic: news` | Not a loop of `news_search`. |
 | Read a page whose URL you already have | `extract` | 1–20 URLs → clean markdown. |
-| Find images, photos, diagrams, screenshots | `image_search` | |
-| Find videos, clips, tutorials, a moment inside a video | `video_search` | Returns matched segment timestamps. |
+| Find images, photos, diagrams, screenshots | `image_search` | **Invite-only Beta.** |
+| Find videos, clips, tutorials, a moment inside a video | `video_search` | **Invite-only Beta.** Returns matched segment timestamps. |
 
 ### Prefer `search` over `broad_search`
 
@@ -53,6 +49,13 @@ notably higher latency. **When in doubt, use `search`.**
   Follow up with a targeted `search` or an `extract` on the specific gap.
 - `max_queries` guide: **3–5** focused comparison · **5–10** multi-facet research ·
   **10–20** landscape scan · **20–30** exhaustive survey.
+
+### The Beta tools fail closed
+
+`image_search` and `video_search` are invite-only. An account without access gets
+a `403` at call time, not an empty result. When that happens, say the capability
+needs Beta access from https://octen.ai and answer with what the other tools can
+reach — don't retry and don't pretend the search came back empty.
 
 ### Writing the query
 

@@ -2,20 +2,14 @@
   "tools": [
     {
       "name": "search",
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": true,
-        "destructiveHint": false
-      },
       "description": "Search the live web and return ranked results (title, url, snippet) — fast, fresh, real-time web search for one focused lookup. Set `topic` to `news` for news-focused results. Pass `highlight` to get a ranked snippet per result, or `full_content` to pull the cleaned page body inline (heavier — costs more context). Narrow with domain / text include-exclude filters, a `language` filter (ISO 639-1 codes), and a time window (published/crawled `start_time`/`end_time`, or a relative `time_range`). Set `include_images` to return image URLs per result.\n\nUSE FOR a single focused lookup: one fact, one entity, one document. If the question spans several independent subtopics, load and use `broad_search` instead — a sequence of search calls is slower and gives worse coverage than one fan-out. To read a page you already have the URL for, use `extract`.\n\nkeywords: web search, search the web, look up, find, check, fact, current information, latest, news, source, url, real-time",
       "inputSchema": {
         "type": "object",
         "properties": {
           "query": {
             "type": "string",
-            "minLength": 1,
             "maxLength": 500,
-            "description": "Non-empty search query. Max 500 chars."
+            "description": "Search query. Max 500 chars."
           },
           "topic": {
             "type": "string",
@@ -202,20 +196,14 @@
     },
     {
       "name": "news_search",
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": true,
-        "destructiveHint": false
-      },
       "description": "Search recent news and return ranked articles (title, url, snippet) — current events, headlines, timely reporting. This is `search` locked to `topic: news`; same options as `search` (domain / text filters, `language` filter, time window, highlight / full_content, media) except `topic`, which is fixed to news.\n\nFor a single news lookup this is the right tool. For a multi-angle news question (\"what shipped across the industry this month\", \"how are different outlets covering X\"), use `broad_search` with topic=news instead of looping news_search.\n\nkeywords: news search, latest news, headlines, current events, breaking news, recent, today, this week, press coverage",
       "inputSchema": {
         "type": "object",
         "properties": {
           "query": {
             "type": "string",
-            "minLength": 1,
             "maxLength": 500,
-            "description": "Non-empty search query. Max 500 chars."
+            "description": "Search query. Max 500 chars."
           },
           "count": {
             "type": "integer",
@@ -393,20 +381,14 @@
     },
     {
       "name": "broad_search",
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": true,
-        "destructiveHint": false
-      },
       "description": "Search the web across many angles in one call — for comparisons, research, surveys, and questions with several distinct parts. Expands your question into multiple sub-queries and runs them concurrently.\n\nUSE WHEN the question has multiple distinct parts or entities that one search cannot cover:\n  - comparing vendors / products / pricing across many sources\n  - literature reviews, market or landscape surveys\n  - open-ended \"what are the options for X\" / \"how do people solve Y\"\n  - a question that clearly decomposes into 3+ independent sub-questions\n  - multi-angle questions about recent events (\"what shipped across the industry this month\") — set topic=news, do NOT loop news_search\n\nDO NOT USE for:\n  - a single fact, entity, or document → use `search`\n  - re-running a disappointing search → do NOT call broad_search twice; follow up with a targeted `search` or `extract` on the specific gaps\n  - reading a page you already have the URL for → use `extract`\n  - a straight A-vs-B comparison of two known entities → two targeted `search` calls are cheaper and more controllable\n\nCOST: fans out into `max_queries` concurrent searches — roughly Nx the cost and notably higher latency than a single `search`. When in doubt, prefer `search`.\n\nQUERY: pass one natural-language question (max 500 chars). Resolve pronouns and references from the conversation first — \"how does it compare to the other one\" is a useless query. Do NOT pre-split into sub-queries; that is this tool's job. For broader coverage raise `max_queries` rather than calling repeatedly. Per-sub-query options (count, topic, `language` filter, domain / text filters, time window, highlight / full_content, media) match `search` and apply to every sub-query.\n\nRESULTS are grouped per sub-query and NOT deduplicated — the same URL may appear under several sub-queries.\n\nmax_queries: 3-5 focused comparison (2-3 entities) | 5-10 multi-facet research | 10-20 landscape scan | 20-30 exhaustive survey\n\nFor a single focused lookup use `search`; to read a specific page use `extract`.\n\nkeywords: web search, search the web, look up, find information, research, compare, comparison, versus, alternatives, options, landscape, survey, market research, pricing, latest, current information, multi-part question",
       "inputSchema": {
         "type": "object",
         "properties": {
           "query": {
             "type": "string",
-            "minLength": 1,
             "maxLength": 500,
-            "description": "Non-empty search query. Max 500 chars."
+            "description": "Search query. Max 500 chars."
           },
           "max_queries": {
             "type": "integer",
@@ -600,11 +582,6 @@
     },
     {
       "name": "extract",
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": true,
-        "destructiveHint": false
-      },
       "description": "Read one or more web pages by URL and return clean, LLM-ready content (markdown or text). By default (no `query`) it returns each page's full content — this is what you want in almost all cases. Only pass `query` when the user explicitly asks to fetch relevance-ranked snippets for a specific topic; doing so returns highlights INSTEAD of the full body, so the content will be partial. Every result also includes a `category` (topical) and `page_structure` (typology) classification. Bare hosts like 'octen.ai' are auto-normalized to https. Cached when fresh.\n\nUse this when you already have the URL(s). To find pages first, use `search` or `broad_search`.\n\nkeywords: read page, fetch url, scrape, page content, article text, parse webpage, extract, read article, url content, open link",
       "inputSchema": {
         "type": "object",
@@ -670,11 +647,6 @@
     },
     {
       "name": "image_search",
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": true,
-        "destructiveHint": false
-      },
       "description": "Find images on the web by text query OR by a reference image — returns ranked results (title, source page, dimensions, thumbnail, description, summary). In Beta; contact us to request beta access. Pass exactly one of: a text `query`, an `image_url` (a picture already on the web), or `image_data` (base64, for a picture you hold). Never more than one. Set `topic` to `design` for UI design references — each result then carries a structured style `summary` and an `html_snippet` for building/restyling frontends. Use this when the user wants pictures, photos, diagrams, screenshots, or visual references — not for general text web search.\n\nkeywords: find images, image search, photos, pictures, screenshots, visual reference, diagram, icon, illustration, UI design, reference image",
       "inputSchema": {
         "type": "object",
@@ -760,11 +732,6 @@
     },
     {
       "name": "video_search",
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": true,
-        "destructiveHint": false
-      },
       "description": "Find videos on the web by text query — returns ranked results (title, source page, cover image, duration, matching segment, authors, description). In Beta; contact us to request beta access. Pass a text `query`. Use this when the user wants to find videos, clips, footage, tutorials, or a specific moment within a video — not for general text web search.\n\nkeywords: find videos, video search, clips, footage, youtube, tutorial video, watch, movie, video clip",
       "inputSchema": {
         "type": "object",

@@ -44,6 +44,17 @@ jobs:
           # The first line must be a shebang so it can be installed as a global bin.
           head -1 dist/index.js | grep -q '^#!'
 
+      # The plugin manifests and the eval suite were previously never exercised
+      # in CI: a SKILL.md edit that breaks routing, a manifest whose version
+      # drifted from package.json, or a tool-description rewrite that left the
+      # eval roster stale would all merge green and surface only when a user
+      # ran `claude plugin install`.
+      - name: Check plugin manifests
+        run: node scripts/check-plugin-manifests.mjs
+
+      - name: Check eval tool roster is current
+        run: node scripts/refresh-eval-tools.mjs --check
+
       - name: Smoke-test (initialize + tools/list)
         run: |
           cat > /tmp/mcp-test.txt <<'EOF'

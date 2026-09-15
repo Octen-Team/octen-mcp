@@ -1,4 +1,5 @@
 ---
 type: regex
-pattern: '7\.04'
+pattern: 'halcyon|5\.12'
+flags: i
 ---

@@ -10,5 +10,7 @@ dist/
 coverage/
 server.json
 
-# eval run artifacts
-evals/results/
+# Behavioural eval suite for the Claude Code plugin. Kept out of the repository
+# deliberately: it is a development aid, not part of what the plugin ships.
+evals/
+scripts/refresh-eval-tools.mjs

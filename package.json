@@ -33,7 +33,6 @@
     "pretest": "npm run build",
     "test": "node --test test/*.test.mjs",
     "check:plugin": "node scripts/check-plugin-manifests.mjs",
-    "eval:tools": "npm run build && node scripts/refresh-eval-tools.mjs",
     "prepublishOnly": "npm run build",
     "dev:http": "tsc && node dist/httpServer.js"
   },

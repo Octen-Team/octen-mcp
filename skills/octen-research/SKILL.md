@@ -5,8 +5,9 @@ description: >-
   or literature surveys, competitive analysis, "find everything about X", "deep dive
   on Y", "what are all the options for Z", building a list of entities — or when one
   search has already come back thin and the gap is breadth, not phrasing.
-homepage: https://octen.ai
-keywords: [research, deep dive, deep research, survey, landscape, market research, competitive analysis, literature review, list building, comprehensive, find everything, all the options, coverage, sources, citations, octen]
+  Also covers landscape scans, comprehensive coverage of a field, and answers
+  that have to cite their sources.
+metadata: {"homepage": "https://octen.ai", "support": "support@octen.ai"}
 ---
 
 # Octen Research

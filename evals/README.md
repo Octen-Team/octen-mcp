@@ -12,9 +12,11 @@ claude plugin eval . --case single-fact-lookup
 claude plugin eval . --ablation none      # skip the no-plugin arm while iterating
 ```
 
-Each case runs twice by default: once with the plugin loaded and once without.
-The reported `Δ` is the difference, which is the number that says whether the
-plugin earned its context cost.
+Each case sets `runs: 2` and the default ablation runs both arms, so a case is
+four agent runs and the six-case suite is twenty-four. The reported `Δ` is the
+with-arm score minus the without-arm score, which is the number that says
+whether the plugin earned its context cost. Budget accordingly — the suite has
+cost $4-5 per full run.
 
 ## What each case pins down
 
@@ -53,8 +55,11 @@ Each mock opens its body with a marker — `[MOCK:search]`, `[MOCK:broad_search]
 rather than tool names, so they keep working regardless of how the runtime
 namespaces a plugin's MCP tools.
 
-To run against the real server instead, pass `--allow-real-servers`. That needs
-a working Octen sign-in and makes the results non-deterministic.
+To run against the real server instead, pass `--mocks off --allow-tools 'mcp__*'`.
+`--allow-real-servers` will not do it: that flag only starts real servers for
+servers with *no* mock, and every tool here has one, so the run silently keeps
+using the fixtures. A real run needs a working Octen sign-in and is
+non-deterministic.
 
 CI does not run the suite — each case spends real model tokens. What CI does run
 is `scripts/check-plugin-manifests.mjs` and the `--check` above, so a manifest

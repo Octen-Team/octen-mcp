@@ -49,11 +49,15 @@ jobs:
       # drifted from package.json, or a tool-description rewrite that left the
       # eval roster stale would all merge green and surface only when a user
       # ran `claude plugin install`.
+      # Neither check depends on the Node version, so run them on one leg
+      # instead of paying for five identical results.
       - name: Check plugin manifests
-        run: node scripts/check-plugin-manifests.mjs
+        if: matrix.node == '24'
+        run: npm run check:plugin
 
       - name: Check eval tool roster is current
-        run: node scripts/refresh-eval-tools.mjs --check
+        if: matrix.node == '24'
+        run: npm run eval:tools -- --check
 
       - name: Smoke-test (initialize + tools/list)
         run: |

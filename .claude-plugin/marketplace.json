@@ -12,7 +12,7 @@
     {
       "name": "octen",
       "source": "./",
-      "description": "Connect Claude Code to Octen for real-time web search, broad multi-angle research, news, and URL extraction. Authenticates over OAuth on first use.",
+      "description": "Real-time web search, broad multi-angle research, news, and URL extraction, powered by Octen. Authenticates over OAuth on first use \u2014 no API key to configure.",
       "version": "0.5.2",
       "author": {
         "name": "Octen",

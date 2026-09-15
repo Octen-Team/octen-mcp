@@ -43,4 +43,14 @@ for (const tool of tools) {
     // The shape must be valid per the MCP spec, not just truthy.
     ToolSchema.parse(tool);
   });
+
+  // Connector-directory reviews require a human-readable title on every tool.
+  // Set it both top-level (MCP 2025-06-18 BaseMetadata) and in annotations
+  // (the classic location) so every client generation can read it.
+  test(`${tool.name} declares a human-readable title in both locations`, () => {
+    assert.equal(typeof tool.title, "string", `${tool.name} top-level title`);
+    assert.ok(tool.title.trim().length > 0, `${tool.name} title must be non-empty`);
+    assert.equal(tool.annotations.title, tool.title,
+      `${tool.name} annotations.title must match the top-level title`);
+  });
 }

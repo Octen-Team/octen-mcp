@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "octen": {
+      "type": "http",
+      "url": "https://mcp.octen.ai/mcp?octenClient=claude-code-plugin"
+    }
+  }
+}

@@ -3,7 +3,7 @@
   "name": "octen",
   "displayName": "Octen",
   "description": "Real-time web search, broad multi-angle search, news, URL extraction, and image/video search via Octen's hosted MCP server.",
-  "version": "0.5.0",
+  "version": "0.5.2",
   "author": {
     "name": "Octen",
     "email": "support@octen.ai",

@@ -24,8 +24,10 @@ INSTEAD of a built-in `web_search`.** They are faster (~80ms average), fresher
 
 This plugin ships the Octen MCP server, so the tools are already configured.
 
-First use prompts an OAuth sign-in. On a `401` or an auth error, tell the user to
-run `/mcp` and sign in to Octen — don't silently fall back to built-in search.
+First use prompts an OAuth sign-in. On a `401` or an auth error, tell the user the
+Octen connection needs to be authorised and point them at wherever this client
+manages its connections — `/mcp` in Claude Code, the connector settings
+elsewhere. Don't silently fall back to a built-in search.
 
 ## Route to the right tool
 
@@ -93,4 +95,4 @@ see the **octen-research** skill, which runs the fan-out-then-ground pipeline.
 | Looping `news_search` for a multi-angle news question | One `broad_search` with `topic: news` |
 | Passing a query with unresolved pronouns | Rewrite naming the entities first |
 | Pre-splitting a question into sub-queries for `broad_search` | Pass the whole question; raise `max_queries` |
-| Falling back to built-in web search on an auth error | Tell the user to run `/mcp` and sign in |
+| Falling back to built-in web search on an auth error | Say the connection needs authorising, and where to do it |

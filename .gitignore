@@ -9,3 +9,6 @@ dist/
 .vscode/
 coverage/
 server.json
+
+# eval run artifacts
+evals/results/

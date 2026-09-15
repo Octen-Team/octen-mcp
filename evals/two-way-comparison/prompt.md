@@ -1,7 +1,7 @@
 ---
 max_turns: 10
-allowed_tools: [Skill]
+runs: 2
 tags: [routing]
 ---
 
-How does Provider A's H100 pricing compare to Provider B's?
+How does Lambda Labs' on-demand H100 pricing compare to CoreWeave's?

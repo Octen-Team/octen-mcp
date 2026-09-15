@@ -41,3 +41,21 @@ namespaces a plugin's MCP tools.
 To run against the real server instead, pass `--allow-real-servers`. That needs
 a working Octen sign-in and makes the results non-deterministic; the mocked run
 is the one to gate CI on.
+
+## Anchor the graders on facts the model cannot already know
+
+A grader that checks for a real-world fact measures the model's memory, not the
+plugin. Two rounds of this suite scored `Δ 0.00` across the board because the
+no-plugin arm answered correctly from training data: Lambda Labs' published
+H100 rate and the names of the well-known gateways are both things the model
+recalls without retrieving anything.
+
+Every scored grader now matches something that exists only in the fixtures:
+a price that deliberately differs from the published one, an invented release
+number, a gateway (`Relaypoint`) that does not exist. The no-plugin arm cannot
+produce any of them, so the delta measures retrieval rather than recall.
+
+The inverse trap is just as easy to fall into. An invented entity named in the
+*prompt* makes the model stop and ask who that is instead of searching, which
+is the correct behaviour and scores zero. Keep the prompt in real-world terms
+and put the invented material in what the mocks return.

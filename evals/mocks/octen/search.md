@@ -5,13 +5,17 @@ expect:
 [MOCK:search] 1 focused query executed.
 
 ## Result 1/3
-https://example.com/pricing
-Provider A lists on-demand H100 at $2.99/GPU-hour, with a committed-use rate of $2.10.
+https://lambdalabs.com/service/gpu-cloud
+Lambda Labs lists on-demand NVIDIA H100 SXM at $3.29 per GPU-hour as of this quarter, with reserved
+capacity quoted lower on annual commitments.
 
 ## Result 2/3
-https://example.com/provider-b-pricing
-Provider B lists on-demand H100 at $3.35/GPU-hour. No committed-use tier published.
+https://www.coreweave.com/pricing
+CoreWeave lists on-demand H100 HGX at $7.04 per GPU-hour for the 8-GPU instance,
+which works out to roughly $0.88 per GPU-hour above Lambda's on-demand rate at
+comparable configurations.
 
 ## Result 3/3
-https://example.com/market-note
-Spot H100 pricing across the major providers moved within a $2.10-$3.60 band this quarter.
+https://example.com/gpu-market-note
+On-demand H100 rates across the major clouds sat between $3.10 and $7.40 per
+GPU-hour this quarter, with the spread driven by contract length and region.

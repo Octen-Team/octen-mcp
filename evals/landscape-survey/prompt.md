@@ -1,6 +1,6 @@
 ---
 max_turns: 12
-allowed_tools: [Skill]
+runs: 2
 tags: [routing]
 ---
 

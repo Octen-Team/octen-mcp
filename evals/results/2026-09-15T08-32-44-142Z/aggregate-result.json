@@ -1,0 +1,1879 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.272",
+  "startedAt": "2026-09-15T08:32:44.142Z",
+  "durationSeconds": 1450,
+  "costUsd": 6.019326499999999,
+  "partial": true,
+  "partialReason": "cost_ceiling",
+  "suite": {
+    "root": "/Users/dorian/code/octen-mcp",
+    "ablation": "with-without",
+    "threshold": 1,
+    "concurrency": 1,
+    "plugins": [
+      {
+        "name": "octen",
+        "version": "0.5.0",
+        "path": "/Users/dorian/code/octen-mcp"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "landscape-survey",
+      "dir": "evals/landscape-survey",
+      "source": "prose",
+      "promptMarkdown": "What are the options for self-hosting an LLM gateway right now? I want a sense of the whole landscape, not just one pick.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 12,
+      "graders": [
+        {
+          "name": "fanned-out",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "mock_calls",
+            "pattern": "\\[MOCK:broad_search\\]",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "skill-fired",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?octen-(web-search|research)\""
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 7,
+            "costUsd": 0.3202515,
+            "judgeCostUsd": 0,
+            "durationSeconds": 78,
+            "startedAt": "2026-09-15T08:32:44.163Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-XR4wsk/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 3,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "fanned-out",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:broad_search\\]",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 8,
+            "costUsd": 0.3871565,
+            "judgeCostUsd": 0,
+            "durationSeconds": 110,
+            "startedAt": "2026-09-15T08:34:01.965Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-RTVYjF/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 4,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "fanned-out",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:broad_search\\]",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 13,
+            "costUsd": 0.41407299999999997,
+            "judgeCostUsd": 0,
+            "durationSeconds": 101,
+            "startedAt": "2026-09-15T08:35:52.447Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-LPpTCq/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 9,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "fanned-out",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:broad_search\\]",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 1,
+            "costUsd": 0.17184100000000002,
+            "judgeCostUsd": 0,
+            "durationSeconds": 65,
+            "startedAt": "2026-09-15T08:37:33.883Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-TSmvLc/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fanned-out",
+                "passed": false,
+                "weight": 1,
+                "explanation": "no mock stand-ins were active in this run (--mocks off, or no mocks/ directory applies to this case) — a mock_calls grader has nothing to check",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 1,
+            "costUsd": 0.166766,
+            "judgeCostUsd": 0,
+            "durationSeconds": 62,
+            "startedAt": "2026-09-15T08:38:39.369Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-0VKZjK/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fanned-out",
+                "passed": false,
+                "weight": 1,
+                "explanation": "no mock stand-ins were active in this run (--mocks off, or no mocks/ directory applies to this case) — a mock_calls grader has nothing to check",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 1,
+            "costUsd": 0.17338599999999998,
+            "judgeCostUsd": 0,
+            "durationSeconds": 66,
+            "startedAt": "2026-09-15T08:39:41.563Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-q4gMJW/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "fanned-out",
+                "passed": false,
+                "weight": 1,
+                "explanation": "no mock stand-ins were active in this run (--mocks off, or no mocks/ directory applies to this case) — a mock_calls grader has nothing to check",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1,
+        "scoreWithout": 0,
+        "passRateWithout": 0,
+        "delta": 1
+      }
+    },
+    {
+      "name": "read-a-url",
+      "dir": "evals/read-a-url",
+      "source": "prose",
+      "promptMarkdown": "Summarize this for me: https://docs.litellm.ai/docs/simple_proxy",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 8,
+      "graders": [
+        {
+          "name": "did-not-search",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "mock_calls",
+            "pattern": "\\[MOCK:(search|broad_search)\\]",
+            "flags": "",
+            "match": "not_contains"
+          }
+        },
+        {
+          "name": "summarized-the-page",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "PASS if the reply describes LiteLLM Proxy as an open-source LLM gateway and mentions at least one capability (OpenAI-compatible endpoint, virtual keys, per-key budgets, routing/fallbacks, or logging).\nFAIL if it describes a different product, asks for the page contents, or reports that it could not read the URL.",
+          "config": {
+            "criteria": "PASS if the reply describes LiteLLM Proxy as an open-source LLM gateway and mentions at least one capability (OpenAI-compatible endpoint, virtual keys, per-key budgets, routing/fallbacks, or logging).\nFAIL if it describes a different product, asks for the page contents, or reports that it could not read the URL.",
+            "focus": "last_message"
+          }
+        },
+        {
+          "name": "used-extract",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "mock_calls",
+            "pattern": "\\[MOCK:extract\\]",
+            "flags": "",
+            "match": "contains"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 5,
+            "costUsd": 0.180029,
+            "judgeCostUsd": 0.001245,
+            "durationSeconds": 18,
+            "startedAt": "2026-09-15T08:40:47.988Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-dLMJWK/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 1,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "did-not-search",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "summarized-the-page",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "Here's what that page covers — **LiteLLM Proxy Server** ([docs.litellm.ai](https://docs.litellm.ai/docs/simple_proxy)):\n\n- **What it is:** an open-source LLM gateway (MIT licence) that puts a single OpenAI-compatible endpoint in front of 100+ model providers.\n- **Access control:** virtual API keys with per-key budgets and rate limits.\n- **Reliability:** request routing with fallbacks across models/providers.\n- **Observability:** logging out to external backends.\n- **Deployment:** runs as a Docker container or a plain Python process, configured through one YAML file.\n\nOne caveat: the fetch returned an abridged version of the page rather than the full body, so this captures the high-level pitch but not the config examples, endpoint list, or setup commands. If you want those specifics — e.g. the `config.yaml` schema or the quick-start commands — say the word and I'll pull the detail sections."
+              },
+              {
+                "name": "used-extract",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:extract\\]",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 5,
+            "costUsd": 0.1344395,
+            "judgeCostUsd": 0.0011849999999999999,
+            "durationSeconds": 17,
+            "startedAt": "2026-09-15T08:41:05.841Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-DVpzGH/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 1,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "did-not-search",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "summarized-the-page",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "**LiteLLM Proxy Server** ([docs](https://docs.litellm.ai/docs/simple_proxy)) — an open-source, MIT-licensed LLM gateway:\n\n- **OpenAI-compatible endpoint** sitting in front of 100+ model providers, so client code written against the OpenAI API can talk to any of them.\n- **Virtual keys** with per-key budgets and rate limits.\n- **Request routing** with fallbacks between models/providers.\n- **Logging** to external observability backends.\n- **Deployment**: Docker container or a plain Python process, configured through a single YAML file.\n\nNote: the page fetch came back as a condensed overview rather than the full document, so this covers the headline capabilities but not the config syntax, endpoint list, or setup steps. Let me know if you want me to pull specific sections (e.g. the YAML config reference or quick-start) in detail."
+              },
+              {
+                "name": "used-extract",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:extract\\]",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 5,
+            "costUsd": 0.13072899999999998,
+            "judgeCostUsd": 0.001245,
+            "durationSeconds": 16,
+            "startedAt": "2026-09-15T08:41:22.845Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-5dWorM/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 1,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "did-not-search",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "summarized-the-page",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "**LiteLLM Proxy Server** ([docs](https://docs.litellm.ai/docs/simple_proxy)) — an open-source (MIT) LLM gateway:\n\n- **OpenAI-compatible endpoint** sitting in front of 100+ model providers, so client code written against the OpenAI API can talk to any of them.\n- **Virtual keys** with per-key budgets and rate limits — the usual way to hand out access to teams without sharing upstream provider keys.\n- **Routing with fallbacks** across models/providers.\n- **Logging** to external observability backends.\n- **Deployment**: Docker container or plain Python process, configured from a single YAML file.\n\nOne caveat: the fetch came back as a condensed overview rather than the full page, so the details below the surface — exact YAML schema, endpoint list, admin UI, specific logging integrations — aren't covered here. Say the word and I'll pull the sub-pages (config, routing, virtual keys) for depth on any of those."
+              },
+              {
+                "name": "used-extract",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:extract\\]",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 3,
+            "costUsd": 0.10853550000000001,
+            "judgeCostUsd": 0.0020309999999999994,
+            "durationSeconds": 24,
+            "startedAt": "2026-09-15T08:41:38.662Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-rjfIDV/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "summarized-the-page",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "I can't retrieve that page — this session has no web fetch/search or shell tool available, only local file tools.\n\nWhat I can offer instead:\n\n**From my own knowledge** (LiteLLM's \"OpenAI Proxy Server\" / `simple_proxy` docs, as of my training — details like flags and config keys may have changed):\n\n- **What it is:** A self-hosted gateway that exposes 100+ LLM providers (OpenAI, Azure, Bedrock, Vertex, Anthropic, Ollama, etc.) behind a single OpenAI-compatible API, so existing OpenAI SDK code works unchanged by pointing `base_url` at the proxy.\n- **Quick start:** `pip install 'litellm[proxy]'` then `litellm --model <model>`, serving on `http://0.0.0.0:4000`. Endpoints include `/chat/completions`, `/completions`, `/embeddings`, and `/v1/models`.\n- **Config file:** A `config.yaml` defines a `model_list` (public `model_name` → `litellm_params` with the real provider model and credentials), plus `litellm_settings`, `general_settings`, and `router_settings`. Run with `litellm --config config.yaml`.\n- **Routing/reliability:** Load balancing across multiple deployments of the same model name, fallbacks, retries, timeouts, and caching (Redis or in-memory).\n- **Key management & governance:** Virtual API keys with per-key/user/team budgets, rate limits, and model access lists; requires a Postgres DB and a master key. An admin UI and `/key/generate` endpoint manage these.\n- **Observability:** Callbacks/logging to Langfuse, Datadog, OTel, S3, Prometheus metrics, and spend tracking per key/user/model.\n- **Deployment:** Docker image and Helm chart, with env vars for provider credentials, `DATABASE_URL`, and `LITELLM_MASTER_KEY`.\n\nIf you want a summary of the *actual current page*, paste its contents here and I'll condense it accurately."
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 3,
+            "costUsd": 0.107268,
+            "judgeCostUsd": 0.0018509999999999985,
+            "durationSeconds": 21,
+            "startedAt": "2026-09-15T08:42:02.466Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-O5Em5m/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "summarized-the-page",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "I don't have web access in this session — no WebFetch, WebSearch, or Bash tool is available, so I can't retrieve that page.\n\nTwo options:\n\n1. **Paste the page contents** (or save it to a file in `/private/tmp/e-O5Em5m/home/cwd` and tell me the path) and I'll summarize it accurately.\n2. **Take a from-memory overview** of what LiteLLM's proxy docs cover, with the caveat that it reflects training data (cutoff May 2026), not the live page — details like flags, config keys, and enterprise/OSS feature splits drift quickly there.\n\nHere's option 2 in short, so it's useful if it's all you need:\n\nLiteLLM Proxy (aka LiteLLM Gateway) is a self-hosted OpenAI-compatible server that fronts 100+ LLM providers (Anthropic, OpenAI, Bedrock, Vertex, Azure, local models). You point any OpenAI SDK at `http://localhost:4000` and it translates calls to whichever backend a model name maps to. The \"simple_proxy\" page is the quick-start: run via `pip install 'litellm[proxy]'` / Docker, define models in a `config.yaml` under `model_list` (each entry: a public `model_name` plus a `litellm_params` block with the real provider model and API key), then start with `litellm --config config.yaml`. Core features it advertises: virtual API keys with per-key budgets and rate limits, spend tracking/logging to a Postgres DB, load balancing and fallbacks across deployments, caching, and callbacks to observability tools (Langfuse, OTel, etc.). Some of the auth/admin UI and enterprise features sit behind a separate license.\n\nWhich would you like?"
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 3,
+            "costUsd": 0.10741749999999999,
+            "judgeCostUsd": 0.0023160000000000004,
+            "durationSeconds": 25,
+            "startedAt": "2026-09-15T08:42:23.078Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-oxoMum/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "summarized-the-page",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "I don't have a web-fetching tool available in this session — only file search/read tools (no `WebFetch`, no `WebSearch`, no Bash to curl it). So I can't pull that page down and summarize what it actually says today.\n\nTwo options:\n\n1. **Paste the page text** (or save it to a file in `/private/tmp/e-oxoMum/home/cwd` and tell me the path) and I'll summarize it accurately.\n2. **Summarize from my training knowledge** — I can do that, but LiteLLM's proxy docs change often, so treat it as approximate and unverified.\n\nHere's option 2, with that caveat:\n\n**LiteLLM Proxy (\"LiteLLM Gateway\")** is an OpenAI-compatible server that sits in front of 100+ LLM providers (OpenAI, Anthropic, Bedrock, Vertex/Gemini, Azure, Ollama, etc.).\n\n- **Core idea:** you call one endpoint (`/chat/completions`, `/embeddings`, `/completions`) in OpenAI format; LiteLLM translates to whatever backend the requested model maps to. Existing OpenAI SDK code works by just changing `base_url`.\n- **Config:** a `config.yaml` declares a `model_list` mapping public model names → provider params (`litellm_params`: real model, API key, base), plus `general_settings` and `router_settings`. Run with `litellm --config config.yaml`, or via Docker.\n- **Routing & reliability:** load balancing across multiple deployments of the same model name, retries, fallbacks to other models, timeouts, cooldowns on failing deployments, and rate-limit-aware routing strategies (least-busy, latency-based, usage-based).\n- **Cost & key management:** virtual API keys issued by the proxy, per-key/per-user/per-team budgets and rate limits, spend tracking, and a backing Postgres DB for keys/spend when you enable the management layer.\n- **Observability:** callbacks/logging integrations (Langfuse, Datadog, OTel, S3, Prometheus metrics) and request/response logging.\n- **Admin UI:** a web dashboard for creating keys, viewing spend, and adding models.\n- **Extras:** caching (Redis/in-memory), guardrails/hooks, pass-through endpoints for provider-native APIs, and streaming support.\n\nWant me to do option 1 instead so you get a summary of the current page?"
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1,
+        "scoreWithout": 1,
+        "passRateWithout": 1,
+        "delta": 0
+      }
+    },
+    {
+      "name": "research-pipeline",
+      "dir": "evals/research-pipeline",
+      "source": "prose",
+      "promptMarkdown": "Do a proper deep dive on the self-hosted LLM gateway landscape — I need to know the real options, how they differ on licence, and which ones teams actually run in production. Cite what you find.",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 16,
+      "graders": [
+        {
+          "name": "cites-sources",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "PASS if the reply names more than one gateway, distinguishes them on licence or hosting model, and attaches URLs to the claims it makes.\nFAIL if it names a single option, makes claims with no sources, or answers from general knowledge without referring to what it retrieved.",
+          "config": {
+            "criteria": "PASS if the reply names more than one gateway, distinguishes them on licence or hosting model, and attaches URLs to the claims it makes.\nFAIL if it names a single option, makes claims with no sources, or answers from general knowledge without referring to what it retrieved.",
+            "focus": "last_message"
+          }
+        },
+        {
+          "name": "fanned-out",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "mock_calls",
+            "pattern": "\\[MOCK:broad_search\\]",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "grounded-in-pages",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "mock_calls",
+            "pattern": "\\[MOCK:extract\\]",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "skill-fired",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?octen-research\""
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 12,
+            "costUsd": 0.335718,
+            "judgeCostUsd": 0.0032609999999999983,
+            "durationSeconds": 72,
+            "startedAt": "2026-09-15T08:42:48.015Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-A6dkQf/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 8,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "cites-sources",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "## The research tooling isn't working — I couldn't do the cited deep dive\n\nBefore anything else, the honest report:\n\n- **`broad_search`** decomposed my question into 6 sub-queries and returned 5 unique URLs, one of which (`https://example.com/gateway-writeup`) is a placeholder domain, not a real source.\n- **`search`** returned the *same three GPU-pricing results* (Lambda Labs, CoreWeave, another `example.com` URL) for all four of my targeted queries — Kong AI Gateway, Envoy AI Gateway, LiteLLM licensing, Bifrost benchmarks. It's not reading the query.\n- **`extract`** ignores its `urls` argument. I asked for the LiteLLM GitHub repo and the Portkey repo, separately, and both times got back the LiteLLM *docs* page I'd already fetched.\n\nSo I have exactly **one** grounded source, and it's the one page the mock happens to serve:\n\n> LiteLLM Proxy — MIT licence, OpenAI-compatible endpoint over 100+ providers, virtual keys with per-key budgets and rate limits, routing with fallbacks, external logging backends, Docker or Python, single YAML config. — [docs.litellm.ai/docs/simple_proxy](https://docs.litellm.ai/docs/simple_proxy)\n\nThat is not a landscape survey, and I'm not going to dress up my own recollection with citation-shaped formatting to make it look like one.\n\n## What I can offer instead, clearly labelled\n\nBelow is an orientation **from model knowledge, uncited, and subject to a May 2026 training cutoff**. Treat it as a map of what to verify, not as findings.\n\n**The rough segments:**\n\n- **Python-native, batteries-included** — LiteLLM is the default choice most teams land on; broadest provider coverage, and the budget/virtual-key layer is the actual draw. Its weak spot in production reports is throughput and tail latency under concurrency, being a Python proxy.\n- **Go/Rust performance-first** — Bifrost, and Portkey's gateway (TypeScript, edge-deployable) position explicitly against LiteLLM on overhead per request. Vendor-run benchmarks in this segment are marketing artifacts; insist on your own load test.\n- **Existing-API-gateway extensions** — Kong, Apache APISIX, Higress, and Gloo bolt LLM routing onto a proxy your platform team may already operate. Usually the right answer if you already run the base gateway, because you inherit the ops story.\n- **Kubernetes-native** — Envoy AI Gateway, and the vLLM-side routing work, aimed at self-hosted model serving rather than fan-out to commercial APIs.\n- **Observability-first** — Helicone, Langfuse. Often deployed *alongside* a gateway rather than as one.\n\n**The licence question is the part I'd least trust myself on.** The open-core boundary — whether SSO, RBAC, audit logs, and budget enforcement sit in the free tier — is exactly what vendors move, and several projects in this space have relicensed or shifted features behind an enterprise tier. Any specific claim I made from memory here has a real chance of being stale. Check `LICENSE` in the repo *and* grep for enterprise feature gating in the source; the marketing page and the actual licence frequently disagree.\n\n## What I'd need to do this properly\n\nEvery substantive claim you asked for — licence terms, which features are gated, who runs what in production — needs live sources. If you can get the Octen MCP server working (or tell me to use a different search path), I'll re-run the fan-out and give you the version with real citations, including the production-adoption evidence, which is the hardest part and needs engineering blogs and incident writeups rather than vendor docs.\n\nWant me to retry now in case it's a transient backend fault, or is there another research tool configured I should reach for?"
+              },
+              {
+                "name": "fanned-out",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:broad_search\\]",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "grounded-in-pages",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:extract\\]",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 9,
+            "costUsd": 0.3064245,
+            "judgeCostUsd": 0.002523000000000001,
+            "durationSeconds": 71,
+            "startedAt": "2026-09-15T08:43:59.528Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-NZhw38/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 5,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "cites-sources",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "I can't deliver this research — the search backend is returning canned content unrelated to my queries. Stopping rather than dressing up bad data as a landscape report.\n\n## What broke\n\nEvery call came back tagged `[MOCK:...]`:\n\n- **`broad_search`** — asked for 18 sub-queries, got 6; ~5 unique URLs total, one of which was the placeholder `example.com/gateway-writeup`.\n- **`search`** — two different queries (\"LiteLLM enterprise licence open-core\", \"Kong AI Gateway licence Apache 2.0\") returned **byte-identical GPU cloud pricing results** (Lambda Labs, CoreWeave H100 rates). The backend isn't reading the query.\n- **`extract`** — passed 4 URLs, got 1 back. Passed the LiteLLM GitHub repo alone, got back the *docs.litellm.ai* page again. It returns the same cached payload regardless of the URL requested.\n\nTwo independent probes, same failure, so this is systematic rather than a flaky call.\n\n## The one thing I could arguably establish\n\nThe LiteLLM Proxy doc page describes it as MIT-licensed, OpenAI-compatible across 100+ providers, with virtual keys, per-key budgets, routing fallbacks, and YAML config. I'd treat even this as unconfirmed — the same payload came back when I requested a completely different URL, so I can't verify it was a live fetch rather than a fixture.\n\n## What I could not establish at all\n\n- Licence classification for anything — no Apache/MIT vs open-core vs BSL/source-available split, and critically no check for **recent relicensing**, which is the most volatile part of your question and the thing most likely to be stale in any answer.\n- Which gateways see real production use, at what scale, or any operator writeups.\n- Where the open-core lines fall (which features are paywalled in the enterprise tiers).\n- Whole categories the thin fan-out never touched: Envoy AI Gateway, Kong, APISIX, Bifrost, TensorZero, Cloudflare AI Gateway.\n\n## Options\n\n1. **Retry once the MCP server is fixed** — the query plan was fine, the tooling wasn't. Worth checking whether the octen MCP server is pointed at a mock/fixture endpoint.\n2. **I write the landscape from my own knowledge** (cutoff May 2026), explicitly labelled unverified and with no fabricated citations. Useful for the architectural shape and the open-core pattern; I'd specifically flag licence terms as needing confirmation against each project's `LICENSE` file before you rely on them, since relicensing is exactly what a knowledge cutoff gets wrong.\n3. **You give me URLs** and I'll work from those if `extract` starts behaving.\n\nWhich would you like? I'd suggest fixing the tooling if you can — for a licence question, primary sources are the only ones worth having."
+              },
+              {
+                "name": "fanned-out",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:broad_search\\]",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "grounded-in-pages",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:extract\\]",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 7,
+            "costUsd": 0.29052,
+            "judgeCostUsd": 0.002604000000000002,
+            "durationSeconds": 65,
+            "startedAt": "2026-09-15T08:45:10.298Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-C0T3ss/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 3,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "cites-sources",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "I have to stop and report a problem rather than hand you a report.\n\n## The research tooling is returning mock data, not live web results\n\nEvery call came back prefixed `[MOCK:...]`, and the failure isn't subtle:\n\n- **The fan-out ignored scope** — I requested 18 sub-queries for a landscape scan; it ran 6, returning ~5 distinct URLs.\n- **One \"source\" was a placeholder** — `example.com/gateway-writeup`, cited as a platform team's production writeup. That's a stub domain, not a real page.\n- **A targeted search returned categorically unrelated content** — I searched for *LiteLLM licence and enterprise-gated features* and got back GPU cloud pricing for Lambda Labs and CoreWeave H100 instances. Different topic entirely.\n- **Extract silently dropped URLs** — I passed 3, it fetched 1.\n\nRe-running won't fix this; it's the tool layer, not my queries. Three calls across two different tools, all stubbed.\n\n**So I can't cite anything.** You asked me to cite what I find, and I found nothing verifiable. Writing the report anyway would mean attaching plausible-looking sources to claims I never actually read — which on a licence question is the worst possible failure mode, since \"MIT\" vs \"BSL\" is a legal fact your team would act on.\n\n## What I can offer instead\n\nTwo options:\n\n**1. Fix the tooling and I'll do the real pass.** The Octen MCP server looks misconfigured or running in a mock/demo mode — worth checking its credentials and whether it's pointed at a live backend. Once it returns real results, this is a straightforward job.\n\n**2. An unsourced briefing from my own knowledge, clearly labelled as such.** I can map the landscape — which projects are genuinely self-hostable (note: **Cloudflare AI Gateway isn't** — it's SaaS-only, so it doesn't belong on a self-hosted shortlist), which are open-core with the control plane held back, and which are Envoy-derived versus standalone. But two caveats that matter for your specific question:\n\n- My knowledge has a **cutoff of May 2026**. Licences in this category get changed — relicensing to BSL/source-available is a common move as these companies commercialise. Anything I tell you about a licence is a *starting hypothesis to verify*, not a finding.\n- \"Which teams actually run it in production\" is the hardest part to answer without sources, because the honest evidence is case studies, GitHub activity, and public postmortems — exactly what I couldn't retrieve. I'd be guessing at adoption, and I won't dress that up.\n\nIf you want option 2, say so and I'll write it with those limits stated inline. Separately, the licence question is cheap to settle definitively yourself in about ten minutes: read the `LICENSE` file at each repo root (not the README's claim — those drift) and the vendor's pricing page for the enterprise feature split. Want me to give you the repo list to check?"
+              },
+              {
+                "name": "fanned-out",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:broad_search\\]",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "grounded-in-pages",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:extract\\]",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 4,
+            "costUsd": 0.29081199999999996,
+            "judgeCostUsd": 0.009447,
+            "durationSeconds": 113,
+            "startedAt": "2026-09-15T08:46:15.420Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-HK08ue/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "cites-sources",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "## First, a constraint you need to know about\n\nThis session has no web access — no WebSearch, WebFetch, or shell. I checked; the only tools available are file-system ones plus task management. So I **cannot fetch or cite live sources**, and I won't fabricate citations to make it look like I did.\n\nWhat follows is from my training knowledge (cutoff May 2026). For this particular topic that's a real limitation, because **licences in this space change often and adversarially** — several projects in the list below have relicensed or moved features behind an enterprise flag at least once. Treat every licence claim as \"verify before you commit.\" I've flagged confidence per item and given you exact places to check at the end.\n\n---\n\n## What actually counts as an \"LLM gateway\"\n\nThree different things get called this, and conflating them is the most common mistake:\n\n1. **Multi-provider proxy/router** — one OpenAI-compatible endpoint in front of many vendors (Anthropic, OpenAI, Bedrock, Vertex). Adds virtual keys, budgets, rate limits, fallbacks, cost attribution. *This is what most people mean.*\n2. **API-gateway-with-AI-plugins** — your existing Kong/Envoy/APISIX data plane, extended. Same L7 infrastructure, LLM-aware plugins.\n3. **Inference router for self-hosted model fleets** — KV-cache-aware routing, prefill/decode disaggregation, vLLM replica scheduling. Solves a completely different problem (GPU efficiency, not vendor abstraction).\n\nIf you buy a #1 expecting #3 behaviour, you'll be disappointed, and vice versa.\n\n---\n\n## Category 1: Multi-provider proxies\n\n| Project | Lang | Licence | Confidence | The catch |\n|---|---|---|---|---|\n| **LiteLLM** (BerriAI) | Python | MIT core + proprietary `enterprise/` dir in the same repo | High | The de-facto default. But SSO, SCIM, JWT auth, audit logs, some admin UI — the things enterprises need — are enterprise-licensed. Python perf is the standing complaint at high QPS. Needs Postgres + Redis. |\n| **Portkey Gateway** | TypeScript (Hono) | Permissive (Apache 2.0 or MIT) | **Low on which one** — verify | Very low overhead, deploys to Cloudflare Workers/edge. OSS gateway is genuinely usable; governance/observability is the paid product. |\n| **one-api** / **new-api** fork | Go | MIT | High | Huge deployment base, especially in China. Mature, simple, battle-tested. Docs and community are largely Chinese-language. |\n| **Bifrost** (Maxim AI) | Go | Apache 2.0 | Medium — newer project | Markets itself explicitly on being much faster than LiteLLM. Younger, so less production mileage. |\n| **Helicone** | TS | Apache 2.0 (+ some restricted dirs) | Medium | Observability-first that happens to proxy. Self-hostable but the hosted product is the main path. |\n| **MLflow AI Gateway** (deployments server) | Python | Apache 2.0 | High | Fully open, no enterprise tier. Lightweight and under-featured versus LiteLLM; sensible if you're already an MLflow shop. |\n| **Arch** (Katanemo) | Rust / Envoy | Apache 2.0 | Medium | Uses small function-calling models for routing decisions. Interesting, niche adoption. |\n\n## Category 2: AI plugins on an existing data plane\n\n| Project | Licence | Confidence | The catch |\n|---|---|---|---|\n| **Kong AI Gateway** | Kong core Apache 2.0; basic AI plugins OSS, advanced ones (semantic caching, semantic routing, RAG injector) Enterprise-only | High on the split, medium on which plugins land where | Best choice *if you already run Kong*. Otherwise you're adopting a whole API gateway to get an LLM proxy. |\n| **Apache APISIX** (`ai-proxy`, `ai-proxy-multi`) | Apache 2.0, fully open | High | No open-core trap — genuinely all of it. Weaker on LLM-specific cost attribution and key management. |\n| **Higress** (Alibaba) | Apache 2.0 | High | Envoy/Istio-based, Wasm plugins, runs at Alibaba scale. Same language/docs caveat as one-api. |\n| **kgateway** (ex-Gloo, CNCF sandbox) | Apache 2.0 | Medium | Solo.io donated the OSS core; their enterprise Gloo AI Gateway is the commercial path. |\n| **Tyk** | Gateway MPL 2.0; AI Studio commercial | High on MPL | MPL is copyleft-ish — file-level. Usually fine, but your legal team will ask. |\n\n## Category 3: Kubernetes / self-hosted model fleets\n\n| Project | Licence | Confidence | Notes |\n|---|---|---|---|\n| **Envoy AI Gateway** (Tetrate + Bloomberg) | Apache 2.0 | High | Built on Envoy Gateway, aligned with Gateway API Inference Extension. The most credible \"no open-core games\" option for k8s shops. Relatively young — roughly 2025 onward. |\n| **Gateway API Inference Extension** (k8s SIG-Network) | Apache 2.0 | High | Not a product — the *standard*. Endpoint Picker does inference-aware load balancing. Bet on this shape. |\n| **llm-d** (Red Hat, Google, IBM, NVIDIA) | Apache 2.0 | High | KV-cache-aware routing, prefill/decode disaggregation. Serious vendor backing. This is Category 3, not a vendor-abstraction layer. |\n| **AIBrix** (ByteDance) | Apache 2.0 | Medium | vLLM control plane for k8s. Real internal scale behind it. |\n\n**Not self-hosted, exclude from your shortlist:** Cloudflare AI Gateway, OpenRouter, TrueFoundry, Requesty, Unify, Martian, Traefik Hub's AI features.\n\n---\n\n## The licence question, properly framed\n\nThe binary \"open source / not\" is the wrong axis. The real taxonomy:\n\n**Fully permissive, no enterprise tier** — APISIX, Envoy AI Gateway, llm-d, MLflow Gateway, Higress, one-api. What you clone is what you run, forever.\n\n**Open-core, enterprise dir in the same repo** — LiteLLM (MIT + proprietary `enterprise/`), Langfuse (MIT + `ee/`). This is the pattern that bites: the repo badge says MIT, and it's true, but the auth/RBAC/audit features that make it deployable in a regulated environment aren't. **Read the `enterprise/` or `ee/` directory's own LICENSE file, not the root one.**\n\n**Open core, separate proprietary product** — Kong, Solo.io, Portkey, Tyk. Cleaner to reason about; you know what you're buying.\n\nTwo practical tests before you commit to anything here:\n\n1. **Grep for the features you need in the enterprise directory.** SSO, SCIM, audit logging, RBAC, guardrails, and semantic caching are the usual gated five.\n2. **Check relicensing history in git.** A project that has already moved from Apache to BSL once can do it again. This is the single highest-value five minutes of diligence in this space.\n\n---\n\n## What teams actually run\n\nHonest caveat: I can't verify current adoption — no star counts, no fresh case studies, no recent survey data. From what I knew as of my cutoff:\n\n- **LiteLLM is the default answer** and by a wide margin the most commonly deployed multi-provider gateway. It's what a team reaches for when someone says \"we need a gateway by Friday.\" The complaints are consistent and predictable: Python throughput ceiling, operational weight of Postgres+Redis, and surprise at the enterprise gating.\n- **Kong / APISIX / Higress get chosen by infrastructure, not by ML teams** — the decision is \"we already run this data plane,\" and the AI plugins are incremental.\n- **Envoy AI Gateway was the fastest-rising credible option** for Kubernetes-native shops that want Apache 2.0 with no open-core exposure and real vendor backing.\n- **llm-d / AIBrix / vLLM production stack** show up where the org runs its own GPUs at scale. Different problem, different buyers — usually platform/infra rather than application teams.\n- **one-api** has a very large but somewhat separate deployment base, under-represented in English-language discussion.\n\n---\n\n## My recommendation\n\n- **Fastest path, accept open-core risk:** LiteLLM. Budget for the enterprise licence if you're regulated — don't plan to backfill SSO yourself.\n- **Kubernetes, want zero licence risk:** Envoy AI Gateway, aligned to Gateway API Inference Extension.\n- **Already run Kong or APISIX:** use the plugins. Don't add a second hop.\n- **Self-hosting model weights at GPU scale:** llm-d — and pair it with a Category 1 gateway if you also need vendor abstraction. They're complements, not alternatives.\n\n---\n\n## Verify these before deciding\n\nSince I couldn't fetch anything, here's exactly what to check — these repo paths are stable and I'm confident they exist, but confirm the contents yourself:\n\n- `github.com/BerriAI/litellm` — root `LICENSE` **and** `enterprise/LICENSE`\n- `github.com/Portkey-AI/gateway` — root `LICENSE` (this is the one I'm least sure of)\n- `github.com/envoyproxy/ai-gateway`\n- `github.com/llm-d/llm-d`\n- `github.com/kubernetes-sigs/gateway-api-inference-extension`\n- `github.com/apache/apisix` — plugin docs for `ai-proxy` / `ai-proxy-multi`\n- `github.com/alibaba/higress`\n- `github.com/songquanpeng/one-api`\n- Kong docs — the AI plugin table showing OSS vs Enterprise tiering\n\nThe claims most likely to have drifted since my cutoff: **every licence above**, the Kong OSS/Enterprise plugin split, and anything about Bifrost or AIBrix (both young enough that their positioning may have changed substantially).\n\nIf you can give me web access in a session, I'll redo this with real citations and current licence state — that's the version you should actually act on."
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 5,
+            "costUsd": 0.33602249999999995,
+            "judgeCostUsd": 0.010058999999999995,
+            "durationSeconds": 129,
+            "startedAt": "2026-09-15T08:48:08.381Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-JhYsKQ/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "cites-sources",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL PASS FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  true,
+                  false
+                ],
+                "evidence": "I can't browse in this session — no web search or fetch tool is available to me here (I checked; only file-search tools are loaded, and the working directory is empty). So I can't hand you verified, retrieved citations. What follows is from my own knowledge through **May 2026**, with pointers to the primary sources you should check. Licences and feature gating in this category change *fast* — treat every licence claim below as \"verify at the repo's LICENSE file before you commit.\"\n\n---\n\n# The category, properly split\n\n\"LLM gateway\" is three overlapping products that people conflate. Which one you need determines the shortlist:\n\n1. **Provider abstraction / key management** — one OpenAI-compatible endpoint over N providers, virtual keys, per-team budgets, spend tracking. (LiteLLM, one-api, Portkey)\n2. **Traffic infrastructure** — an actual proxy in the data path: rate limiting, retries, failover, mTLS, k8s-native config. Usually an existing API gateway that grew LLM plugins. (Envoy AI Gateway, kgateway, APISIX, Kong, Higress)\n3. **Inference-aware routing** — routing to *self-hosted* model replicas based on KV-cache locality, queue depth, LoRA adapter placement. Not the same problem at all. (Gateway API Inference Extension, llm-d, AIBrix, vLLM production-stack)\n\nMost teams asking for \"a gateway\" want #1, discover they need #2 at scale, and only need #3 if they serve their own weights.\n\n---\n\n# Tier 1: what teams actually run\n\n### LiteLLM (BerriAI)\nThe default answer, by a wide margin. Python/FastAPI proxy, 100+ providers, virtual keys, budgets, Postgres-backed. Also usable as a library — which is why it's embedded in Aider, OpenHands, and a lot of internal platforms, giving it adoption numbers that overstate its *gateway* deployment.\n\n- **Licence: this is the one to scrutinise.** Root LICENSE is MIT, but the repo contains an `enterprise/` directory under a separate commercial licence, and a meaningful set of proxy features (SSO/SAML, audit logs, JWT auth, some guardrails and routing features) are gated behind an enterprise key at runtime. It is open-core-in-tree, not MIT in the way the badge implies. Check `enterprise/LICENSE` and the \"Enterprise\" page in their docs for the current gated-feature list — it has grown over time.\n- **Operational reality:** the recurring complaints are Python throughput/tail latency under high concurrency, memory growth, and breaking changes between minor releases. Budget for pinning versions and load-testing at your real RPS. Several teams run it *only* as a control plane for keys/spend and put a real proxy in front.\n- **Verify:** `github.com/BerriAI/litellm`, docs at `docs.litellm.ai`.\n\n### Portkey AI Gateway\nTypeScript on Hono; runs on Node, Bun, Deno, Cloudflare Workers. Genuinely fast, genuinely small, and the self-hosted gateway is usable standalone.\n\n- **Licence:** core gateway MIT (high confidence). The observability UI, config store, and governance layer are the commercial product — self-hosting gets you the data plane, not the control plane. That split is cleaner and more honest than LiteLLM's, but it means you build or buy the dashboard.\n- **Verify:** `github.com/Portkey-AI/gateway`.\n\n### Envoy AI Gateway\nBuilt on Envoy Gateway by Tetrate and Bloomberg, announced early 2025, under the Envoy/CNCF umbrella. Kubernetes Gateway API CRDs, provider credential handling, token-based rate limiting, and integration with the Gateway API Inference Extension for self-hosted models.\n\n- **Licence: Apache 2.0, foundation-governed, no enterprise tier in-tree.** This is the structurally safest choice on licence risk — there is no vendor who can relicense it.\n- **Production:** Bloomberg is the named large-scale user (they co-drove it); adoption otherwise skews to teams already running Envoy Gateway or Istio. If you aren't on Kubernetes, this is the wrong tool.\n- **Verify:** `gateway.envoyproxy.io/docs` → AI Gateway, and `github.com/envoyproxy/ai-gateway`.\n\n### Kong AI Gateway\nKong Gateway is Apache 2.0 and several AI plugins (ai-proxy, ai-request/response-transformer, ai-prompt-guard, ai-prompt-template) ship in OSS. But the ones people actually want at scale — semantic caching, semantic routing, advanced analytics, the RAG injector — are Enterprise/Konnect. Adoption is almost entirely \"we already run Kong,\" which is a perfectly good reason.\n\n- **Verify plugin-by-plugin** against Kong's plugin hub; the OSS/Enterprise line moves.\n\n### Apache APISIX\n`ai-proxy`, `ai-proxy-multi`, `ai-rate-limiting`, `ai-prompt-*` plugins. **Apache 2.0 under the ASF** — same structural safety as Envoy AI Gateway, no single vendor. Less LLM-specific polish, but if APISIX is already your ingress this is a short path. (API7 sells the commercial layer.)\n\n### Higress (Alibaba)\nApache 2.0, Envoy+Istio based, CNCF sandbox. Strong AI-gateway feature set and — unusually — real, very-large-scale production use behind Alibaba's own model traffic. Chronically underrated in Western evaluations. Docs quality in English has historically lagged.\n\n### one-api / new-api\nMIT, Go, enormously deployed — but overwhelmingly in the Chinese market, as a key-reselling and billing front end. If your evaluation is Western-centric you'll miss it; if your requirement is multi-tenant billing on top of provider keys, it's the most battle-tested thing in that specific niche.\n\n---\n\n# Tier 2: credible but younger, or narrower\n\n| Project | Licence (verify) | Note |\n|---|---|---|\n| **Bifrost** (Maxim AI) | Apache 2.0 | Go, launched 2025, markets very large throughput wins over LiteLLM. Benchmarks are vendor-published — re-run them yourself. Thin production track record. |\n| **Helicone AI Gateway** | MIT (Rust gateway); main platform Apache 2.0 with enterprise bits | Rust/Tower gateway released 2025. Full self-hosted Helicone stack (ClickHouse + Postgres + Kafka + object store) is heavy for a gateway. |\n| **kgateway** | Apache 2.0, CNCF sandbox | Solo.io's Gloo lineage donated to CNCF in 2025; Envoy-based with AI gateway features. Overlaps heavily with Envoy AI Gateway — watch for consolidation. |\n| **Arch** (Katanemo) | Apache 2.0 | Rust/Envoy \"prompt gateway\" with purpose-built small function-calling models for routing. Interesting, niche, small community. |\n| **Traefik AI Gateway** | Traefik Proxy MIT; **AI Gateway is Traefik Hub (commercial)** | Not a self-hosted OSS option despite the Traefik name. |\n| **MLflow AI Gateway / deployments server** | Apache 2.0 | Real, but deprioritized by Databricks in favour of their hosted gateway. Don't build on it. |\n| **TrueFoundry, Portkey Enterprise, LangDB** | Commercial, VPC-deployable | \"Self-hosted\" here means *your infra, their licence*. Fine — just don't confuse it with open source. |\n\n**Not self-hostable, despite appearing on every comparison listicle:** OpenRouter, Cloudflare AI Gateway, Vercel AI Gateway, Martian, Unify.\n\n---\n\n# If you serve your own weights (the #3 problem)\n\nGeneric gateways route badly to vLLM/SGLang fleets because they're blind to KV-cache state and queue depth. The relevant work:\n\n- **Gateway API Inference Extension (GIE)** — Apache 2.0, Kubernetes SIG-Network. `InferencePool`/`InferenceModel` CRDs plus an endpoint-picker that does prefix-cache-aware and load-aware routing. This is becoming the standard substrate; Envoy AI Gateway consumes it.\n- **llm-d** — Apache 2.0, launched May 2025 by Red Hat with Google and IBM. Disaggregated prefill/decode, cache-aware scheduling on top of vLLM.\n- **AIBrix** (ByteDance) and **vLLM production-stack** — both Apache 2.0, similar territory.\n\nReported gains from cache-aware routing over round-robin are large (multiples on TTFT under load), but they're workload-dependent — verify on your own traffic shape before believing anyone's numbers, mine included.\n\n---\n\n# The licence question, sharpened\n\nThree distinct risk patterns, and the difference matters more than the SPDX identifier:\n\n1. **Foundation-governed Apache 2.0** — Envoy AI Gateway, APISIX, Higress, kgateway, GIE. No single vendor can relicense. Lowest risk.\n2. **Vendor-owned permissive with an in-tree enterprise directory** — LiteLLM, Helicone, Langfuse. The badge says MIT/Apache; the useful-at-scale features may not be. Risk isn't a rug-pull so much as *feature migration*: things that were OSS becoming gated in a later release. Mitigate by pinning versions and auditing which features you depend on against the current gating list at each upgrade.\n3. **Vendor-owned permissive data plane, proprietary control plane** — Portkey. Honest and stable, but you own the operational gap.\n\nNo major gateway in this space is BSL or SSPL as of my cutoff — but that's exactly the kind of thing that changes, and it's the first thing to check.\n\n---\n\n# What I'd actually recommend\n\n- **Not on Kubernetes, want it working this week:** LiteLLM. Accept the Python performance ceiling, pin your version, audit the enterprise gating against your feature list before you're dependent on it.\n- **On Kubernetes, already running Envoy/Istio, care about licence risk:** Envoy AI Gateway. Add GIE if you serve your own weights.\n- **Already running Kong or APISIX:** use their AI plugins; the integration and operational familiarity beat a better standalone gateway.\n- **Need multi-tenant billing on provider keys above all:** one-api, or LiteLLM's key/budget layer behind a real proxy.\n- **Latency-critical, small team, willing to build a dashboard:** Portkey OSS gateway.\n\nA pattern worth knowing: a lot of teams end up running **two** layers — LiteLLM (or similar) as the control plane for keys, budgets, and provider abstraction, with Envoy/Kong/APISIX in front for the traffic concerns. That's not failure to choose; it's the two problems being genuinely different.\n\n---\n\n**To actually cite this**, the primary sources are: each project's `LICENSE` and `enterprise/LICENSE`, the pricing/enterprise pages (for the gated-feature list), CNCF project-status pages (for governance claims), and the CNCF/KubeCon 2025 talks for the Bloomberg and Alibaba production stories. If you can give me a session with web access, I'll pull those and give you a properly sourced version — including current release numbers and the exact OSS/enterprise feature split, which is where I'd least want you relying on my memory."
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 5,
+            "costUsd": 0.41175550000000005,
+            "judgeCostUsd": 0.013012000000000003,
+            "durationSeconds": 167,
+            "startedAt": "2026-09-15T08:50:17.468Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-983O0K/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "cites-sources",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "## First, the constraint on citations\n\nI have no network access in this session — the Skill and web tools are unavailable here, and the working directory is empty. So I can't fetch and quote live sources. Everything below is from training knowledge (cutoff May 2026), and I've written the \"citation\" column as **exact repo + file path you can verify in about 30 seconds each**, rather than pretending to URLs I just retrieved. Licence terms in particular change (open-core creep is the norm in this category), so treat the licence column as \"what to go check,\" not as settled fact. I've flagged confidence where it's genuinely shaky.\n\n---\n\n## The framing that makes this landscape legible\n\n\"LLM gateway\" is three different products wearing one name, and most comparison posts blur them:\n\n| Category | What it actually does | Sits in front of |\n|---|---|---|\n| **A. Egress broker** | Key vaulting, virtual keys, per-team budgets, spend tracking, provider fallback, unified schema | Third-party provider APIs (Anthropic, OpenAI, Bedrock, Vertex) |\n| **B. Inference router** | KV-cache-aware routing, LoRA-adapter-aware routing, queue-depth load balancing, disaggregated prefill/decode | *Your own* GPU fleet running vLLM/SGLang |\n| **C. General API gateway + AI plugins** | Existing L7 gateway with token-based rate limiting and provider transforms bolted on | Either, usually both |\n\nTeams routinely pick a category-A tool and then discover they needed category B, or buy a category-C gateway and find the AI plugins they wanted are the enterprise SKU. Decide which one you are before reading vendor comparisons.\n\n---\n\n## Category A — egress brokers\n\n### LiteLLM — the default, for better and worse\n\n- **Repo:** `BerriAI/litellm`, Python/FastAPI\n- **Licence:** MIT for the bulk, **but** the repo's `LICENSE` carves out the `enterprise/` directory under a proprietary LiteLLM commercial licence. This is the single most misread licence in the category — people see \"MIT\" on the badge and don't read the carve-out.\n- **What's behind the paywall (verify against their docs/enterprise dir, this moves):** SSO/SAML/OIDC for the admin UI, JWT auth, audit logs, SCIM provisioning, and some guardrail integrations. Core proxying, virtual keys, budgets, and spend tracking are in the MIT part.\n- **Reality check:** it supports the most providers by a wide margin and it's what you'll find already installed when you join a team. It's also Python, carries a Postgres + Redis dependency, and has a reputation for breaking changes between minor versions. Pin your version and read changelogs.\n- **Adoption claims:** their README has historically listed names like Netflix, Adobe, Lemonade. Those are **vendor-stated logos**, not independently verified case studies — I'd weight them accordingly.\n\n### Portkey Gateway\n\n- **Repo:** `Portkey-AI/gateway`, TypeScript/Hono\n- **Licence:** MIT, and genuinely so for the gateway itself. The catch is structural rather than legal: the OSS gateway is the data plane, and the observability/config control plane is the commercial hosted product. Self-hosting the gateway alone gives you routing and fallbacks; you supply your own observability.\n- **Strength:** tiny footprint, runs on edge runtimes (Workers/Deno), low added latency. Good pick when the gateway must not be a latency tax.\n\n### Bifrost\n\n- **Repo:** `maximhq/bifrost`, Go, Apache 2.0\n- 2025 entrant positioned explicitly as \"LiteLLM but fast,\" with benchmarks claiming double-digit-multiple lower overhead. **Those are vendor benchmarks against a competitor** — the methodology (payload size, streaming vs not, colocation) determines the result. Benchmark it yourself on your traffic shape or ignore the number.\n- Genuinely permissive licence, no in-repo enterprise carve-out that I'm aware of. Less battle-tested; smaller provider matrix.\n\n### One API / New API\n\n- **Repos:** `songquanpeng/one-api` (MIT), and the more actively developed fork `Calcium-Ion/new-api` (licence — verify, I believe Apache 2.0 but I'm not confident).\n- Dominant in the Chinese ecosystem, heavily used for key management and internal reselling. Docs are largely Chinese-first. Worth knowing exists; rarely the right pick for a Western enterprise on compliance/support grounds.\n\n### Helicone\n\n- **Repo:** `Helicone/helicone`, Apache 2.0. Rewrote its gateway in Rust during 2025.\n- Observability-first heritage shows: the full self-hosted stack pulls in Postgres, ClickHouse, object storage and a queue. That's a real operational commitment. Fine if you want one system for proxy + analytics; heavy if you just want a broker.\n\n---\n\n## Category B — inference routers (your own GPUs)\n\nThis is where the interesting work happened in 2025 and it's badly under-covered in gateway comparisons.\n\n- **Gateway API Inference Extension** — `kubernetes-sigs/gateway-api-inference-extension`, Apache 2.0. The emerging *standard*, not a product: extends K8s Gateway API with an endpoint-picker that routes on KV-cache locality, queue depth and LoRA adapters rather than round-robin. If you're on Kubernetes, this is the direction of travel; check which implementations conform.\n- **llm-d** — `llm-d/llm-d`, Apache 2.0, launched ~May 2025, backed by Red Hat with Google and IBM involvement. Distributed vLLM inference with disaggregated prefill/decode. Vendor-neutral governance, no open-core gate.\n- **AIBrix** — `vllm-project/aibrix`, Apache 2.0, ByteDance-originated, under the vLLM org. Control plane for vLLM fleets including a router.\n- **vLLM production-stack** — the vLLM project's own reference routing layer.\n\nThe key insight: **a category-A broker in front of your own vLLM fleet will route badly**, because it has no visibility into KV cache state or queue depth. Round-robin across vLLM replicas throws away prefix cache hits and can cost you a large multiple in effective throughput. If you self-host models, you need something from this list, possibly *behind* a category-A broker.\n\n---\n\n## Category C — general gateways with AI plugins\n\n| Product | Core licence | The catch |\n|---|---|---|\n| **Envoy AI Gateway** (`envoyproxy/ai-gateway`) | Apache 2.0 | Cleanest governance story in the category — Envoy community project, Tetrate and Bloomberg as principal drivers, no enterprise carve-out. K8s/Gateway-API-native, so it's a poor fit if you're not on Kubernetes. Launched v0.1 ~Feb 2025, so it's young. |\n| **Kong AI Gateway** (`Kong/kong`) | Apache 2.0 core | `ai-proxy`, `ai-prompt-guard`, `ai-prompt-template` landed in OSS Kong 3.6 (early 2024). But **semantic caching, semantic prompt guard, and advanced/token-based rate limiting are Enterprise-only** — which is often exactly the list you wanted. Verify plugin-by-plugin against Kong's plugin hub before committing. |\n| **Apache APISIX** (`apache/apisix`) | Apache 2.0 | `ai-proxy` / `ai-proxy-multi` / `ai-rate-limiting` in the ASF project proper — ASF governance means no rug-pull risk. Commercial entity is API7. Smaller AI feature surface than Kong. |\n| **Higress** (`alibaba/higress`) | Apache 2.0 | Envoy/Istio-based, strong AI plugin set, Alibaba-driven. Docs and community skew Chinese-language. |\n| **kgateway** (`kgateway-dev/kgateway`) | Apache 2.0 | Solo.io's Gloo OSS donated to CNCF in 2025 with AI gateway features included. Historically Solo gated AI features in Gloo *Enterprise*; the donation changed that picture — **verify current feature split**, my confidence here is moderate. |\n| **Tyk** (`TykTechnologies/tyk`) | **MPL 2.0** | The only weak-copyleft option in the set. MPL is file-level, so it's usually fine, but it's a legal-review trigger some orgs won't want. Tyk AI Studio is separate and commercial. |\n| **Traefik** | MIT core | AI Gateway is a **Traefik Hub** feature — commercial, not in the MIT proxy. Effectively not a self-hosted OSS option. |\n| **Arch** (`katanemo/archgw`) | Apache 2.0 | Envoy-based, differentiates via small purpose-trained models for routing and function-calling. Interesting, niche, small community. |\n\n**Not self-hostable, despite appearing in every listicle:** Cloudflare AI Gateway, Vercel AI Gateway, OpenRouter, Martian, Unify. If a comparison table includes these under \"self-hosted,\" it wasn't written carefully.\n\n---\n\n## The licence patterns worth internalising\n\n1. **MIT/Apache badge with an in-repo enterprise directory** — LiteLLM is the archetype. Legal, increasingly common, and fine *if you know*. The failure mode is building an SSO rollout plan against a tool whose SSO is paid.\n2. **Permissive data plane, proprietary control plane** — Portkey, Helicone to a degree. No licence violation risk; the risk is discovering that self-hosting gives you 60% of the product you evaluated.\n3. **Foundation-governed** — Envoy AI Gateway, APISIX, the K8s Inference Extension, llm-d. Structurally the hardest to relicense, because a single vendor doesn't hold the copyright. If relicensing risk is a real concern for you (it should be — this category is young, VC-funded, and under monetisation pressure), this is the only property that actually protects you.\n4. **Weak copyleft** — Tyk (MPL 2.0). One data point, but check your org's policy.\n\nI'm not aware of any major LLM gateway having gone BSL or SSPL as of my cutoff. Given the funding dynamics in this space, I would not assume that holds through 2027, which is an argument for weighting item 3 heavily.\n\n---\n\n## What actually bites in production\n\nThese are the things that decide the outcome, and they're mostly absent from feature matrices:\n\n- **Provider feature lag is the #1 problem.** Gateways normalise to an OpenAI-chat-completions-shaped schema. Anthropic's Messages API, OpenAI's Responses API, and their respective newer capabilities don't map cleanly onto it. Extended thinking, tool-use streaming semantics, citations, structured outputs — the gateway is always weeks-to-months behind the provider. Check whether your candidate offers a **raw passthrough mode** that skips translation. Many teams end up running the gateway in passthrough for their primary provider and using translation only for fallbacks.\n- **Prompt caching breaks silently through gateways.** Anthropic's cache breakpoints are position-sensitive: if the gateway reorders, re-serialises, or injects into the request, you get cache misses and a large cost increase with no error. Test this explicitly by watching cache-read vs cache-creation token counts before and after inserting the gateway.\n- **Spend-logging write amplification.** LiteLLM-style per-request spend rows into Postgres become the bottleneck well before the proxy CPU does. Plan for batching, or shipping logs to a columnar store instead.\n- **Token counting is estimated, not exact**, for any provider whose tokeniser isn't public. Budget enforcement built on gateway-side estimates will drift from your actual invoice. Reconcile against provider billing, don't trust the dashboard.\n- **You just created a SPOF on your critical path.** Every request now depends on the gateway, its Postgres, and its Redis. Ask what happens when Redis is unavailable — fail open or fail closed? The answer differs by product and is often configurable but badly defaulted.\n- **Semantic caching is mostly a trap.** It demos beautifully and produces subtly wrong answers in production, because embedding similarity is not semantic equivalence for prompts that differ in a number or a negation. Exact-match caching is boring and works.\n\n---\n\n## My recommendation by situation\n\n- **Already on Kubernetes, self-hosting models on your own GPUs:** Envoy AI Gateway or a Gateway-API-Inference-Extension implementation, with llm-d or AIBrix underneath. Apache 2.0 throughout, foundation-governed, and it's where the ecosystem is converging.\n- **Consuming third-party APIs, want it working this week:** LiteLLM. It's the default for a reason — widest provider coverage, most community answers. Budget for version pinning and read the `enterprise/` carve-out before you plan SSO.\n- **Latency-sensitive, small team, want a thin data plane:** Portkey Gateway. MIT, genuinely light, bring your own observability.\n- **Already run Kong or APISIX:** use their AI plugins, but audit the OSS/Enterprise split first — with Kong specifically, the features people want are disproportionately Enterprise.\n- **Relicensing risk is a board-level concern:** restrict the shortlist to foundation-governed projects. That's effectively Envoy AI Gateway, APISIX, and the K8s inference stack.\n\n---\n\n## To verify before you commit\n\nFor each finalist, in this order: (1) open the repo's `LICENSE` and grep for directory carve-outs; (2) find the pricing page's OSS-vs-Enterprise feature table and diff it against the feature list that sold you; (3) check commit frequency and issue response time over the last 90 days — several projects in this space are effectively single-maintainer; (4) run *your* traffic shape through it and measure added p99 latency and prompt-cache hit rate, not their benchmark.\n\nHappy to go deeper on any one of these, draft the evaluation harness for step 4, or put together a proper scored comparison matrix if you tell me which category you're actually in."
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 0,
+        "passRate": 0,
+        "scoreWithout": 0,
+        "passRateWithout": 0,
+        "delta": 0
+      }
+    },
+    {
+      "name": "single-fact-lookup",
+      "dir": "evals/single-fact-lookup",
+      "source": "prose",
+      "promptMarkdown": "What does Lambda Labs charge per GPU-hour for an on-demand H100 right now?",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 8,
+      "graders": [
+        {
+          "name": "did-not-fan-out",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "mock_calls",
+            "pattern": "\\[MOCK:broad_search\\]",
+            "flags": "",
+            "match": "not_contains"
+          }
+        },
+        {
+          "name": "skill-fired",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?octen-web-search\""
+          }
+        },
+        {
+          "name": "used-search",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "mock_calls",
+            "pattern": "\\[MOCK:search\\]",
+            "flags": "",
+            "match": "contains"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 5,
+            "costUsd": 0.14775500000000003,
+            "judgeCostUsd": 0,
+            "durationSeconds": 11,
+            "startedAt": "2026-09-15T08:53:04.779Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-eOs9Mp/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 1,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "did-not-fan-out",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-search",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:search\\]",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 5,
+            "costUsd": 0.14770149999999999,
+            "judgeCostUsd": 0,
+            "durationSeconds": 11,
+            "startedAt": "2026-09-15T08:53:15.694Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-7alKam/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 1,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "did-not-fan-out",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-search",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:search\\]",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 5,
+            "costUsd": 0.15309000000000003,
+            "judgeCostUsd": 0,
+            "durationSeconds": 13,
+            "startedAt": "2026-09-15T08:53:26.349Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-BQnjSG/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 1,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "did-not-fan-out",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-search",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:search\\]",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 2,
+            "costUsd": 0.0869535,
+            "judgeCostUsd": 0,
+            "durationSeconds": 12,
+            "startedAt": "2026-09-15T08:53:39.791Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-kgZYV3/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "did-not-fan-out",
+                "passed": false,
+                "weight": 1,
+                "explanation": "no mock stand-ins were active in this run (--mocks off, or no mocks/ directory applies to this case) — a mock_calls grader has nothing to check",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-search",
+                "passed": false,
+                "weight": 1,
+                "explanation": "no mock stand-ins were active in this run (--mocks off, or no mocks/ directory applies to this case) — a mock_calls grader has nothing to check",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 1,
+            "costUsd": 0.075141,
+            "judgeCostUsd": 0,
+            "durationSeconds": 10,
+            "startedAt": "2026-09-15T08:53:51.950Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-dXFaah/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "did-not-fan-out",
+                "passed": false,
+                "weight": 1,
+                "explanation": "no mock stand-ins were active in this run (--mocks off, or no mocks/ directory applies to this case) — a mock_calls grader has nothing to check",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-search",
+                "passed": false,
+                "weight": 1,
+                "explanation": "no mock stand-ins were active in this run (--mocks off, or no mocks/ directory applies to this case) — a mock_calls grader has nothing to check",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 2,
+            "costUsd": 0.0883285,
+            "judgeCostUsd": 0,
+            "durationSeconds": 14,
+            "startedAt": "2026-09-15T08:54:02.297Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-BXmiFY/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "did-not-fan-out",
+                "passed": false,
+                "weight": 1,
+                "explanation": "no mock stand-ins were active in this run (--mocks off, or no mocks/ directory applies to this case) — a mock_calls grader has nothing to check",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": false,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-search",
+                "passed": false,
+                "weight": 1,
+                "explanation": "no mock stand-ins were active in this run (--mocks off, or no mocks/ directory applies to this case) — a mock_calls grader has nothing to check",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1,
+        "scoreWithout": 0,
+        "passRateWithout": 0,
+        "delta": 1
+      }
+    },
+    {
+      "name": "two-way-comparison",
+      "dir": "evals/two-way-comparison",
+      "source": "prose",
+      "promptMarkdown": "How does Lambda Labs' on-demand H100 pricing compare to CoreWeave's?",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 10,
+      "graders": [
+        {
+          "name": "answers-both-sides",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "PASS if the reply gives a per-GPU-hour figure for both Lambda Labs and CoreWeave and says which is cheaper.\nFAIL if it covers only one provider, gives no figures, or says it could not find the information.",
+          "config": {
+            "criteria": "PASS if the reply gives a per-GPU-hour figure for both Lambda Labs and CoreWeave and says which is cheaper.\nFAIL if it covers only one provider, gives no figures, or says it could not find the information.",
+            "focus": "last_message"
+          }
+        },
+        {
+          "name": "did-not-fan-out",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "mock_calls",
+            "pattern": "\\[MOCK:broad_search\\]",
+            "flags": "",
+            "match": "not_contains"
+          }
+        },
+        {
+          "name": "skill-fired",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?octen-web-search\""
+          }
+        },
+        {
+          "name": "used-search",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "mock_calls",
+            "pattern": "\\[MOCK:search\\]",
+            "flags": "",
+            "match": "contains"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 8,
+            "costUsd": 0.251586,
+            "judgeCostUsd": 0.002481000000000004,
+            "durationSeconds": 35,
+            "startedAt": "2026-09-15T08:54:16.057Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-0szGAh/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 4,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "answers-both-sides",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: FAIL FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence": "## The headline numbers\n\n| Provider | On-demand H100 | Source |\n|---|---|---|\n| Lambda Labs | **$2.99 / GPU-hour** (H100 SXM) | [lambdalabs.com/service/gpu-cloud](https://lambdalabs.com/service/gpu-cloud) |\n| CoreWeave | **$6.16** (H100 HGX, 8-GPU instance) | [coreweave.com/pricing](https://www.coreweave.com/pricing) |\n\nTaken at face value, Lambda is roughly **half** CoreWeave's on-demand rate — about $3.17/GPU-hour cheaper. Both sit inside the $2.50–$6.50 band that a market note cited for on-demand H100 across the major clouds this quarter.\n\n## One caveat worth your attention before you act on this\n\nThe CoreWeave figure is ambiguous, and the source contradicts itself. The page describes $6.16 as \"per GPU-hour for the 8-GPU instance,\" then says that lands ~$0.77/GPU-hour above Lambda. Those two claims can't both be true — $6.16 vs $2.99 is a $3.17 gap, not $0.77.\n\nThe likely explanation: **$6.16 is the whole-instance hourly rate**, and $6.16 ÷ 8 = $0.77/GPU-hour. But that reading flips the conclusion — it would put CoreWeave *below* Lambda, not above, so whoever wrote the summary got the direction wrong too. I could not confirm which reading is correct: my attempt to fetch both pricing pages directly returned unrelated content (LiteLLM proxy docs), and a follow-up search returned the same snippet without new detail.\n\nSo the two live possibilities are:\n\n- **$6.16/GPU-hour** → Lambda is ~2x cheaper\n- **$0.77/GPU-hour** ($6.16/instance) → CoreWeave is dramatically cheaper\n\nThat's a large enough swing that I'd load [coreweave.com/pricing](https://www.coreweave.com/pricing) yourself and check whether the number is tagged per-GPU or per-instance before committing to either.\n\n## What the sticker price omits either way\n\nOn-demand rack rates are the least meaningful part of a GPU cloud comparison. Both vendors quote reserved capacity well below on-demand — Lambda explicitly notes lower annual-commitment pricing — and the market note attributes the entire $2.50–$6.50 spread to contract length and region rather than any inherent vendor difference. The two also aren't quite like-for-like configurations: Lambda's quote is H100 SXM, CoreWeave's is H100 HGX. Storage, egress, and interconnect are typically billed separately and can move total cost of ownership more than the GPU line item on multi-node training runs."
+              },
+              {
+                "name": "did-not-fan-out",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "used-search",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:search\\]",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 7,
+            "costUsd": 0.222985,
+            "judgeCostUsd": 0.002565999999999999,
+            "durationSeconds": 29,
+            "startedAt": "2026-09-15T08:54:50.928Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-sSP5Nz/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 3,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "answers-both-sides",
+                "passed": false,
+                "weight": 1,
+                "explanation": "judge votes: PASS FAIL FAIL",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  false,
+                  false
+                ],
+                "evidence": "**Headline numbers** (from vendor pricing pages):\n\n| Provider | On-demand H100 | Source |\n|---|---|---|\n| Lambda Labs | **$2.99 / GPU-hour** (H100 SXM) | [lambdalabs.com/service/gpu-cloud](https://lambdalabs.com/service/gpu-cloud) |\n| CoreWeave | **$6.16 / GPU-hour** (H100 HGX, 8-GPU instance) | [coreweave.com/pricing](https://www.coreweave.com/pricing) |\n\nSo Lambda is roughly **half the price** of CoreWeave on-demand — about $3.17/GPU-hour cheaper, or ~2.1x. On an 8-GPU node running a full month (~730 h), that's roughly $17.5k (Lambda) vs $36k (CoreWeave).\n\nTwo caveats on the data, both worth resolving before you rely on it:\n\n- One source snippet asserted the gap was \"roughly $0.77 per GPU-hour,\" which contradicts its own figures ($6.16 − $2.99 = $3.17). I'm going with the arithmetic, but it's a sign that snippet was loosely written.\n- CoreWeave's $6.16 is described both as \"per GPU-hour\" and \"for the 8-GPU instance,\" which can't both be true. If $6.16 is actually the *instance* rate, CoreWeave would be ~$0.77/GPU-hour — which is where that stray number likely came from, and would flip the comparison entirely. I tried to pull both pricing pages directly to settle it, but the fetch returned unrelated content, so I couldn't confirm.\n\nAlso note these aren't quite like-for-like: Lambda's $2.99 is a bare GPU-cloud instance, while CoreWeave's HGX pricing bundles Kubernetes-native orchestration, InfiniBand fabric, and higher-touch support. Lambda's reserved/annual-commit rates go lower still, as do CoreWeave's — the broader market snippet put on-demand H100 across major clouds at $2.50–$6.50/GPU-hour, with contract length and region driving most of the spread.\n\nWant me to retry the direct page fetches to pin down CoreWeave's per-GPU vs per-instance rate?"
+              },
+              {
+                "name": "did-not-fan-out",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "used-search",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:search\\]",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 8,
+            "costUsd": 0.24404299999999995,
+            "judgeCostUsd": 0.002025000000000006,
+            "durationSeconds": 33,
+            "startedAt": "2026-09-15T08:55:19.446Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-1UTeyT/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 4,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "answers-both-sides",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "## Headline numbers\n\n| | On-demand H100 | Source |\n|--|--|--|\n| **Lambda Labs** | **$2.99** / GPU-hour (H100 SXM) | [lambdalabs.com/service/gpu-cloud](https://lambdalabs.com/service/gpu-cloud) |\n| **CoreWeave** | **$6.16** / GPU-hour (HGX H100, 8-GPU instance) | [coreweave.com/pricing](https://www.coreweave.com/pricing) |\n\nLambda is roughly **half the price** — about **$3.17/GPU-hour cheaper**, or ~$25/hour on a full 8-GPU node ($2,280/month difference if you ran one node continuously).\n\n## One caveat on the sourcing\n\nThe CoreWeave snippet contradicts itself: it quotes $6.16/GPU-hour but then describes that as \"roughly $0.77 per GPU-hour above Lambda's on-demand rate.\" Against Lambda's $2.99 the gap is $3.17, not $0.77 — and $6.16 ÷ 8 = $0.77, so that looks like a per-GPU/per-instance unit mixup in the source text. I'd treat the **$6.16 per-GPU-hour figure as the reliable one** (it matches CoreWeave's long-standing $49.24/hr 8-GPU node rate) and the $0.77 comparison as an error.\n\nI tried to confirm both numbers by fetching the pricing pages directly, but the extract call returned an unrelated page (LiteLLM docs) instead of either vendor page, and repeated searches returned the identical snippet set. **So these figures are un-verified against the vendors' own pages** — worth a manual check before you commit to them in a budget.\n\n## Context\n\nA third source puts the market spread at **$2.50–$6.50/GPU-hour** this quarter, which places Lambda near the floor and CoreWeave near the ceiling. The spread is driven by contract length and region, and both vendors quote materially lower rates on reserved/annual commitments — so the 2x gap is specific to on-demand and likely narrows if you're comparing committed capacity."
+              },
+              {
+                "name": "did-not-fan-out",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "used-search",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:search\\]",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 2,
+            "costUsd": 0.12988200000000003,
+            "judgeCostUsd": 0.0024030000000000093,
+            "durationSeconds": 37,
+            "startedAt": "2026-09-15T08:55:52.763Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-yUol8O/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "answers-both-sides",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "I don't have network access in this session, so I can't pull live pricing pages — this is from memory (knowledge cutoff May 2026), and GPU pricing moves fast enough that you should treat it as a ballpark and verify before budgeting.\n\n## List on-demand, per GPU-hour\n\n| | Lambda | CoreWeave |\n|---|---|---|\n| H100 SXM/HGX (8× node) | ~$2.49–2.99/GPU-hr (8× node ≈ $23.92/hr at $2.99) | ~$6.16/GPU-hr (8× HGX node listed around $49.24/hr including ~128 vCPU / 1TB RAM) |\n| H100 PCIe | ~$2.49/GPU-hr | ~$4.25/GPU-hr |\n\nSo on sticker price Lambda is roughly **2–2.5× cheaper** for on-demand H100.\n\n## Why the gap is less dramatic than it looks\n\n- **They're selling different products.** Lambda's on-demand is genuinely self-serve — credit card, spin up in minutes, per-second-ish billing. CoreWeave's business is overwhelmingly committed contracts (months to years); their on-demand list price is effectively a walk-up rate that few large customers actually pay. On multi-year reserved deals CoreWeave lands far lower, in the neighborhood of $2–3/GPU-hr, which closes most of the gap.\n- **CoreWeave's price bundles more.** Their node rate includes substantial CPU, RAM, and high-performance storage/networking (InfiniBand, managed Kubernetes/Slurm). Lambda's headline number is closer to bare GPU access; storage and egress are separate line items.\n- **Availability differs.** Lambda's cheap on-demand H100 capacity is frequently sold out; CoreWeave's advantage is that reserved capacity is actually there when you need it, at scale, with SLAs.\n- **Market drift.** Through 2025–2026 H100 spot/secondary pricing fell hard (brokers and spot marketplaces pushing toward ~$2/hr and below) as H200/Blackwell came online. Both vendors' H100 rates have been trending down, and any number above may already be stale.\n\n## Practical read\n\n- Bursty work, single node, days-to-weeks → Lambda wins clearly on cost.\n- Multi-node training with InfiniBand, needs guaranteed capacity, months+ → compare CoreWeave's *contract* quote, not their on-demand rate; the list price is misleading there.\n\nIf you want hard current numbers, lambdalabs.com/service/gpu-cloud and coreweave.com/pricing both publish them; CoreWeave's real number for anything sizable comes from sales."
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 1,
+            "costUsd": 0.098716,
+            "judgeCostUsd": 0,
+            "durationSeconds": 24,
+            "startedAt": "2026-09-15T08:56:30.227Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-8OZ0d5/out/trace.jsonl",
+            "skippedPaidGraders": true,
+            "graders": [
+              {
+                "name": "answers-both-sides",
+                "passed": false,
+                "weight": 1,
+                "explanation": "skipped: cost ceiling",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 0.3333333333333333,
+        "passRate": 0.3333333333333333,
+        "passRateWithout": 0.5
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 5,
+    "casesPassed": 3,
+    "overallScore": 0.6666666666666667,
+    "overallPassRate": 0.6666666666666667,
+    "meanDelta": 0.5
+  }
+}

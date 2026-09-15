@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.272",
+  "startedAt": "2026-09-15T08:32:21.204Z",
+  "durationSeconds": 13,
+  "costUsd": 0.15164500000000003,
+  "partial": false,
+  "suite": {
+    "root": "/Users/dorian/code/octen-mcp",
+    "ablation": "none",
+    "caseFilter": "single-fact-lookup",
+    "threshold": 1,
+    "concurrency": 1,
+    "plugins": [
+      {
+        "name": "octen",
+        "version": "0.5.0",
+        "path": "/Users/dorian/code/octen-mcp"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "single-fact-lookup",
+      "dir": "evals/single-fact-lookup",
+      "source": "prose",
+      "promptMarkdown": "What does Lambda Labs charge per GPU-hour for an on-demand H100 right now?",
+      "runsPerCase": 3,
+      "timeoutSeconds": 300,
+      "maxTurns": 8,
+      "graders": [
+        {
+          "name": "did-not-fan-out",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "mock_calls",
+            "pattern": "\\[MOCK:broad_search\\]",
+            "flags": "",
+            "match": "not_contains"
+          }
+        },
+        {
+          "name": "skill-fired",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?octen-web-search\""
+          }
+        },
+        {
+          "name": "used-search",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "mock_calls",
+            "pattern": "\\[MOCK:search\\]",
+            "flags": "",
+            "match": "contains"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 5,
+            "costUsd": 0.15164500000000003,
+            "judgeCostUsd": 0,
+            "durationSeconds": 13,
+            "startedAt": "2026-09-15T08:32:21.227Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-bJj6Ua/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 1,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "did-not-fan-out",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-search",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:search\\]",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 1,
+    "casesPassed": 1,
+    "overallScore": 1,
+    "overallPassRate": 1
+  }
+}

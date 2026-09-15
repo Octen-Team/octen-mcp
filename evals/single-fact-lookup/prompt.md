@@ -1,7 +1,7 @@
 ---
 max_turns: 8
-allowed_tools: [Skill]
+runs: 2
 tags: [routing]
 ---
 
-What's the current on-demand price for an H100 GPU-hour at Provider A?
+What does Lambda Labs charge per GPU-hour for an on-demand H100 right now?

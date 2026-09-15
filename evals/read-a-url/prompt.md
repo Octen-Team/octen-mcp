@@ -1,7 +1,7 @@
 ---
 max_turns: 8
-allowed_tools: [Skill]
+runs: 2
 tags: [routing]
 ---
 
-Summarize this for me: https://example.com/gateway-a
+Summarize this for me: https://docs.litellm.ai/docs/simple_proxy

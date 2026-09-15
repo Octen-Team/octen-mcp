@@ -1,0 +1,1404 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.272",
+  "startedAt": "2026-09-15T09:01:59.645Z",
+  "durationSeconds": 922,
+  "costUsd": 3.9406705000000004,
+  "partial": false,
+  "suite": {
+    "root": "/Users/dorian/code/octen-mcp",
+    "ablation": "with-without",
+    "threshold": 1,
+    "concurrency": 1,
+    "plugins": [
+      {
+        "name": "octen",
+        "version": "0.5.0",
+        "path": "/Users/dorian/code/octen-mcp"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "landscape-survey",
+      "dir": "evals/landscape-survey",
+      "source": "prose",
+      "promptMarkdown": "What are the options for self-hosting an LLM gateway right now? I want a sense of the whole landscape, not just one pick.",
+      "runsPerCase": 2,
+      "timeoutSeconds": 300,
+      "maxTurns": 12,
+      "graders": [
+        {
+          "name": "fanned-out",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "mock_calls",
+            "pattern": "\\[MOCK:broad_search\\]",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "names-real-options",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "(LiteLLM[\\s\\S]*Portkey)|(Portkey[\\s\\S]*LiteLLM)|(LiteLLM[\\s\\S]*Helicone)|(Helicone[\\s\\S]*LiteLLM)",
+            "flags": "i",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "skill-fired",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?octen-(web-search|research)\""
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 12,
+            "costUsd": 0.3517935,
+            "judgeCostUsd": 0,
+            "durationSeconds": 72,
+            "startedAt": "2026-09-15T09:01:59.668Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-6HaHJe/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 8,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "fanned-out",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:broad_search\\]",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "names-real-options",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched (LiteLLM[\\s\\S]*Portkey)|(Portkey[\\s\\S]*LiteLLM)|(LiteLLM[\\s\\S]*Helicone)|(Helicone[\\s\\S]*LiteLLM)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 9,
+            "costUsd": 0.325912,
+            "judgeCostUsd": 0,
+            "durationSeconds": 76,
+            "startedAt": "2026-09-15T09:03:11.218Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-9Dgubm/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 5,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "fanned-out",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:broad_search\\]",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "names-real-options",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched (LiteLLM[\\s\\S]*Portkey)|(Portkey[\\s\\S]*LiteLLM)|(LiteLLM[\\s\\S]*Helicone)|(Helicone[\\s\\S]*LiteLLM)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 1,
+            "costUsd": 0.19724100000000003,
+            "judgeCostUsd": 0,
+            "durationSeconds": 79,
+            "startedAt": "2026-09-15T09:04:27.057Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-CwzMPI/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "names-real-options",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched (LiteLLM[\\s\\S]*Portkey)|(Portkey[\\s\\S]*LiteLLM)|(LiteLLM[\\s\\S]*Helicone)|(Helicone[\\s\\S]*LiteLLM)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 1,
+            "costUsd": 0.17353600000000002,
+            "judgeCostUsd": 0,
+            "durationSeconds": 70,
+            "startedAt": "2026-09-15T09:05:46.460Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-aQsSwx/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "names-real-options",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched (LiteLLM[\\s\\S]*Portkey)|(Portkey[\\s\\S]*LiteLLM)|(LiteLLM[\\s\\S]*Helicone)|(Helicone[\\s\\S]*LiteLLM)",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1,
+        "scoreWithout": 1,
+        "passRateWithout": 1,
+        "delta": 0
+      }
+    },
+    {
+      "name": "read-a-url",
+      "dir": "evals/read-a-url",
+      "source": "prose",
+      "promptMarkdown": "Summarize this for me: https://docs.litellm.ai/docs/simple_proxy",
+      "runsPerCase": 2,
+      "timeoutSeconds": 300,
+      "maxTurns": 8,
+      "graders": [
+        {
+          "name": "did-not-search",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "mock_calls",
+            "pattern": "\\[MOCK:(search|broad_search)\\]",
+            "flags": "",
+            "match": "not_contains"
+          }
+        },
+        {
+          "name": "used-extract",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "mock_calls",
+            "pattern": "\\[MOCK:extract\\]",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "used-the-page-content",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "1\\.52\\.3|admin API",
+            "flags": "i",
+            "match": "contains"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 5,
+            "costUsd": 0.1353005,
+            "judgeCostUsd": 0,
+            "durationSeconds": 17,
+            "startedAt": "2026-09-15T09:06:56.326Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-4FHOfR/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 1,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "did-not-search",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "used-extract",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:extract\\]",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "used-the-page-content",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 1\\.52\\.3|admin API",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 5,
+            "costUsd": 0.1337625,
+            "judgeCostUsd": 0,
+            "durationSeconds": 26,
+            "startedAt": "2026-09-15T09:07:13.148Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-8ObWuL/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 1,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "did-not-search",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "used-extract",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:extract\\]",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "used-the-page-content",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 1\\.52\\.3|admin API",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 3,
+            "costUsd": 0.125674,
+            "judgeCostUsd": 0,
+            "durationSeconds": 25,
+            "startedAt": "2026-09-15T09:07:39.029Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-Sm9W2b/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "used-the-page-content",
+                "passed": false,
+                "weight": 1,
+                "explanation": "pattern not found in last_message",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0,
+            "passed": false,
+            "turns": 3,
+            "costUsd": 0.099658,
+            "judgeCostUsd": 0,
+            "durationSeconds": 16,
+            "startedAt": "2026-09-15T09:08:03.769Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-mhORZg/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "used-the-page-content",
+                "passed": false,
+                "weight": 1,
+                "explanation": "pattern not found in last_message",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1,
+        "scoreWithout": 0,
+        "passRateWithout": 0,
+        "delta": 1
+      }
+    },
+    {
+      "name": "research-pipeline",
+      "dir": "evals/research-pipeline",
+      "source": "prose",
+      "promptMarkdown": "Do a proper deep dive on the self-hosted LLM gateway landscape — I need to know the real options, how they differ on licence, and which ones teams actually run in production. Cite what you find.",
+      "runsPerCase": 2,
+      "timeoutSeconds": 300,
+      "maxTurns": 16,
+      "graders": [
+        {
+          "name": "fanned-out",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "mock_calls",
+            "pattern": "\\[MOCK:broad_search\\]",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "grounded-in-pages",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "mock_calls",
+            "pattern": "\\[MOCK:extract\\]",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "names-real-options",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "(LiteLLM[\\s\\S]*Portkey)|(Portkey[\\s\\S]*LiteLLM)|(LiteLLM[\\s\\S]*Helicone)|(Helicone[\\s\\S]*LiteLLM)",
+            "flags": "i",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "skill-fired",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?octen-research\""
+          }
+        },
+        {
+          "name": "used-what-it-retrieved",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "40 services",
+            "flags": "i",
+            "match": "contains"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 8,
+            "costUsd": 0.3077205,
+            "judgeCostUsd": 0,
+            "durationSeconds": 73,
+            "startedAt": "2026-09-15T09:08:20.260Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-GZPxc3/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 4,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "fanned-out",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:broad_search\\]",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "grounded-in-pages",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:extract\\]",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "names-real-options",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched (LiteLLM[\\s\\S]*Portkey)|(Portkey[\\s\\S]*LiteLLM)|(LiteLLM[\\s\\S]*Helicone)|(Helicone[\\s\\S]*LiteLLM)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "used-what-it-retrieved",
+                "passed": false,
+                "weight": 1,
+                "explanation": "pattern not found in last_message",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 9,
+            "costUsd": 0.3010585,
+            "judgeCostUsd": 0,
+            "durationSeconds": 54,
+            "startedAt": "2026-09-15T09:09:33.346Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-POrdbC/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 5,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "fanned-out",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:broad_search\\]",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "grounded-in-pages",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:extract\\]",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "names-real-options",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched (LiteLLM[\\s\\S]*Portkey)|(Portkey[\\s\\S]*LiteLLM)|(LiteLLM[\\s\\S]*Helicone)|(Helicone[\\s\\S]*LiteLLM)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "used-what-it-retrieved",
+                "passed": false,
+                "weight": 1,
+                "explanation": "pattern not found in last_message",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 5,
+            "costUsd": 0.3071205,
+            "judgeCostUsd": 0,
+            "durationSeconds": 126,
+            "startedAt": "2026-09-15T09:10:27.844Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-RssQEt/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "names-real-options",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched (LiteLLM[\\s\\S]*Portkey)|(Portkey[\\s\\S]*LiteLLM)|(LiteLLM[\\s\\S]*Helicone)|(Helicone[\\s\\S]*LiteLLM)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-what-it-retrieved",
+                "passed": false,
+                "weight": 1,
+                "explanation": "pattern not found in last_message",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 0.5,
+            "passed": false,
+            "turns": 6,
+            "costUsd": 0.3331285,
+            "judgeCostUsd": 0,
+            "durationSeconds": 115,
+            "startedAt": "2026-09-15T09:12:34.072Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-LohxQs/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "names-real-options",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched (LiteLLM[\\s\\S]*Portkey)|(Portkey[\\s\\S]*LiteLLM)|(LiteLLM[\\s\\S]*Helicone)|(Helicone[\\s\\S]*LiteLLM)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "used-what-it-retrieved",
+                "passed": false,
+                "weight": 1,
+                "explanation": "pattern not found in last_message",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 0.5,
+        "passRate": 0,
+        "scoreWithout": 0.5,
+        "passRateWithout": 0,
+        "delta": 0
+      }
+    },
+    {
+      "name": "single-fact-lookup",
+      "dir": "evals/single-fact-lookup",
+      "source": "prose",
+      "promptMarkdown": "What does Lambda Labs charge per GPU-hour for an on-demand H100 right now?",
+      "runsPerCase": 2,
+      "timeoutSeconds": 300,
+      "maxTurns": 8,
+      "graders": [
+        {
+          "name": "did-not-fan-out",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "mock_calls",
+            "pattern": "\\[MOCK:broad_search\\]",
+            "flags": "",
+            "match": "not_contains"
+          }
+        },
+        {
+          "name": "quotes-the-rate",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "2\\.99",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "skill-fired",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?octen-web-search\""
+          }
+        },
+        {
+          "name": "used-search",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "mock_calls",
+            "pattern": "\\[MOCK:search\\]",
+            "flags": "",
+            "match": "contains"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 5,
+            "costUsd": 0.147965,
+            "judgeCostUsd": 0,
+            "durationSeconds": 12,
+            "startedAt": "2026-09-15T09:14:29.453Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-AZ8POE/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 1,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "did-not-fan-out",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "quotes-the-rate",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 2\\.99",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "used-search",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:search\\]",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 5,
+            "costUsd": 0.15074000000000004,
+            "judgeCostUsd": 0,
+            "durationSeconds": 12,
+            "startedAt": "2026-09-15T09:14:41.115Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-jHFY7y/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 1,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "did-not-fan-out",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "quotes-the-rate",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 2\\.99",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "used-search",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:search\\]",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 2,
+            "costUsd": 0.0888885,
+            "judgeCostUsd": 0,
+            "durationSeconds": 14,
+            "startedAt": "2026-09-15T09:14:52.896Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-FqDGoN/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quotes-the-rate",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 2\\.99",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 2,
+            "costUsd": 0.0863885,
+            "judgeCostUsd": 0,
+            "durationSeconds": 13,
+            "startedAt": "2026-09-15T09:15:06.880Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-Bt59cj/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quotes-the-rate",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 2\\.99",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1,
+        "scoreWithout": 1,
+        "passRateWithout": 1,
+        "delta": 0
+      }
+    },
+    {
+      "name": "two-way-comparison",
+      "dir": "evals/two-way-comparison",
+      "source": "prose",
+      "promptMarkdown": "How does Lambda Labs' on-demand H100 pricing compare to CoreWeave's?",
+      "runsPerCase": 2,
+      "timeoutSeconds": 300,
+      "maxTurns": 10,
+      "graders": [
+        {
+          "name": "did-not-fan-out",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "mock_calls",
+            "pattern": "\\[MOCK:broad_search\\]",
+            "flags": "",
+            "match": "not_contains"
+          }
+        },
+        {
+          "name": "quotes-coreweave-rate",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "6\\.16",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "quotes-lambda-rate",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "last_message",
+            "pattern": "2\\.99",
+            "flags": "",
+            "match": "contains"
+          }
+        },
+        {
+          "name": "skill-fired",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?octen-web-search\""
+          }
+        },
+        {
+          "name": "used-search",
+          "type": "regex",
+          "weight": 1,
+          "config": {
+            "target": "mock_calls",
+            "pattern": "\\[MOCK:search\\]",
+            "flags": "",
+            "match": "contains"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 7,
+            "costUsd": 0.22088850000000002,
+            "judgeCostUsd": 0,
+            "durationSeconds": 24,
+            "startedAt": "2026-09-15T09:15:20.274Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-xLJD9r/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 3,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "did-not-fan-out",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "quotes-coreweave-rate",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 6\\.16",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "quotes-lambda-rate",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 2\\.99",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "used-search",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:search\\]",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 8,
+            "costUsd": 0.22352800000000003,
+            "judgeCostUsd": 0,
+            "durationSeconds": 35,
+            "startedAt": "2026-09-15T09:15:44.311Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-NBPTFz/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "mocks": {
+              "servers": [
+                {
+                  "server": "octen",
+                  "kind": "shadow",
+                  "tools": [
+                    {
+                      "tool": "broad_search",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "extract",
+                      "responder": "fixed"
+                    },
+                    {
+                      "tool": "search",
+                      "responder": "fixed"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [],
+              "calls": {
+                "total": 4,
+                "errors": 0,
+                "unmocked": [],
+                "costUsd": 0,
+                "replay": {
+                  "hits": 0,
+                  "misses": 0
+                }
+              }
+            },
+            "graders": [
+              {
+                "name": "did-not-fan-out",
+                "passed": true,
+                "weight": 1,
+                "explanation": "pattern absent as expected",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "quotes-coreweave-rate",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 6\\.16",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "quotes-lambda-rate",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 2\\.99",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "skill-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 1x (expected 1..∞)",
+                "withOnly": true,
+                "scored": false
+              },
+              {
+                "name": "used-search",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched \\[MOCK:search\\]",
+                "withOnly": true,
+                "scored": false
+              }
+            ]
+          }
+        ],
+        "without": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 2,
+            "costUsd": 0.12486050000000001,
+            "judgeCostUsd": 0,
+            "durationSeconds": 35,
+            "startedAt": "2026-09-15T09:16:19.461Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-o9Cwds/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quotes-coreweave-rate",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 6\\.16",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "quotes-lambda-rate",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 2\\.99",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          },
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 1,
+            "costUsd": 0.105506,
+            "judgeCostUsd": 0,
+            "durationSeconds": 27,
+            "startedAt": "2026-09-15T09:16:54.957Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-76M1JN/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "quotes-coreweave-rate",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 6\\.16",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "quotes-lambda-rate",
+                "passed": true,
+                "weight": 1,
+                "explanation": "matched 2\\.99",
+                "withOnly": false,
+                "scored": true
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1,
+        "scoreWithout": 1,
+        "passRateWithout": 1,
+        "delta": 0
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 5,
+    "casesPassed": 4,
+    "overallScore": 0.9,
+    "overallPassRate": 0.8,
+    "meanDelta": 0.2
+  }
+}

@@ -32,6 +32,7 @@
     "inspect": "npx -y @modelcontextprotocol/inspector node dist/index.js",
     "pretest": "npm run build",
     "test": "node --test test/*.test.mjs",
+    "check:plugin": "node scripts/check-plugin-manifests.mjs",
     "prepublishOnly": "npm run build",
     "dev:http": "tsc && node dist/httpServer.js"
   },

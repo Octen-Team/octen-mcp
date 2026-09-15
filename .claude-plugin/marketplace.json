@@ -1,0 +1,36 @@
+{
+  "name": "octen",
+  "owner": {
+    "name": "Octen",
+    "email": "support@octen.ai"
+  },
+  "metadata": {
+    "description": "Official Octen plugin for real-time web search, research, and URL extraction.",
+    "version": "0.5.2"
+  },
+  "plugins": [
+    {
+      "name": "octen",
+      "source": "./",
+      "description": "Connect Claude Code to Octen for real-time web search, broad multi-angle research, news, and URL extraction. Authenticates over OAuth on first use.",
+      "version": "0.5.2",
+      "author": {
+        "name": "Octen",
+        "email": "support@octen.ai"
+      },
+      "homepage": "https://docs.octen.ai/integrations/octen-mcp-server",
+      "repository": "https://github.com/Octen-Team/octen-mcp",
+      "license": "MIT",
+      "keywords": [
+        "mcp",
+        "octen",
+        "search",
+        "web-search",
+        "extract",
+        "research",
+        "news"
+      ],
+      "category": "productivity"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "octen",
+  "displayName": "Octen",
+  "description": "Real-time web search, broad multi-angle search, news, URL extraction, and image/video search via Octen's hosted MCP server.",
+  "version": "0.5.2",
+  "author": {
+    "name": "Octen",
+    "email": "support@octen.ai",
+    "url": "https://octen.ai"
+  },
+  "homepage": "https://docs.octen.ai/integrations/octen-mcp-server",
+  "repository": "https://github.com/Octen-Team/octen-mcp",
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "octen",
+    "search",
+    "web-search",
+    "extract",
+    "research",
+    "news"
+  ]
+}

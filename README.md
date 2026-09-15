@@ -39,7 +39,8 @@ Clean highlights, optional `full_content`, and page labels keep model context re
 
 ## Quick start
 
-You need an `OCTEN_API_KEY` from [octen.ai](https://octen.ai).
+You need an `OCTEN_API_KEY` from [octen.ai](https://octen.ai) — or nothing at
+all, if your client signs in over OAuth (see [Signing in instead](#signing-in-instead)).
 
 **Two ways to connect.** Both serve the same six tools.
 
@@ -71,7 +72,21 @@ Or use **OAuth** and paste no key at all — see [Signing in instead](#signing-i
 
 ### By client
 
-**Claude Code**
+**Claude Code** — install the plugin. It brings the hosted server together with
+two skills, `octen-web-search` (routes a request to the right tool) and
+`octen-research` (multi-source research pipeline):
+
+```bash
+claude plugin marketplace add Octen-Team/octen-mcp
+claude plugin install octen@octen
+```
+
+Or from inside a session: `/plugin marketplace add Octen-Team/octen-mcp`, then
+`/plugin install octen@octen`.
+
+The plugin carries no credential. The first call is answered `401` and Claude
+Code walks you through the OAuth sign-in — run `/mcp` if you want to start it
+yourself. To register the server on its own instead, with a key:
 
 ```bash
 claude mcp add --transport http octen https://mcp.octen.ai/mcp --header "x-api-key: your-key-here"

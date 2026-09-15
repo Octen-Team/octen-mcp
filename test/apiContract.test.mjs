@@ -99,6 +99,31 @@ for (const [name, { tool, fields }] of Object.entries(DOCUMENTED)) {
   });
 }
 
+/**
+ * A semantic rule of ours, not a published limit — which is why it is asserted
+ * here rather than added to DOCUMENTED above. The reference documents
+ * `query` max 500; it does not say "at least 1". An empty query is still
+ * nonsense, and letting it through means the caller learns that from an
+ * upstream 400 (or, worse, from a handler error after dispatch) instead of
+ * from the schema they read. Only a rule the reference states may go in
+ * DOCUMENTED, or that table stops meaning anything.
+ */
+test("a search query must be declared non-empty", () => {
+  for (const tool of [searchTool, newsSearchTool, broadSearchTool]) {
+    const query = tool.inputSchema.properties.query;
+    assert.ok(query, `${tool.name} must declare query`);
+    assert.equal(query.minLength, 1,
+      `${tool.name}.query must declare minLength 1 so an empty query is refused ` +
+      `before dispatch, not by the handler or the API`);
+  }
+});
+
+test("extract's optional query is not given an unpublished minimum", () => {
+  // extract's `query` is optional and drives highlight extraction. Nothing
+  // documents a minimum for it, so we must not invent one.
+  assert.equal(extractTool.inputSchema.properties.query.minLength, undefined);
+});
+
 test("enum values match the published API reference", () => {
   const enums = [
     [searchTool, "topic", ["general", "news"]],
@@ -119,9 +144,18 @@ test("enum values match the published API reference", () => {
 });
 
 /**
- * `timeout` is ours, not the API's: it is the client-side HTTP deadline and is
- * stripped from every request body before sending. It is the only name allowed
- * to appear in a schema without appearing in the API reference.
+ * `timeout` means two different things depending on the tool, and conflating
+ * them is how a published field could have been dropped without notice.
+ *
+ * On search / news_search / broad_search / image_search / video_search it is
+ * ours: the client-side HTTP deadline, stripped from the request body before
+ * sending. Those references do not document a `timeout`, which is why the name
+ * needs an allowance here at all.
+ *
+ * On `extract` it is the API's own per-URL fetch budget (1-60s) and travels in
+ * the body — the reference documents it, `DOCUMENTED_PARAMS.extract` lists it,
+ * and the allowance below must not be read as permission to strip it.
+ * test/http.test.mjs asserts both bodies exactly.
  */
 const CLIENT_ONLY = new Set(["timeout"]);
 

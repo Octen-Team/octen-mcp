@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] — 2026-09-08
+
+### Fixed
+
+- **An empty `query` is refused by the schema.** `search`, `news_search` and
+  `broad_search` declared `maxLength` but no minimum, so `query: ""` passed
+  validation and was caught only by the handler afterwards — a message from a
+  different layer than the schema the caller read. They now declare
+  `minLength: 1`, which this server's validator enforces. The handler's trim
+  guard stays: it is what catches `"   "`, which satisfies `minLength`.
+
+### Documentation
+
+- **`timeout` is documented as the two different things it is.** On search,
+  news, broad, image and video search it is this server's HTTP deadline and is
+  stripped from the request body; on `extract` it is the API's documented
+  per-URL fetch budget and is sent. The internal comment claimed the first for
+  all of them, which is how a published field could have been dropped without
+  anyone noticing. The test suite now asserts both request bodies exactly.
+
+- **The tool roster is stated as deliberate.** These six tools are the whole
+  surface; embeddings, chat, Answer and Research are reachable through the SDK
+  and CLI and are intentionally not exposed here.
+
+- **Overlapping include/exclude domains.** The API answers a domain listed in
+  both with a validation error, while the published reference describes
+  exclusion winning. Documented as the API's behaviour, with no client-side
+  workaround: silently dropping or reordering a caller's filters would hide
+  the disagreement rather than resolve it.
+
 ## [0.5.0] — 2026-08-31
 
 ### Added

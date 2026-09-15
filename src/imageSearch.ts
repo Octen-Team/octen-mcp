@@ -25,6 +25,14 @@ const API_KEY = process.env.OCTEN_API_KEY;
 /** Tool advertisement — clients see this in the list-tools response. */
 export const imageSearchTool: Tool = {
   name: "image_search",
+  // Explicit MCP tool annotations: every Octen tool is a read-only query
+  // against the open web — it fetches and never mutates external state.
+  // Plugin-directory reviews require these three hints on every tool.
+  annotations: {
+    readOnlyHint: true,
+    openWorldHint: true,
+    destructiveHint: false,
+  },
   description:
     `Find images on the web by text query OR by a reference image — returns ranked results (title, source page, dimensions, thumbnail, description, summary). In Beta; contact us to request beta access. Pass exactly one of: a text \`query\`, an \`image_url\` (a picture already on the web), or \`image_data\` (base64, for a picture you hold). Never more than one. Set \`topic\` to \`design\` for UI design references — each result then carries a structured style \`summary\` and an \`html_snippet\` for building/restyling frontends. Use this when the user wants pictures, photos, diagrams, screenshots, or visual references — not for general text web search.
 

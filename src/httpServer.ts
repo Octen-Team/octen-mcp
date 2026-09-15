@@ -510,6 +510,23 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     return;
   }
 
+  // Plugin-directory domain verification. Anonymous BY DESIGN, like the PRM
+  // above: the body is a random token the directory generated for us — not a
+  // secret of ours — fetched by the directory to confirm we control this
+  // host. 404 until the operator sets the token (zero surface by default),
+  // and the body must be ONLY the token: no JSON, no token lists. Read per
+  // request so tests and operators never depend on start-up ordering.
+  if (req.method === "GET" && path === "/.well-known/openai-apps-challenge") {
+    const token = (process.env.OCTEN_APPS_CHALLENGE_TOKEN ?? "").trim();
+    if (!token) {
+      json(res, 404, { error: "No challenge token configured (set OCTEN_APPS_CHALLENGE_TOKEN)." });
+      return;
+    }
+    res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
+    res.end(token);
+    return;
+  }
+
   // `/mcp/` too: a trailing slash is the commonest paste artifact in a URL a
   // human copies into a client config, and answering it with 404 makes a
   // working deployment look broken for a reason nobody inspects. `/mcp/oauth`

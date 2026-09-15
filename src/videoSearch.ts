@@ -23,6 +23,14 @@ const API_KEY = process.env.OCTEN_API_KEY;
 /** Tool advertisement — clients see this in the list-tools response. */
 export const videoSearchTool: Tool = {
   name: "video_search",
+  // Explicit MCP tool annotations: every Octen tool is a read-only query
+  // against the open web — it fetches and never mutates external state.
+  // Plugin-directory reviews require these three hints on every tool.
+  annotations: {
+    readOnlyHint: true,
+    openWorldHint: true,
+    destructiveHint: false,
+  },
   description:
     `Find videos on the web by text query — returns ranked results (title, source page, cover image, duration, matching segment, authors, description). In Beta; contact us to request beta access. Pass a text \`query\`. Use this when the user wants to find videos, clips, footage, tutorials, or a specific moment within a video — not for general text web search.
 

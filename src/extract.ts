@@ -28,6 +28,14 @@ const EXTRACT_CLIENT_TIMEOUT_CAP_SEC = 180;
 /** Tool advertisement — clients see this in the list-tools response. */
 export const extractTool: Tool = {
   name: "extract",
+  // Explicit MCP tool annotations: every Octen tool is a read-only query
+  // against the open web — it fetches and never mutates external state.
+  // Plugin-directory reviews require these three hints on every tool.
+  annotations: {
+    readOnlyHint: true,
+    openWorldHint: true,
+    destructiveHint: false,
+  },
   description:
     `Read one or more web pages by URL and return clean, LLM-ready content (markdown or text). By default (no \`query\`) it returns each page's full content — this is what you want in almost all cases. Only pass \`query\` when the user explicitly asks to fetch relevance-ranked snippets for a specific topic; doing so returns highlights INSTEAD of the full body, so the content will be partial. Every result also includes a \`category\` (topical) and \`page_structure\` (typology) classification. Bare hosts like 'octen.ai' are auto-normalized to https. Cached when fresh.
 

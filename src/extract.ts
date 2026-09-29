@@ -23,7 +23,13 @@ const API_KEY = process.env.OCTEN_API_KEY;
 const EXTRACT_SERVER_TIMEOUT_DEFAULT_SEC = 30;
 const EXTRACT_TIMEOUT_MAX_SEC = 60;   // schema maximum for `timeout`
 const EXTRACT_CLIENT_HEADROOM_SEC = 90;
+// `advanced` renders in a real browser and `auto` may escalate to it, so both
+// get more headroom. Sized so the ceiling reaches the cap exactly at the
+// `timeout` maximum — raising `timeout` still raises it all the way there.
+const EXTRACT_ADVANCED_CLIENT_HEADROOM_SEC = 120;
 const EXTRACT_CLIENT_TIMEOUT_CAP_SEC = 180;
+const EXTRACT_MAX_LINKS_MIN = 1;
+const EXTRACT_MAX_LINKS_MAX = 1000;
 
 /** Tool advertisement — clients see this in the list-tools response. */
 export const extractTool: Tool = {
@@ -40,6 +46,8 @@ export const extractTool: Tool = {
   },
   description:
     `Read one or more web pages by URL and return clean, LLM-ready content (markdown or text). By default (no \`query\`) it returns each page's full content — this is what you want in almost all cases. Only pass \`query\` when the user explicitly asks to fetch relevance-ranked snippets for a specific topic; doing so returns highlights INSTEAD of the full body, so the content will be partial. Every result also includes a \`category\` (topical) and \`page_structure\` (typology) classification. Bare hosts like 'octen.ai' are auto-normalized to https. Cached when fresh.
+
+Pick \`mode\` by how hard the URLs are: ordinary sites → standard (or omit), known hard sites → advanced, mixed/unsure → auto. If a standard result failed or came back empty/skeletal, retry just those URLs with mode "advanced".
 
 Use this when you already have the URL(s). To find pages first, use \`search\` or \`broad_search\`.
 
@@ -90,6 +98,41 @@ keywords: read page, fetch url, scrape, page content, article text, parse webpag
       include_images: { type: "boolean", default: false, description: "Return image resources found on each page (also enables `cover_image` when the page has one)." },
       include_videos: { type: "boolean", default: false, description: "Return video URLs found on each page." },
       include_audio:  { type: "boolean", default: false, description: "Return audio URLs found on each page." },
+      // No `default`: an omitted mode must stay omitted so the API applies its
+      // own (standard). A schema default is one some clients fill in themselves.
+      mode: {
+        type: "string",
+        enum: ["standard", "advanced", "auto"],
+        description:
+          "Extraction mode; omitted means standard. " +
+          "standard: fastest, cheapest; right for news, blogs, docs, product and static pages. " +
+          "On login-walled, JS-heavy or anti-bot sites it may return empty or skeletal content yet still report success. " +
+          "advanced: highest success rate (real browser, stronger anti-bot), slower, 2.5x price; for anti-bot/WAF sites, " +
+          "JS-heavy SPAs, social (Reddit, X, LinkedIn), academic (ResearchGate), dynamically loaded content. " +
+          "auto: picks per URL, escalating to advanced only where needed, billed per mode used; for mixed batches. " +
+          "With advanced/auto, raise `timeout` (e.g. 60). Each result's resolved_mode is the mode actually used.",
+      },
+      include_links: {
+        type: "object",
+        description:
+          "Return links found on each page — to discover a site's pages or follow outbound references. " +
+          "`{}` uses the defaults. Each link carries is_external.",
+        properties: {
+          scope: {
+            type: "string",
+            enum: ["prefer_internal", "prefer_external"],
+            description:
+              "Which links are listed first (page order kept within each group). " +
+              "prefer_internal (default): same-site first; prefer_external: other registered domains first.",
+          },
+          max_links: {
+            type: "integer",
+            minimum: EXTRACT_MAX_LINKS_MIN,
+            maximum: EXTRACT_MAX_LINKS_MAX,
+            description: "Maximum links per page, 1-1000. Default 200.",
+          },
+        },
+      },
     },
     required: ["urls"],
   },
@@ -104,6 +147,8 @@ interface ExtractArgs {
   include_images?: boolean;
   include_videos?: boolean;
   include_audio?: boolean;
+  mode?: "standard" | "advanced" | "auto";
+  include_links?: { scope?: "prefer_internal" | "prefer_external"; max_links?: number };
 }
 
 /** Handler — POSTs to Octen Extract and reshapes the response for the LLM. */
@@ -113,6 +158,23 @@ export async function handleExtract(rawArgs: Record<string, unknown>, ctx?: Hand
   if (!Array.isArray(args.urls) || args.urls.length === 0) {
     return errorResult("`urls` must be a non-empty array of strings");
   }
+  // `include_links` must be an object, and unlike `timeout` the API rejects an
+  // out-of-range `max_links` with a 400 instead of clamping it, so refuse both
+  // here with a sentence naming the field. The schema validator already
+  // enforces these on every transport; this guard covers direct in-process
+  // callers, which bypass it.
+  const links = args.include_links as unknown;
+  if (links !== undefined && (links === null || typeof links !== "object" || Array.isArray(links))) {
+    return errorResult(`\`include_links\` must be an object (\`{}\` uses the defaults), got ${JSON.stringify(links)}`);
+  }
+  const maxLinks = args.include_links?.max_links;
+  if (maxLinks !== undefined &&
+      (!Number.isInteger(maxLinks) || maxLinks < EXTRACT_MAX_LINKS_MIN || maxLinks > EXTRACT_MAX_LINKS_MAX)) {
+    return errorResult(
+      `\`include_links.max_links\` must be an integer from ${EXTRACT_MAX_LINKS_MIN} to ${EXTRACT_MAX_LINKS_MAX}, got ${JSON.stringify(maxLinks)}`
+    );
+  }
+
   // When a transport supplies ctx, it is authoritative — no env fallback. The
   // stdio entry resolves the env key into ctx itself; falling back here would
   // let an unauthenticated HTTP caller silently ride the deployment's own
@@ -132,6 +194,13 @@ export async function handleExtract(rawArgs: Record<string, unknown>, ctx?: Hand
   if (args.include_images !== undefined)  body.include_images = args.include_images;
   if (args.include_videos !== undefined)  body.include_videos = args.include_videos;
   if (args.include_audio !== undefined)   body.include_audio = args.include_audio;
+  if (args.mode !== undefined)            body.mode = args.mode;
+  if (args.include_links !== undefined)   body.include_links = args.include_links;
+
+  const perUrlSec = args.timeout ?? EXTRACT_SERVER_TIMEOUT_DEFAULT_SEC;
+  const headroomSec = args.mode === "advanced" || args.mode === "auto"
+    ? EXTRACT_ADVANCED_CLIENT_HEADROOM_SEC
+    : EXTRACT_CLIENT_HEADROOM_SEC;
 
   let resp: Response;
   try {
@@ -140,13 +209,10 @@ export async function handleExtract(rawArgs: Record<string, unknown>, ctx?: Hand
       path: "/extract",
       body,
       label: "Octen Extract",
-      defaultTimeoutSec: Math.min(
-        EXTRACT_CLIENT_TIMEOUT_CAP_SEC,
-        (args.timeout ?? EXTRACT_SERVER_TIMEOUT_DEFAULT_SEC) + EXTRACT_CLIENT_HEADROOM_SEC
-      ),
+      defaultTimeoutSec: Math.min(EXTRACT_CLIENT_TIMEOUT_CAP_SEC, perUrlSec + headroomSec),
       // The ceiling derives from the per-URL budget, so raising `timeout` does
       // raise it — but only while `timeout` is below its own schema maximum.
-      canRaiseTimeout: (args.timeout ?? EXTRACT_SERVER_TIMEOUT_DEFAULT_SEC) < EXTRACT_TIMEOUT_MAX_SEC,
+      canRaiseTimeout: perUrlSec < EXTRACT_TIMEOUT_MAX_SEC,
     });
   } catch (e) {
     if (e instanceof OctenHttpError) return errorResult(e.message);
@@ -177,7 +243,9 @@ export async function handleExtract(rawArgs: Record<string, unknown>, ctx?: Hand
   // without a separate huge JSON dump (which previously made models reach for
   // jq / file_search just to extract a title).
   const results = data?.data?.results ?? [];
-  const meta = data?.data?.meta ?? {};
+  // `meta` is top-level (sibling of `data`), as on search. Reading it from
+  // `data.meta` silently dropped usage, latency and the billing warning.
+  const meta = data?.meta ?? {};
   const total = results.length;
 
   const blocks = results.map((r: any, i: number) => formatResult(r, i + 1, total));
@@ -199,6 +267,9 @@ function formatResult(r: any, idx: number, total: number): string {
   }
 
   const lines: string[] = [head, `**Status:** success`];
+  // The mode actually used, which can differ from the one requested (auto
+  // picks per URL; advanced can resolve to standard).
+  if (r.resolved_mode) lines.push(`**Mode:** ${r.resolved_mode}`);
   if (r.title) lines.push(`**Title:** ${r.title}`);
   const cat = r.category?.primary;
   if (cat) lines.push(`**Category:** ${cat}${r.category?.secondary ? " / " + r.category.secondary : ""}`);
@@ -222,8 +293,24 @@ function formatResult(r: any, idx: number, total: number): string {
   } else if (typeof r.full_content === "string" && r.full_content.length > 0) {
     lines.push(`\n### Content\n${r.full_content}`);
   }
+  lines.push(...formatLinks(r.links));
 
   return lines.join("\n");
+}
+
+/** `links[]` as a list; the count is capped upstream by `max_links`, so all are shown. */
+function formatLinks(links: unknown): string[] {
+  if (!Array.isArray(links)) return [];
+  // Page-supplied text lands in our markdown, so neither field may carry a
+  // line break: an anchor like "\n\n---\n\n## Result 2/2: …" would otherwise
+  // forge a result boundary. A URL with whitespace in it is not a URL.
+  const entries = links.filter((l: any) => typeof l?.url === "string" && l.url !== "" && !/\s/.test(l.url));
+  if (entries.length === 0) return [];
+  const items = entries.map((l: any) => {
+    const anchor = typeof l.anchor_text === "string" ? l.anchor_text.replace(/\s+/g, " ").trim() : "";
+    return `- ${l.url}${anchor ? ` — ${anchor}` : ""}${l.is_external === true ? " (external)" : ""}`;
+  });
+  return [`\n### Links (${entries.length})`, ...items];
 }
 
 function formatMeta(meta: any, requestId: string | undefined): string {
@@ -232,6 +319,11 @@ function formatMeta(meta: any, requestId: string | undefined): string {
   if (u) {
     if (typeof u.total_urls === "number") parts.push(`total_urls: ${u.total_urls}`);
     if (typeof u.successful_urls === "number") parts.push(`successful_urls: ${u.successful_urls}`);
+    // Authoritative for billing — summing per-result resolved_mode is not.
+    const byMode = u.successful_by_mode;
+    if (byMode && (typeof byMode.standard_urls === "number" || typeof byMode.advanced_urls === "number")) {
+      parts.push(`billed: standard ${byMode.standard_urls ?? 0}, advanced ${byMode.advanced_urls ?? 0}`);
+    }
   }
   if (typeof meta?.latency === "number") parts.push(`latency_ms: ${meta.latency}`);
   if (meta?.warning) parts.push(`warning: ${meta.warning}`);

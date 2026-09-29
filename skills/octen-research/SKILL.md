@@ -67,7 +67,8 @@ spend it on the handful that carry real evidence.
 step exists to read the page, and setting `query` returns ranked excerpts *instead
 of* the body, which is the opposite of grounding. Each result carries `category`
 and `page_structure` — use them to throw out login walls and nav pages before
-spending context on what you fetched.
+spending context on what you fetched. Retry failed or empty extracts with
+`mode: "advanced"`.
 
 Any claim that ends up in the answer should trace to a page you actually
 extracted, not to a search snippet.

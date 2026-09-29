@@ -422,6 +422,25 @@ reorders your filters — you get the API's answer.
 | `include_images` | boolean |  |  | `false` |
 | `include_videos` | boolean |  |  | `false` |
 | `include_audio` | boolean |  |  | `false` |
+| `mode` | string |  | `standard` / `advanced` / `auto` | omitted (API uses `standard`) |
+| `include_links` | object |  | `scope` (`prefer_internal` / `prefer_external`), `max_links` (1–1000) | `{}` → `prefer_internal`, `200` |
+
+Choosing `mode`:
+
+| Scenario | mode |
+|---|---|
+| News / blogs / docs / product pages (ordinary sites) | `standard` (or omit) |
+| Known hard sites (Reddit / X / LinkedIn / ResearchGate / anti-bot / SPA) | `advanced` |
+| Mixed batch, unsure which are hard | `auto` |
+| Cost-sensitive, mostly ordinary sites | `standard` |
+| Quality first, mostly hard sites | `advanced` |
+
+`standard` can report `success` with empty or skeletal content on hard sites;
+retry just those URLs with `advanced`. `advanced` is slower and 2.5x the price
+of `standard`; `auto` bills each URL at the mode it used. With `advanced` or
+`auto`, raise `timeout` (e.g. 60). Each result shows its `resolved_mode`, and
+the meta line's `billed:` counts come from `meta.usage.successful_by_mode`,
+which is authoritative for billing.
 
 #### `image_search`
 

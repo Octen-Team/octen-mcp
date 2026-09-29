@@ -135,19 +135,50 @@ if "not found" in answer.lower() or answer.confidence < 0.7:
 
 ---
 
+## Choosing `mode`, and asking for links
+
+`mode` is optional; omitted, the API uses `standard`.
+
+- `standard` — fastest and cheapest. Right for news, blogs, docs, product pages
+  and static sites. On login-walled, JS-heavy or anti-bot sites it may return
+  empty content or a page skeleton and still report `status: "success"`.
+- `advanced` — highest success rate: renders in a real browser with stronger
+  anti-bot handling. Slower, and 2.5x the price. Use it for known hard sites:
+  anti-bot/WAF-protected sites, JS-heavy SPAs, Reddit / X / LinkedIn,
+  ResearchGate, dynamically loaded content.
+- `auto` — picks per URL, escalating to advanced only where needed; each URL is
+  billed at the mode it actually used. Use it for a mixed batch. If most URLs
+  are hard, its cost approaches all-advanced.
+
+With `advanced` or `auto`, raise `timeout` (for example 60). Each result's
+`resolved_mode` is the mode actually used — it can differ from the one you
+asked for — and `meta.usage.successful_by_mode` is the authoritative billing
+count.
+
+`include_links: {scope?, max_links?}` returns each page's links as
+`{url, anchor_text, is_external}` — use it to discover a site's pages or follow
+outbound references. `prefer_internal` (the default) lists same-site links
+first, `prefer_external` other registered domains first; `max_links` is 1-1000 (default
+200), and out of range is an error rather than clamped.
+
+---
+
 ## The decision tree (TL;DR diagram)
 
 ```
-extract(urls, query?) returns each result.
+extract(urls, query?, mode?, include_links?) returns each result.
 
 For each result r:
 
   if r.status == "failed":
       → handle error (404 / 500 / DNS — different remediations)
+      → if r was fetched in standard mode, retry once with mode="advanced"
       → don't try to consume r.full_content; it's empty
 
   elif r.page_structure.primary == "No Main Content":
-      → skip; tell user the page is a shell / login wall
+      → if r.resolved_mode == "standard", retry once with mode="advanced"
+        (anti-bot and JS-heavy pages often come back as a skeleton in standard)
+      → otherwise skip; tell user the page is a shell / login wall
       → DO NOT summarize r.full_content (it's nav)
 
   elif r.page_structure.primary == "Index Page":

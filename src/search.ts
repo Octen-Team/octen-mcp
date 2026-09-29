@@ -319,7 +319,7 @@ export async function handleSearch(rawArgs: Record<string, unknown>, ctx?: Handl
     );
   }
 
-  // Unlike extract, search puts `meta` at the top level (sibling of `data`).
+  // `meta` is top-level (sibling of `data`), as it is on extract.
   const results = data?.data?.results ?? [];
   const meta = data?.meta ?? {};
   const total = results.length;

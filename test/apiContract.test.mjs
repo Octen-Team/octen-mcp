@@ -63,6 +63,8 @@ const DOCUMENTED = {
       "query": { maxLength: 500 },
       "timeout": { minimum: 1, maximum: 60 },
       "max_age_seconds": { minimum: 300, maximum: 31536000 },
+      // Verified 2026-09-28: out of range is a 400, not clamped.
+      "include_links.max_links": { minimum: 1, maximum: 1000 },
     },
   },
   image_search: {
@@ -132,6 +134,8 @@ test("enum values match the published API reference", () => {
     [searchTool, "format", ["text", "markdown"]],
     [searchTool, "safesearch", ["off", "strict"]],
     [extractTool, "format", ["markdown", "text"]],
+    [extractTool, "mode", ["standard", "advanced", "auto"]],
+    [extractTool, "include_links.scope", ["prefer_internal", "prefer_external"]],
     [imageSearchTool, "safesearch", ["off", "strict"]],
     [videoSearchTool, "safesearch", ["off", "strict"]],
   ];
@@ -170,7 +174,7 @@ const DOCUMENTED_PARAMS = {
                  "include_domains", "exclude_domains", "safesearch", "html_snippet"],
   video_search: ["query", "count", "time_range", "start_time", "end_time", "safesearch"],
   extract: ["urls", "query", "max_age_seconds", "format", "timeout",
-            "include_images", "include_videos", "include_audio"],
+            "include_images", "include_videos", "include_audio", "mode", "include_links"],
 };
 
 test("no tool advertises a parameter the API reference does not document", () => {

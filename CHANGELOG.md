@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-09-29
+
+### Added
+
+- **`extract` takes `mode`** — `standard` / `advanced` / `auto`. Omitted, it is
+  omitted from the request too, so the API's own default (standard) applies;
+  no client default is injected. The schema description carries the guidance
+  for choosing: ordinary sites standard, known hard sites (anti-bot, SPAs,
+  social, academic) advanced, mixed batches auto, and retry a failed or
+  empty/skeletal standard result with advanced. `advanced` and `auto` get a
+  wider client deadline (per-URL `timeout` + 120s instead of + 90s), under the
+  same 180s cap.
+- **`extract` takes `include_links`** — `{ scope?, max_links? }`, passed through
+  as given (`{}` uses the API defaults). The API answers an out-of-range
+  `max_links` with a 400 rather than clamping it, so 1-1000 is enforced here
+  with an error naming the field.
+- **New response fields are rendered**: each successful result shows
+  `**Mode:**` (its `resolved_mode`, which can differ from the requested mode),
+  and a `### Links` section lists `links[]` with anchor text, external links
+  marked. The meta line adds `billed: standard N, advanced M` from
+  `meta.usage.successful_by_mode`, the authoritative billing count.
+
+### Fixed
+
+- **`extract` never rendered its meta line.** The handler read `data.meta`;
+  the API returns `meta` at the top level, as it does on search. Usage counts,
+  latency and the "failed and were not billed" warning were silently dropped.
+  The comment in `search.ts` that described extract as nesting it was wrong
+  too, and is corrected.
+
 ## [0.5.2] — 2026-09-08
 
 ### Fixed

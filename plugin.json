@@ -1,0 +1,22 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "octen",
+  "version": "0.6.0",
+  "description": "Real-time web search, broad multi-angle research, news, and URL extraction through Octen's hosted MCP server. Authorizes over OAuth on first use \u2014 nothing to install and no API key to paste.",
+  "author": {
+    "name": "Octen",
+    "email": "support@octen.ai",
+    "url": "https://octen.ai"
+  },
+  "homepage": "https://docs.octen.ai/integrations/octen-mcp-server",
+  "repository": "https://github.com/Octen-Team/octen-mcp",
+  "license": "MIT",
+  "keywords": [
+    "web search",
+    "news search",
+    "research",
+    "content extraction",
+    "mcp",
+    "octen"
+  ]
+}

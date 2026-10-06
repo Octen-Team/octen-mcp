@@ -44,6 +44,45 @@ for (const [i, entry] of (market.plugins ?? []).entries()) {
   }
 }
 
+// The Agent Plugins manifests at the repository root serve Cursor and any other
+// client that reads the open standard. They hardcode the version the same way
+// the Claude ones do, so they are held to the same check.
+let agentPlugin;
+try {
+  agentPlugin = read("plugin.json");
+} catch (err) {
+  problems.push(`plugin.json is missing or unparseable: ${err.message}`);
+}
+if (agentPlugin) {
+  if (agentPlugin.version !== pkg.version) {
+    problems.push(`plugin.json version is ${agentPlugin.version}, package.json is ${pkg.version}`);
+  }
+  if (agentPlugin.name !== plugin.name) {
+    problems.push(`plugin.json name is ${agentPlugin.name}, .claude-plugin/plugin.json says ${plugin.name}`);
+  }
+  if (agentPlugin.$schema !== "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json") {
+    problems.push("plugin.json is missing the Agent Plugins manifest $schema identifier");
+  }
+}
+
+let agentMcp;
+try {
+  agentMcp = read("mcp.json");
+} catch (err) {
+  problems.push(`mcp.json is missing or unparseable: ${err.message}`);
+}
+if (agentMcp) {
+  const s = agentMcp.mcpServers?.octen;
+  if (!s) problems.push('mcp.json does not declare an "octen" server');
+  else {
+    // The standard names this transport streamable-http; Claude's .mcp.json says
+    // http for the same endpoint. Neither spelling is valid in the other file.
+    if (s.type !== "streamable-http") problems.push(`mcp.json octen.type is ${s.type}, expected streamable-http`);
+    if (s.url !== "https://mcp.octen.ai/mcp") problems.push(`mcp.json octen.url is ${s.url}, expected https://mcp.octen.ai/mcp`);
+    if (s.headers) problems.push("mcp.json octen carries headers; the server authenticates over OAuth");
+  }
+}
+
 for (const field of ["name", "description", "version", "author", "license"]) {
   if (!plugin[field]) problems.push(`.claude-plugin/plugin.json is missing ${field}`);
 }

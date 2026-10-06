@@ -92,7 +92,9 @@ yourself. To register the server on its own instead, with a key:
 claude mcp add --transport http octen https://mcp.octen.ai/mcp --header "x-api-key: your-key-here"
 ```
 
-**Cursor** — `~/.cursor/mcp.json`
+**Cursor** — install the Octen plugin from the [Cursor Marketplace](https://cursor.com/marketplace),
+which brings the hosted server and both skills in one step. To wire up only the
+server, add it to `~/.cursor/mcp.json`:
 
 ```json
 {

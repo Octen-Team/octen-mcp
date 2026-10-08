@@ -141,16 +141,20 @@ if (!plugin.keywords?.length) {
   }
 }
 
-// One plugin filed under two categories reads as two products to anyone
-// browsing by category in two clients.
-const categories = [
-  [".claude-plugin/marketplace.json plugins[0]", market.plugins?.[0]?.category],
-  [".cursor-plugin/plugin.json", cursorPlugin?.category],
-].filter(([, c]) => c);
-if (categories.length > 1) {
-  const [[, first]] = categories;
-  for (const [label, c] of categories) {
-    if (c !== first) problems.push(`${label} category is ${c}, which disagrees with the others`);
+// Each directory has its own category vocabulary, so these two must NOT match:
+// Claude's catalogs use "development" and have no "developer-tools" entry at
+// all, while Cursor's published plugins use "developer-tools". Holding them
+// equal is what put an invalid value in the Claude manifest. Each is checked
+// against the words its own directory actually uses instead.
+const CATEGORIES = {
+  ".claude-plugin/marketplace.json": ["development", "productivity", "database", "monitoring",
+    "security", "deployment", "design", "automation", "learning", "testing", "finance", "location"],
+  ".cursor-plugin/plugin.json": ["developer-tools", "utilities"],
+};
+for (const [label, allowed] of Object.entries(CATEGORIES)) {
+  const c = label.startsWith(".claude") ? market.plugins?.[0]?.category : cursorPlugin?.category;
+  if (c && !allowed.includes(c)) {
+    problems.push(`${label} category "${c}" is not one ${label.startsWith(".claude") ? "Claude's" : "Cursor's"} directory uses`);
   }
 }
 

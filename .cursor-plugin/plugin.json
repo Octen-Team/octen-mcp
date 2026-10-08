@@ -16,15 +16,13 @@
     "web-search",
     "news",
     "research",
-    "content-extraction",
-    "mcp"
+    "content-extraction"
   ],
   "keywords": [
     "web search",
     "news search",
     "research",
     "content extraction",
-    "mcp",
     "octen"
   ],
   "logo": "assets/logo.png"

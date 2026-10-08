@@ -22,13 +22,11 @@
       "repository": "https://github.com/Octen-Team/octen-mcp",
       "license": "MIT",
       "keywords": [
-        "mcp",
-        "octen",
-        "search",
-        "web-search",
-        "extract",
+        "web search",
+        "news search",
         "research",
-        "news"
+        "content extraction",
+        "octen"
       ],
       "category": "productivity"
     }

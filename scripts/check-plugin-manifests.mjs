@@ -108,6 +108,21 @@ if (cursorPlugin) {
   }
 }
 
+// Four manifests describe the same plugin to four directories. Keywords are
+// what each directory searches, so they drift silently when only one is edited.
+const keywordSets = [
+  [".claude-plugin/plugin.json", plugin.keywords],
+  ["plugin.json", agentPlugin?.keywords],
+  [".cursor-plugin/plugin.json", cursorPlugin?.keywords],
+  ...(market.plugins ?? []).map((e, i) => [`.claude-plugin/marketplace.json plugins[${i}]`, e.keywords]),
+];
+const canonical = JSON.stringify(plugin.keywords ?? []);
+for (const [label, got] of keywordSets) {
+  if (got && JSON.stringify(got) !== canonical) {
+    problems.push(`${label} keywords differ from .claude-plugin/plugin.json`);
+  }
+}
+
 for (const field of ["name", "description", "version", "author", "license"]) {
   if (!plugin[field]) problems.push(`.claude-plugin/plugin.json is missing ${field}`);
 }

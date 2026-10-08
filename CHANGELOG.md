@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Agent Plugins manifests (`plugin.json`, `mcp.json`) at the repository root, so
+  the plugin installs in Cursor and any other client that reads the open
+  standard, and a `.cursor-plugin/plugin.json` carrying the display fields a
+  Cursor listing reads.
+- `scripts/sync-plugin-manifests.mjs`, wired into `npm version`, which writes
+  `package.json`'s version into every manifest instead of leaving four copies
+  to be edited by hand.
+
+### Changed
+
+- Plugin keywords now name capabilities rather than the transport: `mcp`,
+  `extract`, and the duplicate `search` are gone, and `broad search` is listed.
+  A saved search for the removed terms no longer matches the plugin.
+- The listing description names the invite-only Beta tools the endpoint serves,
+  and every manifest carries the same description and category.
+
 ## [0.6.0] — 2026-09-29
 
 ### Added

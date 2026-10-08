@@ -2,7 +2,7 @@
   "name": "octen-mcp",
   "version": "0.6.0",
   "mcpName": "io.github.Octen-Team/octen-mcp",
-  "description": "MCP server for Octen — web search plus URL extract: LLM-ready markdown with query-driven highlights, category, and page_structure classification.",
+  "description": "MCP server for Octen \u2014 web search plus URL extract: LLM-ready markdown with query-driven highlights, category, and page_structure classification.",
   "license": "MIT",
   "author": "Octen <hello@octen.ai>",
   "homepage": "https://github.com/Octen-Team/octen-mcp#readme",
@@ -33,6 +33,8 @@
     "pretest": "npm run build",
     "test": "node --test test/*.test.mjs",
     "check:plugin": "node scripts/check-plugin-manifests.mjs",
+    "sync:plugin": "node scripts/sync-plugin-manifests.mjs",
+    "version": "node scripts/sync-plugin-manifests.mjs && git add .claude-plugin plugin.json .cursor-plugin",
     "prepublishOnly": "npm run build",
     "dev:http": "tsc && node dist/httpServer.js"
   },

@@ -79,7 +79,12 @@ if (agentMcp) {
     // http for the same endpoint. Neither spelling is valid in the other file.
     if (s.type !== "streamable-http") problems.push(`mcp.json octen.type is ${s.type}, expected streamable-http`);
     if (s.url !== "https://mcp.octen.ai/mcp") problems.push(`mcp.json octen.url is ${s.url}, expected https://mcp.octen.ai/mcp`);
-    if (s.headers) problems.push("mcp.json octen carries headers; the server authenticates over OAuth");
+    // Both carriers, not just headers: this file installs from a public repo, so
+    // a credential in either one ships to everyone.
+    if (s.headers || s.env) problems.push("mcp.json octen carries credentials; the server authenticates over OAuth");
+  }
+  if (agentMcp.$schema !== "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json") {
+    problems.push("mcp.json is missing the Agent Plugins MCP configuration $schema identifier");
   }
 }
 
@@ -101,25 +106,51 @@ if (cursorPlugin) {
   }
   // Marketplace listings resolve a relative logo against the repository, so an
   // absent file ships a broken image rather than failing anything at install.
-  if (cursorPlugin.logo && !cursorPlugin.logo.startsWith("http")) {
+  if (cursorPlugin.logo && !/^https?:\/\//.test(cursorPlugin.logo)) {
     if (!existsSync(ROOT + cursorPlugin.logo)) {
       problems.push(`.cursor-plugin/plugin.json logo ${cursorPlugin.logo} is not in the repository`);
     }
   }
 }
 
-// Four manifests describe the same plugin to four directories. Keywords are
-// what each directory searches, so they drift silently when only one is edited.
-const keywordSets = [
-  [".claude-plugin/plugin.json", plugin.keywords],
-  ["plugin.json", agentPlugin?.keywords],
-  [".cursor-plugin/plugin.json", cursorPlugin?.keywords],
-  ...(market.plugins ?? []).map((e, i) => [`.claude-plugin/marketplace.json plugins[${i}]`, e.keywords]),
+// Four manifests describe the same plugin to four directories. Keywords and
+// category are what each directory searches and files under, so they drift the
+// moment one is edited alone.
+const SHARED = [
+  ["plugin.json", agentPlugin],
+  [".cursor-plugin/plugin.json", cursorPlugin],
+  ...(market.plugins ?? []).map((e, i) => [`.claude-plugin/marketplace.json plugins[${i}]`, e]),
 ];
-const canonical = JSON.stringify(plugin.keywords ?? []);
-for (const [label, got] of keywordSets) {
-  if (got && JSON.stringify(got) !== canonical) {
-    problems.push(`${label} keywords differ from .claude-plugin/plugin.json`);
+
+// Compared as a set: these feed directory search, where order carries no
+// meaning, so reordering the same terms is not a difference worth failing on.
+const sameTerms = (a, b) =>
+  a.length === b.length && [...a].sort().join("\u0000") === [...b].sort().join("\u0000");
+
+if (!plugin.keywords?.length) {
+  problems.push(".claude-plugin/plugin.json has no keywords to hold the other manifests to");
+} else {
+  for (const [label, m] of SHARED) {
+    if (!m) continue;
+    // An absent field is the most likely way this drifts, so it is a problem
+    // rather than a reason to skip the comparison.
+    if (!m.keywords?.length) problems.push(`${label} has no keywords`);
+    else if (!sameTerms(m.keywords, plugin.keywords)) {
+      problems.push(`${label} keywords differ from .claude-plugin/plugin.json`);
+    }
+  }
+}
+
+// One plugin filed under two categories reads as two products to anyone
+// browsing by category in two clients.
+const categories = [
+  [".claude-plugin/marketplace.json plugins[0]", market.plugins?.[0]?.category],
+  [".cursor-plugin/plugin.json", cursorPlugin?.category],
+].filter(([, c]) => c);
+if (categories.length > 1) {
+  const [[, first]] = categories;
+  for (const [label, c] of categories) {
+    if (c !== first) problems.push(`${label} category is ${c}, which disagrees with the others`);
   }
 }
 

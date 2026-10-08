@@ -19,9 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Plugin keywords now name capabilities rather than the transport: `mcp`,
-  `extract`, and the duplicate `search` are gone, and `broad search` is listed.
-  A saved search for the removed terms no longer matches the plugin.
+- Plugin keywords now name capabilities rather than the transport: `mcp` and
+  the duplicate `search` are gone, and `broad search` and `fetch` are listed
+  alongside `extract`. A saved search for `mcp` no longer matches the plugin.
 - The listing description names the invite-only Beta tools the endpoint serves,
   and every manifest carries the same description and category.
 

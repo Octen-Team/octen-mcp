@@ -12,7 +12,7 @@
     {
       "name": "octen",
       "source": "./",
-      "description": "Real-time web search, broad multi-angle research, news, and URL extraction through Octen's hosted MCP server, plus image and video search in invite-only Beta. Authorizes over OAuth on first use — nothing to install and no API key to paste.",
+      "description": "Real-time web search, broad multi-angle research, news, and URL extraction through Octen's hosted MCP server, plus image and video search in invite-only Beta. Authorizes over OAuth on first use \u2014 nothing to install and no API key to paste.",
       "version": "0.6.0",
       "author": {
         "name": "Octen",
@@ -26,6 +26,8 @@
         "broad search",
         "news search",
         "research",
+        "extract",
+        "fetch",
         "content extraction",
         "octen"
       ],

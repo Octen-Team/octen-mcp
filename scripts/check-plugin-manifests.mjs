@@ -6,7 +6,7 @@
 // and made the version a client reported useless for triage. The plugin
 // manifests cannot read package.json at runtime, so the guard moves to CI.
 
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -41,6 +41,120 @@ for (const [i, entry] of (market.plugins ?? []).entries()) {
   // byte-identical by hand.
   if (entry.mcpServers) {
     problems.push(`${at} declares mcpServers; the plugin's .mcp.json already does`);
+  }
+}
+
+// The Agent Plugins manifests at the repository root serve Cursor and any other
+// client that reads the open standard. They hardcode the version the same way
+// the Claude ones do, so they are held to the same check.
+let agentPlugin;
+try {
+  agentPlugin = read("plugin.json");
+} catch (err) {
+  problems.push(`plugin.json is missing or unparseable: ${err.message}`);
+}
+if (agentPlugin) {
+  if (agentPlugin.version !== pkg.version) {
+    problems.push(`plugin.json version is ${agentPlugin.version}, package.json is ${pkg.version}`);
+  }
+  if (agentPlugin.name !== plugin.name) {
+    problems.push(`plugin.json name is ${agentPlugin.name}, .claude-plugin/plugin.json says ${plugin.name}`);
+  }
+  if (agentPlugin.$schema !== "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json") {
+    problems.push("plugin.json is missing the Agent Plugins manifest $schema identifier");
+  }
+}
+
+let agentMcp;
+try {
+  agentMcp = read("mcp.json");
+} catch (err) {
+  problems.push(`mcp.json is missing or unparseable: ${err.message}`);
+}
+if (agentMcp) {
+  const s = agentMcp.mcpServers?.octen;
+  if (!s) problems.push('mcp.json does not declare an "octen" server');
+  else {
+    // The standard names this transport streamable-http; Claude's .mcp.json says
+    // http for the same endpoint. Neither spelling is valid in the other file.
+    if (s.type !== "streamable-http") problems.push(`mcp.json octen.type is ${s.type}, expected streamable-http`);
+    if (s.url !== "https://mcp.octen.ai/mcp") problems.push(`mcp.json octen.url is ${s.url}, expected https://mcp.octen.ai/mcp`);
+    // Both carriers, not just headers: this file installs from a public repo, so
+    // a credential in either one ships to everyone.
+    if (s.headers || s.env) problems.push("mcp.json octen carries credentials; the server authenticates over OAuth");
+  }
+  if (agentMcp.$schema !== "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json") {
+    problems.push("mcp.json is missing the Agent Plugins MCP configuration $schema identifier");
+  }
+}
+
+// Cursor reads .cursor-plugin/plugin.json in preference to the root Agent
+// Plugins manifest, and carries display fields the standard has no room for.
+// A fourth copy of the version is a fourth chance to drift.
+let cursorPlugin;
+try {
+  cursorPlugin = read(".cursor-plugin/plugin.json");
+} catch (err) {
+  problems.push(`.cursor-plugin/plugin.json is missing or unparseable: ${err.message}`);
+}
+if (cursorPlugin) {
+  if (cursorPlugin.version !== pkg.version) {
+    problems.push(`.cursor-plugin/plugin.json version is ${cursorPlugin.version}, package.json is ${pkg.version}`);
+  }
+  if (cursorPlugin.name !== plugin.name) {
+    problems.push(`.cursor-plugin/plugin.json name is ${cursorPlugin.name}, .claude-plugin/plugin.json says ${plugin.name}`);
+  }
+  // Marketplace listings resolve a relative logo against the repository, so an
+  // absent file ships a broken image rather than failing anything at install.
+  if (cursorPlugin.logo && !/^https?:\/\//.test(cursorPlugin.logo)) {
+    if (!existsSync(ROOT + cursorPlugin.logo)) {
+      problems.push(`.cursor-plugin/plugin.json logo ${cursorPlugin.logo} is not in the repository`);
+    }
+  }
+}
+
+// Four manifests describe the same plugin to four directories. Keywords and
+// category are what each directory searches and files under, so they drift the
+// moment one is edited alone.
+const SHARED = [
+  ["plugin.json", agentPlugin],
+  [".cursor-plugin/plugin.json", cursorPlugin],
+  ...(market.plugins ?? []).map((e, i) => [`.claude-plugin/marketplace.json plugins[${i}]`, e]),
+];
+
+// Compared as a set: these feed directory search, where order carries no
+// meaning, so reordering the same terms is not a difference worth failing on.
+const sameTerms = (a, b) =>
+  a.length === b.length && [...a].sort().join("\u0000") === [...b].sort().join("\u0000");
+
+if (!plugin.keywords?.length) {
+  problems.push(".claude-plugin/plugin.json has no keywords to hold the other manifests to");
+} else {
+  for (const [label, m] of SHARED) {
+    if (!m) continue;
+    // An absent field is the most likely way this drifts, so it is a problem
+    // rather than a reason to skip the comparison.
+    if (!m.keywords?.length) problems.push(`${label} has no keywords`);
+    else if (!sameTerms(m.keywords, plugin.keywords)) {
+      problems.push(`${label} keywords differ from .claude-plugin/plugin.json`);
+    }
+  }
+}
+
+// Each directory has its own category vocabulary, so these two must NOT match:
+// Claude's catalogs use "development" and have no "developer-tools" entry at
+// all, while Cursor's published plugins use "developer-tools". Holding them
+// equal is what put an invalid value in the Claude manifest. Each is checked
+// against the words its own directory actually uses instead.
+const CATEGORIES = {
+  ".claude-plugin/marketplace.json": ["development", "productivity", "database", "monitoring",
+    "security", "deployment", "design", "automation", "learning", "testing", "finance", "location"],
+  ".cursor-plugin/plugin.json": ["developer-tools", "utilities"],
+};
+for (const [label, allowed] of Object.entries(CATEGORIES)) {
+  const c = label.startsWith(".claude") ? market.plugins?.[0]?.category : cursorPlugin?.category;
+  if (c && !allowed.includes(c)) {
+    problems.push(`${label} category "${c}" is not one ${label.startsWith(".claude") ? "Claude's" : "Cursor's"} directory uses`);
   }
 }
 

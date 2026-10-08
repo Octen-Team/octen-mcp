@@ -1,9 +1,8 @@
 {
-  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "octen",
-  "displayName": "Octen",
-  "description": "Real-time web search, broad multi-angle research, news, and URL extraction through Octen's hosted MCP server, plus image and video search in invite-only Beta. Authorizes over OAuth on first use \u2014 nothing to install and no API key to paste.",
   "version": "0.6.0",
+  "description": "Real-time web search, broad multi-angle research, news, and URL extraction through Octen's hosted MCP server, plus image and video search in invite-only Beta. Authorizes over OAuth on first use \u2014 nothing to install and no API key to paste.",
   "author": {
     "name": "Octen",
     "email": "support@octen.ai",

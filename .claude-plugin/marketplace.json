@@ -12,7 +12,7 @@
     {
       "name": "octen",
       "source": "./",
-      "description": "Real-time web search, broad multi-angle research, news, and URL extraction, powered by Octen. Authenticates over OAuth on first use \u2014 no API key to configure.",
+      "description": "Real-time web search, broad multi-angle research, news, and URL extraction through Octen's hosted MCP server, plus image and video search in invite-only Beta. Authorizes over OAuth on first use \u2014 nothing to install and no API key to paste.",
       "version": "0.6.0",
       "author": {
         "name": "Octen",
@@ -22,15 +22,16 @@
       "repository": "https://github.com/Octen-Team/octen-mcp",
       "license": "MIT",
       "keywords": [
-        "mcp",
-        "octen",
-        "search",
-        "web-search",
-        "extract",
+        "web search",
+        "broad search",
+        "news search",
         "research",
-        "news"
+        "extract",
+        "fetch",
+        "content extraction",
+        "octen"
       ],
-      "category": "productivity"
+      "category": "development"
     }
   ]
 }

@@ -6,7 +6,7 @@
 // and made the version a client reported useless for triage. The plugin
 // manifests cannot read package.json at runtime, so the guard moves to CI.
 
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -80,6 +80,31 @@ if (agentMcp) {
     if (s.type !== "streamable-http") problems.push(`mcp.json octen.type is ${s.type}, expected streamable-http`);
     if (s.url !== "https://mcp.octen.ai/mcp") problems.push(`mcp.json octen.url is ${s.url}, expected https://mcp.octen.ai/mcp`);
     if (s.headers) problems.push("mcp.json octen carries headers; the server authenticates over OAuth");
+  }
+}
+
+// Cursor reads .cursor-plugin/plugin.json in preference to the root Agent
+// Plugins manifest, and carries display fields the standard has no room for.
+// A fourth copy of the version is a fourth chance to drift.
+let cursorPlugin;
+try {
+  cursorPlugin = read(".cursor-plugin/plugin.json");
+} catch (err) {
+  problems.push(`.cursor-plugin/plugin.json is missing or unparseable: ${err.message}`);
+}
+if (cursorPlugin) {
+  if (cursorPlugin.version !== pkg.version) {
+    problems.push(`.cursor-plugin/plugin.json version is ${cursorPlugin.version}, package.json is ${pkg.version}`);
+  }
+  if (cursorPlugin.name !== plugin.name) {
+    problems.push(`.cursor-plugin/plugin.json name is ${cursorPlugin.name}, .claude-plugin/plugin.json says ${plugin.name}`);
+  }
+  // Marketplace listings resolve a relative logo against the repository, so an
+  // absent file ships a broken image rather than failing anything at install.
+  if (cursorPlugin.logo && !cursorPlugin.logo.startsWith("http")) {
+    if (!existsSync(ROOT + cursorPlugin.logo)) {
+      problems.push(`.cursor-plugin/plugin.json logo ${cursorPlugin.logo} is not in the repository`);
+    }
   }
 }
 

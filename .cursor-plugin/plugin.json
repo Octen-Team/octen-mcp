@@ -1,0 +1,31 @@
+{
+  "name": "octen",
+  "displayName": "Octen",
+  "publisher": "Octen",
+  "version": "0.6.0",
+  "description": "Real-time web search, broad multi-angle research, news, and URL extraction through Octen's hosted MCP server. Authorizes over OAuth on first use \u2014 nothing to install and no API key to paste.",
+  "author": {
+    "name": "Octen",
+    "email": "support@octen.ai"
+  },
+  "homepage": "https://docs.octen.ai/integrations/octen-mcp-server",
+  "repository": "https://github.com/Octen-Team/octen-mcp",
+  "license": "MIT",
+  "category": "developer-tools",
+  "tags": [
+    "web-search",
+    "news",
+    "research",
+    "content-extraction",
+    "mcp"
+  ],
+  "keywords": [
+    "web search",
+    "news search",
+    "research",
+    "content extraction",
+    "mcp",
+    "octen"
+  ],
+  "logo": "assets/logo.png"
+}

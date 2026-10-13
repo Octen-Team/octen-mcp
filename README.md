@@ -134,8 +134,10 @@ not `mcpServers`, and the explicit `type`:
 codex mcp add octen --url https://mcp.octen.ai/mcp --header "x-api-key: your-key-here"
 ```
 
-**Windsurf** — `~/.codeium/windsurf/mcp_config.json`. The key is `serverUrl`,
-not `url`:
+**Windsurf / Devin Desktop** — `~/.config/devin/mcp_config.json` on macOS and
+Linux (`$XDG_CONFIG_HOME/devin/` when that is set), `%APPDATA%\devin\mcp_config.json`
+on Windows. Cascade accepts either `serverUrl` or `url` for a remote server;
+`~/.codeium/windsurf/mcp_config.json` is the path for the legacy agent:
 
 ```json
 {

@@ -188,9 +188,27 @@ than from your machine, so a self-hosted deployment has to be reachable from
 the public internet for this to work at all; a private one wants the bridge
 below.
 
-**Clients that only speak stdio** (Zed, Warp, Raycast, Cline) reach a remote
-server through the `mcp-remote` bridge. Note there is **no space after the
-colon** in `--header` — the value is split on the first one:
+**Zed, Warp, Raycast, and Cline** all connect to a remote server directly —
+point them at the endpoint and sign in. Raycast's HTTP transport offers an
+OAuth type of *Dynamic*, which is the one to pick: this server supports dynamic
+client registration, so there is no client ID to arrange.
+
+```json
+{
+  "mcpServers": {
+    "octen": {
+      "url": "https://mcp.octen.ai/mcp"
+    }
+  }
+}
+```
+
+A client with no field for headers takes the key in the URL instead:
+`https://mcp.octen.ai/mcp?octenApiKey=your-key-here`.
+
+**Only for a client that still cannot reach a remote server at all**, the
+`mcp-remote` bridge runs locally and forwards each request. Note there is **no
+space after the colon** in `--header` — the value is split on the first one:
 
 ```json
 {
@@ -206,9 +224,6 @@ colon** in `--header` — the value is split on the first one:
   }
 }
 ```
-
-If a client cannot pass a header at all and takes only a URL, put the key in
-the URL instead: `https://mcp.octen.ai/mcp?octenApiKey=your-key-here`.
 
 ### Signing in instead
 
@@ -274,9 +289,11 @@ that quietly comes up short.
 
 ## Troubleshooting
 
-**`401` on every call.** No credential reached the server. Check the header
-name — `x-api-key`, or `Authorization: Bearer` — and, if you are using
-`mcp-remote`, that there is no space after the colon in `--header`.
+**`401` on every call.** No credential reached the server, or the sign-in was
+never completed. On a client that signs in, authorise the connection from its
+MCP settings. On one that passes a key, check the header name — `x-api-key`, or
+`Authorization: Bearer` — and, if you are using `mcp-remote`, that there is no
+space after the colon in `--header`.
 
 **The tools do not appear.** Most clients read MCP config once at startup;
 restart the client after editing it. If the config uses the wrong key for your

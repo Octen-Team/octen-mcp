@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scripts/sync-plugin-manifests.mjs`, wired into `npm version`, which writes
   `package.json`'s version into every manifest instead of leaving four copies
   to be edited by hand.
+- **Calls to the API now say who they are for.** `x-octen-source` and
+  `x-octen-mcp-version` mark a call as arriving through this server rather than
+  from a customer's own code, and `x-octen-client-ip` carries the end user's
+  address, which the remote HTTP form fills from the connection it accepted.
+  The address headers the caller sent are relayed alongside for logs. Neither
+  marker is proof of anything: anyone calling the API directly can send both.
 
 ### Changed
 

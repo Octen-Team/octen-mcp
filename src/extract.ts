@@ -206,6 +206,7 @@ export async function handleExtract(rawArgs: Record<string, unknown>, ctx?: Hand
   try {
     resp = await postJson({
       apiKey,
+      forward: ctx?.forward,
       path: "/extract",
       body,
       label: "Octen Extract",

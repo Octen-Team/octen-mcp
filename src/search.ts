@@ -288,6 +288,7 @@ export async function handleSearch(rawArgs: Record<string, unknown>, ctx?: Handl
   try {
     resp = await postJson({
       apiKey,
+      forward: ctx?.forward,
       path: "/search",
       body,
       label: "Octen Search",
@@ -454,6 +455,7 @@ export async function handleBroadSearch(rawArgs: Record<string, unknown>, ctx?: 
   try {
     resp = await postJson({
       apiKey,
+      forward: ctx?.forward,
       path: "/broad-search",
       body,
       label: "Octen Broad Search",

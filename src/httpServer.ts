@@ -41,7 +41,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 import { createOctenServer, VERSION, AVAILABLE_TOOL_NAMES, KNOWN_TOOL_NAMES } from "./server.js";
-import { logEvent, envInt } from "./http.js";
+import { logEvent, envInt, forwardableHeaders } from "./http.js";
 import {
   looksLikeAccessToken, apiKeyFromAccessToken,
   TokenInvalidError, OAuthBackendError, type OAuthRsConfig,
@@ -723,9 +723,18 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     `http POST /mcp key=${apiKey ? keyFingerprint(apiKey) : "(none)"} ` +
     `ua=${(req.headers["user-agent"] ?? "-").toString().slice(0, 60)}`);
 
+  // Read once here, so every tool call on this connection attributes to the
+  // caller that opened it and no call can see a half-changed set.
+  const forwarded = forwardableHeaders(req.headers, req.socket.remoteAddress);
+
   // A fresh pair per request: request IDs cannot collide across concurrent
   // POSTs, and the closure pins this request's key to this request's calls.
-  const server = createOctenServer({ getApiKey: () => effectiveKey, transport: "http", tools: selection.tools });
+  const server = createOctenServer({
+    getApiKey: () => effectiveKey,
+    getForwardHeaders: () => forwarded,
+    transport: "http",
+    tools: selection.tools,
+  });
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   res.on("close", () => {
     void transport.close();

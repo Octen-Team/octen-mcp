@@ -40,6 +40,15 @@
 import { fetch as undiciFetch, Agent, EnvHttpProxyAgent, type Dispatcher } from "undici";
 import { randomUUID } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
+import { createRequire } from "node:module";
+
+/**
+ * Read here rather than imported from `server.ts`: that module imports every
+ * tool handler, which imports this one, so taking the constant from there would
+ * close a cycle for the sake of one string.
+ */
+const MCP_VERSION: string =
+  (createRequire(import.meta.url)("../package.json") as { version: string }).version;
 
 /**
  * Read an integer env override, falling back when unset or unusable.
@@ -388,6 +397,8 @@ export interface PostJsonOptions {
   timeoutSec?: number;
   /** Applied when the caller passes no timeout. */
   defaultTimeoutSec: number;
+  /** {@link HandlerContext.forward} — copied onto the outbound request. */
+  forward?: Record<string, string>;
   /**
    * Credential for this call. Comes from the process environment under stdio,
    * and from the request headers under the HTTP transport, where one process
@@ -458,6 +469,157 @@ export interface HandlerContext {
   apiKey?: string;
   /** Only used to word the missing-key error usefully for the caller's setup. */
   transport?: "stdio" | "http";
+  /**
+   * Client-identifying headers copied from the inbound request, for the API to
+   * attribute a call to the end user rather than to this server.
+   *
+   * Travels per call for the same reason `apiKey` does: the HTTP transport
+   * serves many callers from one process, so module state would attribute one
+   * caller's request to another. Absent under stdio, which has no inbound
+   * request to copy from.
+   *
+   * Not all of it comes from the caller: {@link PEER_HEADER},
+   * {@link CLIENT_IP_HEADER} and `x-real-ip` are established here. The rest is
+   * whatever the caller chose to send, and is a hint rather than evidence —
+   * anything deciding access on it has to establish the address itself.
+   */
+  forward?: Record<string, string>;
+}
+
+/**
+ * Carries the address this process actually accepted the connection from.
+ *
+ * Every header in {@link FORWARDED_HEADERS} is whatever the caller chose to
+ * send; they are trustworthy only where a front end rewrote them on the way in.
+ * This one is observed here instead, so the two cases differ on the wire.
+ *
+ * That difference is only legible to a reader who already knows the request
+ * came from this server, and no header can establish that — a direct caller can
+ * set this one too. Whoever consumes these has to pin them to something the
+ * caller cannot choose (the egress address, or a secret this server holds)
+ * before reading any of them as more than telemetry.
+ */
+export const PEER_HEADER = "x-octen-mcp-peer";
+
+/**
+ * The end user's address as this server established it, under a name nothing
+ * on the path rewrites.
+ *
+ * The forwarded address headers do not survive the trip. `api.octen.ai` sits
+ * behind its own Front Door, which recomputes the `x-azure-*` pair from the
+ * connection it accepted — this server — and appends to `x-forwarded-for`
+ * rather than replacing it, leaving the end user leftmost, the position every
+ * guide says to treat as forged. No proxy recognises this name, so what is
+ * written here is what arrives.
+ */
+export const CLIENT_IP_HEADER = "x-octen-client-ip";
+
+/**
+ * The Front Door whose headers this server believes, from
+ * `OCTEN_MCP_FRONT_DOOR_ID`.
+ *
+ * Front Door stamps its own id on everything it forwards, so matching it is
+ * what separates a request that came through our front door from one that
+ * merely carries headers named like it. Unset means nothing qualifies: the
+ * client address falls back to the peer, which costs accuracy behind a front
+ * door and keeps a forged address out when there is none.
+ *
+ * This is a check on a value the origin should never have been reachable
+ * without. It does not replace restricting the origin to Front Door at the
+ * network edge, which is the control that makes the id hard to come by.
+ */
+const FRONT_DOOR_ID = process.env.OCTEN_MCP_FRONT_DOOR_ID?.trim();
+
+/**
+ * Read from `x-azure-socketip`, which Front Door fills from the TCP connection
+ * it accepted and a caller therefore cannot choose. `x-azure-clientip` is the
+ * header that looks right for this and is not: it reflects what the caller
+ * claimed.
+ *
+ * Both are only worth reading once {@link FRONT_DOOR_ID} confirms a front door
+ * wrote them; reached any other way they are as forgeable as anything else on
+ * the request, so the answer is the peer this process accepted.
+ */
+function clientAddress(
+  inbound: Record<string, string | string[] | undefined>,
+  out: Record<string, string>,
+  peer?: string,
+): string | undefined {
+  if (!FRONT_DOOR_ID) return peer;
+  const raw = inbound["x-azure-fdid"];
+  const claimed = (Array.isArray(raw) ? raw[0] : raw)?.trim();
+  if (claimed !== FRONT_DOOR_ID) return peer;
+  const socket = out["x-azure-socketip"]?.split(",")[0]?.trim();
+  return socket || peer;
+}
+
+/**
+ * Inbound headers copied onto the outbound API call.
+ *
+ * An allowlist rather than a copy of everything: the outbound request already
+ * carries this server's own credential, and blindly relaying whatever arrived
+ * would forward a second one alongside it.
+ *
+ * `user-agent` identifies the end client. The address headers are kept for
+ * their log value only — {@link CLIENT_IP_HEADER} is what carries the address
+ * meant to be acted on — because the front door at `api.octen.ai` recomputes
+ * the `x-azure-*` pair from its own connection and appends to
+ * `x-forwarded-for`, so none of the three arrives as written.
+ *
+ * `x-real-ip` is absent here yet still sent, because it is written rather than
+ * relayed — see {@link forwardableHeaders}. No front door on the path claims
+ * it, so a relayed one would reach the API exactly as the caller set it, under
+ * the name nginx and Express read as the client's address by default.
+ */
+export const FORWARDED_HEADERS = [
+  "user-agent",
+  "x-azure-clientip",
+  "x-azure-socketip",
+  "x-forwarded-for",
+] as const;
+
+/** Longest value copied per header; a longer one is dropped rather than cut. */
+const FORWARDED_VALUE_MAX = 512;
+
+/**
+ * Build the client-identifying headers for an outbound call.
+ *
+ * Two groups, and the difference between them is the whole point. The
+ * {@link FORWARDED_HEADERS} are relayed as the caller sent them. Then
+ * {@link PEER_HEADER}, {@link CLIENT_IP_HEADER} and `x-real-ip` are written
+ * from `peer` and from the front door's account of the connection, so a caller
+ * sending any of those three has its value dropped on the way in and replaced.
+ *
+ * Node gives a repeated header as an array; joining matches how a proxy writes
+ * `x-forwarded-for` as one comma-separated list. An over-long value is dropped
+ * instead of truncated, since half an address list is worse than none.
+ */
+export function forwardableHeaders(
+  inbound: Record<string, string | string[] | undefined>,
+  peer?: string,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const name of FORWARDED_HEADERS) {
+    const raw = inbound[name];
+    const value = Array.isArray(raw) ? raw.join(", ") : raw;
+    if (typeof value !== "string") continue;
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.length > FORWARDED_VALUE_MAX) continue;
+    out[name] = trimmed;
+  }
+  // Written after the loop, and deliberately absent from FORWARDED_HEADERS, so
+  // a caller sending its own copy is dropped on the way in and overwritten here.
+  if (peer) out[PEER_HEADER] = peer;
+  const client = clientAddress(inbound, out, peer);
+  if (client) {
+    out[CLIENT_IP_HEADER] = client;
+    // Filled from the address established here, the way a reverse proxy fills
+    // it and the only reading that makes the name worth anything. Relaying the
+    // caller's own would hand a chosen address to everything downstream that
+    // reads the obvious header.
+    out["x-real-ip"] = client;
+  }
+  return out;
 }
 
 /** The missing-key error, phrased for how this particular caller would fix it. */
@@ -489,7 +651,7 @@ export function postJson(opts: PostJsonOptions): Promise<Response> {
 }
 
 async function postJsonInner(opts: PostJsonOptions): Promise<Response> {
-  const { path, body, label, timeoutSec, defaultTimeoutSec, canRaiseTimeout = true, apiKey } = opts;
+  const { path, body, label, timeoutSec, defaultTimeoutSec, canRaiseTimeout = true, apiKey, forward } = opts;
   const effectiveTimeoutSec = timeoutSec ?? defaultTimeoutSec;
   // One correlation id for the whole logical call, retry included, so a support
   // ticket maps to every attempt in the server logs.
@@ -517,9 +679,18 @@ async function postJsonInner(opts: PostJsonOptions): Promise<Response> {
       const resp = (await fetchImpl(`${API_BASE}${path}`, {
         method: "POST",
         headers: {
+          // Spread first so a caller cannot overwrite anything below by sending
+          // its own copy of that header: later keys win in an object literal.
+          ...forward,
           "Content-Type": "application/json",
           "x-api-key": apiKey,
           "x-request-id": requestId,
+          // Marks the call as arriving through this server rather than straight
+          // from a customer's own code. Forwarding the caller's User-Agent is
+          // what makes this necessary — the API can no longer tell the two
+          // apart from that header alone.
+          "x-octen-source": "mcp",
+          "x-octen-mcp-version": MCP_VERSION,
           // Pinned to exactly what the packaged undici can decode. Left to a
           // default it varies by scheme (no `br` over plain http) and by
           // whichever undici is doing the fetching; an origin that honours an

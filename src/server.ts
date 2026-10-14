@@ -93,6 +93,12 @@ export interface CreateServerOptions {
   getApiKey: () => string | undefined;
   transport: "stdio" | "http";
   /**
+   * Client-identifying headers for this connection, bound the same way as
+   * {@link getApiKey} and for the same reason: the HTTP entry builds a server
+   * per request, so a closure keeps one caller's address off another's call.
+   */
+  getForwardHeaders?: () => Record<string, string> | undefined;
+  /**
    * Restrict this server instance to these tool names; omitted means all.
    *
    * Per instance rather than per process, because the HTTP transport builds a
@@ -164,7 +170,11 @@ export function createOctenServer(opts: CreateServerOptions): Server {
       logEvent("call_returning", { seq, tool: name, handler_ms: Date.now() - receivedAt },
         `call #${seq} returning tool=${name} handler_total=${Date.now() - receivedAt}ms`);
 
-    const ctx: HandlerContext = { apiKey: opts.getApiKey(), transport: opts.transport };
+    const ctx: HandlerContext = {
+      apiKey: opts.getApiKey(),
+      transport: opts.transport,
+      forward: opts.getForwardHeaders?.(),
+    };
 
     try {
       if (!BETA_TOOLS_ENABLED && BETA_TOOL_NAMES.has(name)) {

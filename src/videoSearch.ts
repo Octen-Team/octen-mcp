@@ -126,6 +126,7 @@ export async function handleVideoSearch(rawArgs: Record<string, unknown>, ctx?: 
   try {
     resp = await postJson({
       apiKey,
+      forward: ctx?.forward,
       path: "/video-search",
       body,
       label: "Octen Video Search",

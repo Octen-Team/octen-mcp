@@ -211,6 +211,7 @@ export async function handleImageSearch(rawArgs: Record<string, unknown>, ctx?: 
   try {
     resp = await postJson({
       apiKey,
+      forward: ctx?.forward,
       path: "/image-search",
       body,
       label: "Octen Image Search",

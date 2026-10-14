@@ -40,6 +40,15 @@
 import { fetch as undiciFetch, Agent, EnvHttpProxyAgent, type Dispatcher } from "undici";
 import { randomUUID } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
+import { createRequire } from "node:module";
+
+/**
+ * Read here rather than imported from `server.ts`: that module imports every
+ * tool handler, which imports this one, so taking the constant from there would
+ * close a cycle for the sake of one string.
+ */
+const MCP_VERSION: string =
+  (createRequire(import.meta.url)("../package.json") as { version: string }).version;
 
 /**
  * Read an integer env override, falling back when unset or unusable.
@@ -388,6 +397,8 @@ export interface PostJsonOptions {
   timeoutSec?: number;
   /** Applied when the caller passes no timeout. */
   defaultTimeoutSec: number;
+  /** {@link HandlerContext.forward} — copied onto the outbound request. */
+  forward?: Record<string, string>;
   /**
    * Credential for this call. Comes from the process environment under stdio,
    * and from the request headers under the HTTP transport, where one process
@@ -458,6 +469,64 @@ export interface HandlerContext {
   apiKey?: string;
   /** Only used to word the missing-key error usefully for the caller's setup. */
   transport?: "stdio" | "http";
+  /**
+   * Client-identifying headers copied from the inbound request, for the API to
+   * attribute a call to the end user rather than to this server.
+   *
+   * Travels per call for the same reason `apiKey` does: the HTTP transport
+   * serves many callers from one process, so module state would attribute one
+   * caller's request to another. Absent under stdio, which has no inbound
+   * request to copy from.
+   *
+   * These values are set by the caller and are therefore a hint, not evidence —
+   * anything deciding access on them has to establish the address itself.
+   */
+  forward?: Record<string, string>;
+}
+
+/**
+ * Inbound headers copied onto the outbound API call.
+ *
+ * An allowlist rather than a copy of everything: the outbound request already
+ * carries this server's own credential, and blindly relaying whatever arrived
+ * would forward a second one alongside it.
+ *
+ * `user-agent` identifies the end client. The four address headers exist
+ * because a request reaching the API from here has this server as its peer, so
+ * without them every MCP call looks like it came from one machine; Azure Front
+ * Door sets the `x-azure-*` pair when it is the first hop.
+ */
+export const FORWARDED_HEADERS = [
+  "user-agent",
+  "x-azure-clientip",
+  "x-azure-socketip",
+  "x-forwarded-for",
+  "x-real-ip",
+] as const;
+
+/** Longest value copied per header; a longer one is dropped rather than cut. */
+const FORWARDED_VALUE_MAX = 512;
+
+/**
+ * Pick {@link FORWARDED_HEADERS} out of an inbound request.
+ *
+ * Node gives a repeated header as an array; joining matches how a proxy writes
+ * `x-forwarded-for` as one comma-separated list. An over-long value is dropped
+ * instead of truncated, since half an address list is worse than none.
+ */
+export function forwardableHeaders(
+  inbound: Record<string, string | string[] | undefined>,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const name of FORWARDED_HEADERS) {
+    const raw = inbound[name];
+    const value = Array.isArray(raw) ? raw.join(", ") : raw;
+    if (typeof value !== "string") continue;
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.length > FORWARDED_VALUE_MAX) continue;
+    out[name] = trimmed;
+  }
+  return out;
 }
 
 /** The missing-key error, phrased for how this particular caller would fix it. */
@@ -489,7 +558,7 @@ export function postJson(opts: PostJsonOptions): Promise<Response> {
 }
 
 async function postJsonInner(opts: PostJsonOptions): Promise<Response> {
-  const { path, body, label, timeoutSec, defaultTimeoutSec, canRaiseTimeout = true, apiKey } = opts;
+  const { path, body, label, timeoutSec, defaultTimeoutSec, canRaiseTimeout = true, apiKey, forward } = opts;
   const effectiveTimeoutSec = timeoutSec ?? defaultTimeoutSec;
   // One correlation id for the whole logical call, retry included, so a support
   // ticket maps to every attempt in the server logs.
@@ -517,9 +586,18 @@ async function postJsonInner(opts: PostJsonOptions): Promise<Response> {
       const resp = (await fetchImpl(`${API_BASE}${path}`, {
         method: "POST",
         headers: {
+          // Spread first so a caller cannot overwrite anything below by sending
+          // its own copy of that header: later keys win in an object literal.
+          ...forward,
           "Content-Type": "application/json",
           "x-api-key": apiKey,
           "x-request-id": requestId,
+          // Marks the call as arriving through this server rather than straight
+          // from a customer's own code. Forwarding the caller's User-Agent is
+          // what makes this necessary — the API can no longer tell the two
+          // apart from that header alone.
+          "x-octen-source": "mcp",
+          "x-octen-mcp-version": MCP_VERSION,
           // Pinned to exactly what the packaged undici can decode. Left to a
           // default it varies by scheme (no `br` over plain http) and by
           // whichever undici is doing the fetching; an origin that honours an

@@ -478,9 +478,10 @@ export interface HandlerContext {
    * caller's request to another. Absent under stdio, which has no inbound
    * request to copy from.
    *
-   * Every value here except {@link PEER_HEADER} is set by the caller and is
-   * therefore a hint, not evidence — anything deciding access on them has to
-   * establish the address itself.
+   * Not all of it comes from the caller: {@link PEER_HEADER},
+   * {@link CLIENT_IP_HEADER} and `x-real-ip` are established here. The rest is
+   * whatever the caller chose to send, and is a hint rather than evidence —
+   * anything deciding access on it has to establish the address itself.
    */
   forward?: Record<string, string>;
 }
@@ -581,7 +582,13 @@ export const FORWARDED_HEADERS = [
 const FORWARDED_VALUE_MAX = 512;
 
 /**
- * Pick {@link FORWARDED_HEADERS} out of an inbound request.
+ * Build the client-identifying headers for an outbound call.
+ *
+ * Two groups, and the difference between them is the whole point. The
+ * {@link FORWARDED_HEADERS} are relayed as the caller sent them. Then
+ * {@link PEER_HEADER}, {@link CLIENT_IP_HEADER} and `x-real-ip` are written
+ * from `peer` and from the front door's account of the connection, so a caller
+ * sending any of those three has its value dropped on the way in and replaced.
  *
  * Node gives a repeated header as an array; joining matches how a proxy writes
  * `x-forwarded-for` as one comma-separated list. An over-long value is dropped

@@ -16,6 +16,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scripts/sync-plugin-manifests.mjs`, wired into `npm version`, which writes
   `package.json`'s version into every manifest instead of leaving four copies
   to be edited by hand.
+- **Calls to the API now say who they are for.** `x-octen-source` and
+  `x-octen-mcp-version` mark a call as arriving through this server rather than
+  from a customer's own code, and `x-octen-client-ip` carries the end user's
+  address. The address headers the caller sent are relayed alongside for logs,
+  but they do not survive a front door in front of the API, so
+  `x-octen-client-ip` is the one to read. Neither marker is proof of anything:
+  anyone calling the API directly can send both.
+- `OCTEN_MCP_FRONT_DOOR_ID` (remote HTTP form). Set it to the `X-Azure-FDID` of
+  the front door in front of this server and a request carrying that id has its
+  `X-Azure-SocketIP` passed on as the end user's address. Unset, the API is told
+  the address this process accepted the connection from instead. Pair it with
+  restricting the origin to the `AzureFrontDoor.Backend` service tag; on its own
+  the id check protects a value the origin should not have been reachable
+  without.
 
 ### Changed
 

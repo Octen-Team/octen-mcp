@@ -723,11 +723,12 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     `http POST /mcp key=${apiKey ? keyFingerprint(apiKey) : "(none)"} ` +
     `ua=${(req.headers["user-agent"] ?? "-").toString().slice(0, 60)}`);
 
+  // Read once here, so every tool call on this connection attributes to the
+  // caller that opened it and no call can see a half-changed set.
+  const forwarded = forwardableHeaders(req.headers, req.socket.remoteAddress);
+
   // A fresh pair per request: request IDs cannot collide across concurrent
   // POSTs, and the closure pins this request's key to this request's calls.
-  // Captured once per request so every tool call on this connection attributes
-  // to the caller that made it.
-  const forwarded = forwardableHeaders(req.headers, req.socket.remoteAddress);
   const server = createOctenServer({
     getApiKey: () => effectiveKey,
     getForwardHeaders: () => forwarded,

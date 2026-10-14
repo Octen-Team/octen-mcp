@@ -727,7 +727,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
   // POSTs, and the closure pins this request's key to this request's calls.
   // Captured once per request so every tool call on this connection attributes
   // to the caller that made it.
-  const forwarded = forwardableHeaders(req.headers);
+  const forwarded = forwardableHeaders(req.headers, req.socket.remoteAddress);
   const server = createOctenServer({
     getApiKey: () => effectiveKey,
     getForwardHeaders: () => forwarded,

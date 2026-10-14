@@ -478,10 +478,78 @@ export interface HandlerContext {
    * caller's request to another. Absent under stdio, which has no inbound
    * request to copy from.
    *
-   * These values are set by the caller and are therefore a hint, not evidence —
-   * anything deciding access on them has to establish the address itself.
+   * Every value here except {@link PEER_HEADER} is set by the caller and is
+   * therefore a hint, not evidence — anything deciding access on them has to
+   * establish the address itself.
    */
   forward?: Record<string, string>;
+}
+
+/**
+ * Carries the address this process actually accepted the connection from.
+ *
+ * Every header in {@link FORWARDED_HEADERS} is whatever the caller chose to
+ * send; they are trustworthy only where a front end rewrote them on the way in.
+ * This one is observed here instead, so the two cases differ on the wire.
+ *
+ * That difference is only legible to a reader who already knows the request
+ * came from this server, and no header can establish that — a direct caller can
+ * set this one too. Whoever consumes these has to pin them to something the
+ * caller cannot choose (the egress address, or a secret this server holds)
+ * before reading any of them as more than telemetry.
+ */
+export const PEER_HEADER = "x-octen-mcp-peer";
+
+/**
+ * The end user's address as this server established it, under a name nothing
+ * on the path rewrites.
+ *
+ * The forwarded address headers do not survive the trip. `api.octen.ai` sits
+ * behind its own Front Door, which recomputes the `x-azure-*` pair from the
+ * connection it accepted — this server — and appends to `x-forwarded-for`
+ * rather than replacing it, leaving the end user leftmost, the position every
+ * guide says to treat as forged. No proxy recognises this name, so what is
+ * written here is what arrives.
+ */
+export const CLIENT_IP_HEADER = "x-octen-client-ip";
+
+/**
+ * The Front Door whose headers this server believes, from
+ * `OCTEN_MCP_FRONT_DOOR_ID`.
+ *
+ * Front Door stamps its own id on everything it forwards, so matching it is
+ * what separates a request that came through our front door from one that
+ * merely carries headers named like it. Unset means nothing qualifies: the
+ * client address falls back to the peer, which costs accuracy behind a front
+ * door and keeps a forged address out when there is none.
+ *
+ * This is a check on a value the origin should never have been reachable
+ * without. It does not replace restricting the origin to Front Door at the
+ * network edge, which is the control that makes the id hard to come by.
+ */
+const FRONT_DOOR_ID = process.env.OCTEN_MCP_FRONT_DOOR_ID?.trim();
+
+/**
+ * Read from `x-azure-socketip`, which Front Door fills from the TCP connection
+ * it accepted and a caller therefore cannot choose. `x-azure-clientip` is the
+ * header that looks right for this and is not: it reflects what the caller
+ * claimed.
+ *
+ * Both are only worth reading once {@link FRONT_DOOR_ID} confirms a front door
+ * wrote them; reached any other way they are as forgeable as anything else on
+ * the request, so the answer is the peer this process accepted.
+ */
+function clientAddress(
+  inbound: Record<string, string | string[] | undefined>,
+  out: Record<string, string>,
+  peer?: string,
+): string | undefined {
+  if (!FRONT_DOOR_ID) return peer;
+  const raw = inbound["x-azure-fdid"];
+  const claimed = (Array.isArray(raw) ? raw[0] : raw)?.trim();
+  if (claimed !== FRONT_DOOR_ID) return peer;
+  const socket = out["x-azure-socketip"]?.split(",")[0]?.trim();
+  return socket || peer;
 }
 
 /**
@@ -491,17 +559,22 @@ export interface HandlerContext {
  * carries this server's own credential, and blindly relaying whatever arrived
  * would forward a second one alongside it.
  *
- * `user-agent` identifies the end client. The four address headers exist
- * because a request reaching the API from here has this server as its peer, so
- * without them every MCP call looks like it came from one machine; Azure Front
- * Door sets the `x-azure-*` pair when it is the first hop.
+ * `user-agent` identifies the end client. The address headers are kept for
+ * their log value only — {@link CLIENT_IP_HEADER} is what carries the address
+ * meant to be acted on — because the front door at `api.octen.ai` recomputes
+ * the `x-azure-*` pair from its own connection and appends to
+ * `x-forwarded-for`, so none of the three arrives as written.
+ *
+ * `x-real-ip` is absent here yet still sent, because it is written rather than
+ * relayed — see {@link forwardableHeaders}. No front door on the path claims
+ * it, so a relayed one would reach the API exactly as the caller set it, under
+ * the name nginx and Express read as the client's address by default.
  */
 export const FORWARDED_HEADERS = [
   "user-agent",
   "x-azure-clientip",
   "x-azure-socketip",
   "x-forwarded-for",
-  "x-real-ip",
 ] as const;
 
 /** Longest value copied per header; a longer one is dropped rather than cut. */
@@ -516,6 +589,7 @@ const FORWARDED_VALUE_MAX = 512;
  */
 export function forwardableHeaders(
   inbound: Record<string, string | string[] | undefined>,
+  peer?: string,
 ): Record<string, string> {
   const out: Record<string, string> = {};
   for (const name of FORWARDED_HEADERS) {
@@ -525,6 +599,18 @@ export function forwardableHeaders(
     const trimmed = value.trim();
     if (!trimmed || trimmed.length > FORWARDED_VALUE_MAX) continue;
     out[name] = trimmed;
+  }
+  // Written after the loop, and deliberately absent from FORWARDED_HEADERS, so
+  // a caller sending its own copy is dropped on the way in and overwritten here.
+  if (peer) out[PEER_HEADER] = peer;
+  const client = clientAddress(inbound, out, peer);
+  if (client) {
+    out[CLIENT_IP_HEADER] = client;
+    // Filled from the address established here, the way a reverse proxy fills
+    // it and the only reading that makes the name worth anything. Relaying the
+    // caller's own would hand a chosen address to everything downstream that
+    // reads the obvious header.
+    out["x-real-ip"] = client;
   }
   return out;
 }

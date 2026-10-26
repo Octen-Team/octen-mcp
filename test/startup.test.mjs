@@ -72,7 +72,7 @@ for (const [label, proxy] of [
     assert.ok(
       started(r),
       `server failed to start with HTTPS_PROXY=${proxy}. undici throws on an unparseable proxy ` +
-      `URL at construction; unguarded, that kills all six tools at startup.\nstderr: ${r.err.slice(0, 400)}`
+      `URL at construction; unguarded, that kills every tool at startup.\nstderr: ${r.err.slice(0, 400)}`
     );
   });
 }

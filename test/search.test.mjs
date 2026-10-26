@@ -12,8 +12,10 @@ import assert from "node:assert/strict";
 // The module reads OCTEN_API_KEY at import time — set it before importing.
 process.env.OCTEN_API_KEY = process.env.OCTEN_API_KEY ?? "test-key";
 
-const { searchTool, newsSearchTool, broadSearchTool, handleSearch, handleNewsSearch, handleBroadSearch } =
+const { searchTool, broadSearchTool, handleSearch, handleBroadSearch } =
   await import("../dist/search.js");
+const { newsSearchTool, handleNewsSearch } = await import("../dist/newsSearch.js");
+const { businessSearchTool, handleBusinessSearch } = await import("../dist/businessSearch.js");
 const { _setFetchForTests } = await import("../dist/http.js");
 
 /** Stub the HTTP layer's fetch for one call; returns the captured {url, body}. */
@@ -38,9 +40,31 @@ test("search: schema advertises `query` (required) and `count`", () => {
   assert.ok(searchTool.inputSchema.required.includes("query"));
 });
 
-test("news_search: schema inherits `count`, drops `topic`", () => {
+test("news_search: schema shares `count` and adds `subjects`", () => {
   assert.ok(newsSearchTool.inputSchema.properties.count);
-  assert.equal(newsSearchTool.inputSchema.properties.topic, undefined);
+  assert.ok(newsSearchTool.inputSchema.properties.subjects);
+});
+
+test("business_search: schema shares `count` and adds `entities`", () => {
+  assert.ok(businessSearchTool.inputSchema.properties.count);
+  assert.ok(businessSearchTool.inputSchema.properties.entities);
+});
+
+test("no tool advertises `topic` — /search stopped documenting it", () => {
+  // news_search used to be `search` with topic=news forced, so this guards
+  // both halves: the parameter is gone from search's schema, and nothing
+  // reintroduced it on the tool that depended on it.
+  for (const tool of [searchTool, newsSearchTool, businessSearchTool, broadSearchTool]) {
+    assert.equal(tool.inputSchema.properties.topic, undefined, `${tool.name} advertises topic`);
+  }
+});
+
+test("news_search: the endpoint-only params of `search` are not advertised", () => {
+  // /news-search takes neither, and a schema that offers them would gate
+  // arguments the API then ignores.
+  for (const absent of ["include_text", "exclude_text", "format", "safesearch", "include_images"]) {
+    assert.equal(newsSearchTool.inputSchema.properties[absent], undefined, absent);
+  }
 });
 
 test("broad_search: schema inherits `count` and adds `max_queries`", () => {
@@ -59,9 +83,16 @@ test("search: schema advertises `language` as an enum array (ISO 639-1)", () => 
   assert.deepEqual(lang.default, []);
 });
 
-test("news_search: schema inherits `language`", () => {
+test("news_search: schema shares `language`", () => {
   const lang = newsSearchTool.inputSchema.properties.language;
   assert.ok(lang, "language missing from news_search inputSchema");
+  assert.equal(lang.type, "array");
+  assert.deepEqual(lang.items.enum, LANGUAGE_ENUM);
+});
+
+test("business_search: schema shares `language`", () => {
+  const lang = businessSearchTool.inputSchema.properties.language;
+  assert.ok(lang, "language missing from business_search inputSchema");
   assert.equal(lang.type, "array");
   assert.deepEqual(lang.items.enum, LANGUAGE_ENUM);
 });
@@ -104,7 +135,6 @@ test("news_search: `language` passes through top-level", async () => {
   const captured = captureFetch();
   await handleNewsSearch({ query: "chip news", language: ["de"] });
   assert.deepEqual(captured.body.language, ["de"]);
-  assert.equal(captured.body.topic, "news");
 });
 
 test("broad_search: `language` nests under search_options, never top-level", async () => {
@@ -120,11 +150,35 @@ test("broad_search: `language` absent from search_options when unset", async () 
   assert.equal("language" in captured.body.search_options, false);
 });
 
-test("news_search: options pass through top-level, topic forced to news", async () => {
+test("news_search: goes to its own endpoint, carrying no topic", async () => {
   const captured = captureFetch();
   await handleNewsSearch({ query: "chip news", count: 3 });
+  assert.ok(captured.url.endsWith("/news-search"), captured.url);
   assert.equal(captured.body.count, 3);
-  assert.equal(captured.body.topic, "news");
+  assert.equal("topic" in captured.body, false);
+});
+
+test("news_search: `subjects` is sent when asked for and omitted otherwise", async () => {
+  let captured = captureFetch();
+  await handleNewsSearch({ query: "chip news", subjects: { count: 3 } });
+  assert.deepEqual(captured.body.subjects, { count: 3 });
+
+  // On by default at the API; sending our own copy would pin that default here.
+  captured = captureFetch();
+  await handleNewsSearch({ query: "chip news" });
+  assert.equal("subjects" in captured.body, false);
+});
+
+test("business_search: goes to its own endpoint and passes `entities` through", async () => {
+  let captured = captureFetch();
+  await handleBusinessSearch({ query: "NVIDIA company overview", entities: { count: 2 } });
+  assert.ok(captured.url.endsWith("/business-search"), captured.url);
+  assert.equal(captured.body.query, "NVIDIA company overview");
+  assert.deepEqual(captured.body.entities, { count: 2 });
+
+  captured = captureFetch();
+  await handleBusinessSearch({ query: "Anthropic" });
+  assert.equal("entities" in captured.body, false);
 });
 
 test("broad_search: search options are nested under search_options, not top-level", async () => {

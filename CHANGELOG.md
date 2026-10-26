@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`business_search`** — wraps `POST /business-search`. Returns the companies
+  and people behind a query as structured cards (profile, identifiers,
+  financial and stock metrics, key people, career history, recent
+  announcements) alongside the ranked sources. Name two companies in one query
+  and each gets a card with the same fields. The cards carry what the model
+  would otherwise assemble by reading a dozen pages, so a company question
+  costs a fraction of the context. `entities` tunes them; omitted, the API's
+  own default applies. The domain, time and language filters narrow the ranked
+  results only, never the cards.
+- **`news_search` returns storylines.** Its new endpoint groups the coverage
+  into `subjects`, each with a summary and the span it covers, rendered above
+  the articles so a model that stops reading there still has the answer.
+  `subjects` tunes the clustering; omitted, the API's own default applies.
 - Agent Plugins manifests (`plugin.json`, `mcp.json`) at the repository root, so
   the plugin installs in Cursor and any other client that reads the open
   standard, and a `.cursor-plugin/plugin.json` carrying the display fields a
@@ -25,6 +38,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`news_search` has its own endpoint.** It was `search` with `topic: "news"`
+  forced; it now posts to `/news-search`. The two parameter sets have diverged
+  — no `include_text`/`exclude_text`, `format`, `safesearch` or
+  `include_images` there — so its schema names what that endpoint takes instead
+  of being derived from `search`'s by omission. Deriving by omission is what
+  let it keep advertising `topic` after `/search` stopped documenting it, and
+  would have handed it every future `search`-only parameter too.
+- **`image_search` is no longer Beta.** The API opened it to every account, so
+  it is listed like any other tool and `OCTEN_ENABLE_BETA_TOOLS` no longer
+  hides it. `video_search` remains invite-only and is still covered.
+- **`topic` is gone from `search` and `broad_search`.** The API stopped
+  documenting it; the backend still honours it, but a schema that advertises an
+  undocumented parameter points agents at a path with no contract behind it,
+  and news now has both a dedicated tool and a dedicated endpoint.
 - Plugin keywords now name capabilities rather than the transport: `mcp` and
   the duplicate `search` are gone, and `broad search` and `fetch` are listed
   alongside `extract`. A saved search for `mcp` no longer matches the plugin.

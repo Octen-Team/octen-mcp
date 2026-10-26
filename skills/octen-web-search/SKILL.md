@@ -34,11 +34,12 @@ elsewhere. Don't silently fall back to a built-in search.
 | The request is… | Tool | Key point |
 |--|--|--|
 | One fact, one entity, one document — a single focused lookup | `search` | Fast real-time search. **Default choice.** |
-| Recent events / headlines — a single news lookup | `search` with `topic: news` | `news_search` is the same thing. |
+| Recent events / headlines — a single news lookup | `news_search` | Its own endpoint. Returns articles **and** `subjects`: the coverage grouped into storylines with summaries. |
+| A company or a person — what they do, who runs it, financials, recent announcements, or two of them compared | `business_search` | Returns structured cards, not pages to read. Far cheaper than `search` + reading results. |
 | Several distinct parts one search can't cover: comparisons across many sources, surveys, "what are the options for X", a question that decomposes into 3+ sub-questions | `broad_search` | Fans out — **~Nx cost and latency**. |
-| A multi-angle question about *recent* events ("what shipped across the industry this month") | `broad_search` with `topic: news` | Not a loop of `news_search`. |
+| A multi-angle question about *recent* events ("what shipped across the industry this month") | `broad_search` | Not a loop of `news_search`. |
 | Read a page whose URL you already have | `extract` | 1–20 URLs → clean markdown. |
-| Find images, photos, diagrams, screenshots | `image_search` | **Invite-only Beta.** |
+| Find images, photos, diagrams, screenshots | `image_search` | Open to every account. |
 | Find videos, clips, tutorials, a moment inside a video | `video_search` | **Invite-only Beta.** Returns matched segment timestamps. |
 
 ### Prefer `search` over `broad_search`
@@ -53,9 +54,10 @@ notably higher latency. **When in doubt, use `search`.**
 - `max_queries` guide: **3–5** focused comparison · **5–10** multi-facet research ·
   **10–20** landscape scan · **20–30** exhaustive survey.
 
-### The Beta tools fail closed
+### The Beta tool fails closed
 
-`image_search` and `video_search` are invite-only. An account without access gets
+`video_search` is invite-only — `image_search` was too until the API opened it to
+every account. An account without access gets
 a `403` at call time, not an empty result. When that happens, say the capability
 needs Beta access from https://octen.ai and answer with what the other tools can
 reach — don't retry and don't pretend the search came back empty.
@@ -80,9 +82,9 @@ providers." → `broad_search`, `max_queries` 3–5. Only two named products? Tw
 `extract`, no `query` (returns full content). Pass `query` only when you want
 ranked highlights instead of the whole body.
 
-**Time-sensitive tracking.** "Latest on the X launch this week." → `search` with
-`topic: news` and a `time_range`. Spanning several outlets and angles →
-`broad_search` with `topic: news`.
+**Time-sensitive tracking.** "Latest on the X launch this week." → `news_search`
+with a `time_range`; its `subjects` already group the coverage, so read those
+before the articles. Spanning several outlets and angles → `broad_search`.
 
 **Multi-source research.** Anything needing coverage rather than one answer →
 see the **octen-research** skill, which runs the fan-out-then-ground pipeline.
@@ -92,7 +94,7 @@ see the **octen-research** skill, which runs the fan-out-then-ground pipeline.
 | Mistake | Do this instead |
 |--|--|
 | Calling `broad_search` because the first `search` was weak | Targeted follow-up `search` or `extract` on the gap |
-| Looping `news_search` for a multi-angle news question | One `broad_search` with `topic: news` |
+| Looping `news_search` for a multi-angle news question | One `broad_search` |
 | Passing a query with unresolved pronouns | Rewrite naming the entities first |
 | Pre-splitting a question into sub-queries for `broad_search` | Pass the whole question; raise `max_queries` |
 | Falling back to built-in web search on an auth error | Say the connection needs authorising, and where to do it |

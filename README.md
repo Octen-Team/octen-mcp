@@ -9,10 +9,12 @@ MCP server for **Octen**. Plug it into Claude, Cursor, VS Code, Windsurf, or any
 
 Core capabilities:
 
-- **`search` / `news_search`**: search the live web with domain, text, language, and time filters.
+- **`search`**: search the live web with domain, text, language, and time filters.
+- **`news_search`**: recent news, returned both as articles and as storylines — the coverage grouped into subjects, each with a summary and the span it covers.
+- **`business_search`**: a company or person, returned as a structured card — profile, financials, key people, career history, recent announcements — alongside the sources behind it.
 - **`broad_search`**: decompose a query into multiple sub-queries, search them concurrently, and return results grouped per sub-query for broad coverage.
 - **`extract`**: turn one or more URLs into clean, LLM-ready content.
-- **`image_search`** (In Beta — contact us for beta access): search the web for images by text query, by a reference image URL, or by base64 image data — exactly one of the three.
+- **`image_search`**: search the web for images by text query, by a reference image URL, or by base64 image data — exactly one of the three.
 - **`video_search`** (In Beta — contact us for beta access): search the web for videos by text query.
 
 What makes Octen useful for agents is that `extract` returns more than page text. Each successful result also includes:
@@ -309,8 +311,7 @@ all — see the per-client sections above.
 **`400` mentioning `tools`.** A name in `?tools=` is not one this deployment
 serves. The error lists the ones that are.
 
-**A tool errors with `code=403 … beta access`.** `image_search` and
-`video_search` are in Beta and enabled per account; the message says how to
+**A tool errors with `code=403 … beta access`.** `video_search` is in Beta and enabled per account; the message says how to
 request it.
 
 **Errors name what happened.** A failed call reports which dependency failed
@@ -323,13 +324,14 @@ request; it is the one an engineer can look up.
 | Tool | What it does | Best for |
 |---|---|---|
 | `search` | Search the live web with domain, text, language (ISO 639-1), time, and content controls | a single focused web search |
-| `news_search` | Same engine as `search`, fixed to news | current events and timely reporting |
+| `news_search` | Recent news as ranked articles plus `subjects` — the coverage grouped into storylines with summaries | current events and timely reporting |
+| `business_search` | Company and person cards (profile, financials, key people, career, recent activity) plus the ranked sources | due diligence, competitor and executive lookup |
 | `broad_search` | Decompose a query into up to `max_queries` sub-queries, search concurrently, return grouped results (same per-sub-query options as `search`, including the `language` filter) | research-style, multi-angle coverage |
 | `extract` | Fetch 1-20 URLs and return clean content, labels, and optional highlights | summarization, RAG, fact lookup |
-| `image_search` | _In Beta — contact us for beta access._ Search the web for images by text query (optional reference `image_url`) | finding pictures, photos, visual references |
+| `image_search` | Search the web for images by text query (optional reference `image_url`) | finding pictures, photos, visual references |
 | `video_search` | _In Beta — contact us for beta access._ Search the web for videos by text query | finding videos, clips, footage |
 
-These six are the whole surface, on purpose. Embeddings, chat completions,
+These seven are the whole surface, on purpose. Embeddings, chat completions,
 Answer and Research are Octen APIs that this server deliberately does not
 expose — reach them through the [Python SDK](https://pypi.org/project/octen/)
 or the [CLI](https://www.npmjs.com/package/@octen.ai/cli). A tool an agent can
@@ -373,7 +375,6 @@ reorders your filters — you get the API's answer.
 | Parameter | Type | Required | Limits | Default |
 |---|---|---|---|---|
 | `query` | string | yes | 1–500 chars |  |
-| `topic` | string |  | `general` / `news` | `"general"` |
 | `count` | integer |  | 1–100 | `5` |
 | `include_domains` | array |  | ≤1200 items; each ≤60 |  |
 | `exclude_domains` | array |  | ≤1200 items; each ≤60 |  |
@@ -399,19 +400,42 @@ reorders your filters — you get the API's answer.
 | `count` | integer |  | 1–100 | `5` |
 | `include_domains` | array |  | ≤1200 items; each ≤60 |  |
 | `exclude_domains` | array |  | ≤1200 items; each ≤60 |  |
-| `include_text` | array |  | ≤5 items; each ≤30 |  |
-| `exclude_text` | array |  | ≤5 items; each ≤30 |  |
 | `time_basis` | string |  | `auto` / `published` / `crawled` | `"auto"` |
 | `time_range` | string |  | `day` / `week` / `month` / `year` / `d` / `w` / `m` / `y` |  |
 | `start_time` | string |  |  |  |
 | `end_time` | string |  |  |  |
-| `format` | string |  | `text` / `markdown` | `"text"` |
-| `safesearch` | string |  | `off` / `strict` | `"strict"` |
 | `language` | array |  |  | `[]` |
 | `highlight` | object |  | `enable`, `max_tokens` |  |
 | `full_content` | object |  | `enable`, `max_tokens` |  |
-| `include_images` | boolean |  |  | `false` |
+| `subjects` | object |  | `enable`, `count` 1–5, `max_sub_news` 1–20 |  |
 | `timeout` | integer |  | 1–60 |  |
+
+`/news-search` is its own endpoint, so this is a different parameter set from
+`search`: no `include_text`/`exclude_text`, `format`, `safesearch` or
+`include_images`, and `subjects` on top. Omit `subjects` to take the API's
+default (on, 2 storylines, 5 supporting articles each).
+
+#### `business_search`
+
+| Parameter | Type | Required | Limits | Default |
+|---|---|---|---|---|
+| `query` | string | yes | 1–500 chars |  |
+| `count` | integer |  | 1–100 | `5` |
+| `include_domains` | array |  | ≤1200 items; each ≤60 |  |
+| `exclude_domains` | array |  | ≤1200 items; each ≤60 |  |
+| `time_basis` | string |  | `auto` / `published` / `crawled` | `"auto"` |
+| `time_range` | string |  | `day` / `week` / `month` / `year` / `d` / `w` / `m` / `y` |  |
+| `start_time` | string |  |  |  |
+| `end_time` | string |  |  |  |
+| `language` | array |  |  | `[]` |
+| `highlight` | object |  | `enable`, `max_tokens` |  |
+| `full_content` | object |  | `enable`, `max_tokens` |  |
+| `entities` | object |  | `enable`, `count` 1–20, `max_activities` 1–20, `max_news` 1–20 |  |
+| `timeout` | integer |  | 1–60 |  |
+
+The domain, time and language filters narrow the ranked results only — never
+the entity cards. Omit `entities` to take the API's default (on, 2 entities,
+5 activities and 5 news items each).
 
 #### `broad_search`
 
@@ -419,7 +443,6 @@ reorders your filters — you get the API's answer.
 |---|---|---|---|---|
 | `query` | string | yes | 1–500 chars |  |
 | `max_queries` | integer |  | 1–30 | `5` |
-| `topic` | string |  | `general` / `news` | `"general"` |
 | `count` | integer |  | 1–100 | `5` |
 | `include_domains` | array |  | ≤1200 items; each ≤60 |  |
 | `exclude_domains` | array |  | ≤1200 items; each ≤60 |  |
@@ -577,7 +600,7 @@ cap does nothing about many concurrent ones.
 |---|---|---|---|
 | `OCTEN_API_KEY` | yes | — | |
 | `OCTEN_API_URL` | no | `https://api.octen.ai` | |
-| `OCTEN_ENABLE_BETA_TOOLS` | no | on | Set to `false`/`0`/`off`/`no` to hide the Beta `image_search` / `video_search` tools from discovery. |
+| `OCTEN_ENABLE_BETA_TOOLS` | no | on | Set to `false`/`0`/`off`/`no` to hide the Beta `video_search` tool from discovery. `image_search` was covered by this switch until the API opened it to every account. |
 | `HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY` | no | — | Honoured since 0.4.0. Node's built-in `fetch` ignores these by default, so before 0.4.0 the server could not reach the API from behind a proxy even when every other tool on the machine could. **Set them explicitly in your client config** — see below; most MCP clients do not pass your shell environment through. |
 | `OCTEN_KEEP_ALIVE_MS` | no | `60000` | How long an idle connection is kept for reuse. undici's own default of 4s meant nearly every call re-paid a full TLS handshake (~515ms measured). 60s is measured against `api.octen.ai`, which closes idle connections between 60s and 90s — staying under that means we always release first, instead of dispatching onto a socket the origin has already closed. Re-measure if you point `OCTEN_API_URL` elsewhere. |
 | `OCTEN_KEEP_ALIVE_MAX_MS` | no | `600000` | Upper bound on the above when the origin advertises its own `Keep-Alive` hint. `api.octen.ai` does not send one. |

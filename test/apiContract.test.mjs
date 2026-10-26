@@ -17,7 +17,9 @@ import assert from "node:assert/strict";
 
 process.env.OCTEN_API_KEY = process.env.OCTEN_API_KEY ?? "test-key";
 
-const { searchTool, newsSearchTool, broadSearchTool } = await import("../dist/search.js");
+const { searchTool, broadSearchTool } = await import("../dist/search.js");
+const { newsSearchTool } = await import("../dist/newsSearch.js");
+const { businessSearchTool } = await import("../dist/businessSearch.js");
 const { extractTool } = await import("../dist/extract.js");
 const { imageSearchTool } = await import("../dist/imageSearch.js");
 const { videoSearchTool } = await import("../dist/videoSearch.js");
@@ -37,13 +39,36 @@ const DOCUMENTED = {
       "full_content.max_tokens": { minimum: 100, maximum: 100000 },
     },
   },
-  // Same engine, so the same options table applies — and it is derived from
-  // searchTool's, which is exactly why a drift there would go unnoticed here.
+  // Its own endpoint since 2026-10-26, so its own table: it shares most of
+  // search's parameters but not all, and adds `subjects`. This entry used to
+  // carry two fields on the grounds that the schema was derived from search's
+  // — which is how it went on advertising `topic` after /search stopped
+  // documenting the parameter.
   news_search: {
     tool: newsSearchTool,
     fields: {
+      "query": { maxLength: 500 },
       "count": { minimum: 1, maximum: 100 },
       "include_domains": { maxItems: 1200, itemMaxLength: 60 },
+      "exclude_domains": { maxItems: 1200, itemMaxLength: 60 },
+      "highlight.max_tokens": { minimum: 100, maximum: 20000 },
+      "full_content.max_tokens": { minimum: 100, maximum: 100000 },
+      "subjects.count": { minimum: 1, maximum: 5 },
+      "subjects.max_sub_news": { minimum: 1, maximum: 20 },
+    },
+  },
+  business_search: {
+    tool: businessSearchTool,
+    fields: {
+      "query": { maxLength: 500 },
+      "count": { minimum: 1, maximum: 100 },
+      "include_domains": { maxItems: 1200, itemMaxLength: 60 },
+      "exclude_domains": { maxItems: 1200, itemMaxLength: 60 },
+      "highlight.max_tokens": { minimum: 100, maximum: 20000 },
+      "full_content.max_tokens": { minimum: 100, maximum: 100000 },
+      "entities.count": { minimum: 1, maximum: 20 },
+      "entities.max_activities": { minimum: 1, maximum: 20 },
+      "entities.max_news": { minimum: 1, maximum: 20 },
     },
   },
   broad_search: {
@@ -128,7 +153,6 @@ test("extract's optional query is not given an unpublished minimum", () => {
 
 test("enum values match the published API reference", () => {
   const enums = [
-    [searchTool, "topic", ["general", "news"]],
     [searchTool, "time_basis", ["auto", "published", "crawled"]],
     [searchTool, "time_range", ["day", "week", "month", "year", "d", "w", "m", "y"]],
     [searchTool, "format", ["text", "markdown"]],
@@ -138,6 +162,12 @@ test("enum values match the published API reference", () => {
     [extractTool, "include_links.scope", ["prefer_internal", "prefer_external"]],
     [imageSearchTool, "safesearch", ["off", "strict"]],
     [videoSearchTool, "safesearch", ["off", "strict"]],
+    // Shared out of search's schema rather than restated, so these assert the
+    // sharing held — not that someone typed the same list three times.
+    [newsSearchTool, "time_basis", ["auto", "published", "crawled"]],
+    [newsSearchTool, "time_range", ["day", "week", "month", "year", "d", "w", "m", "y"]],
+    [businessSearchTool, "time_basis", ["auto", "published", "crawled"]],
+    [businessSearchTool, "time_range", ["day", "week", "month", "year", "d", "w", "m", "y"]],
   ];
   for (const [tool, field, want] of enums) {
     const s = at(tool.inputSchema, field);

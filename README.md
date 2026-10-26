@@ -499,12 +499,10 @@ which is authoritative for billing.
 | `query` | string |  | ≤500 chars |  |
 | `image_url` | string |  |  |  |
 | `image_data` | string |  | ≤5242880 chars |  |
-| `topic` | string |  | `general` / `design` | `"general"` |
 | `count` | integer |  | 1–10 | `5` |
 | `include_domains` | array |  |  |  |
 | `exclude_domains` | array |  |  |  |
 | `safesearch` | string |  | `off` / `strict` | `"strict"` |
-| `html_snippet` | object |  | `enable`, `max_tokens` |  |
 | `timeout` | integer |  | 1–60 |  |
 
 #### `video_search`

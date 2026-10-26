@@ -58,6 +58,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The listing description names the invite-only Beta tools the endpoint serves,
   and every manifest carries the same description and category.
 
+### Removed
+
+- **The design corpus is withdrawn from `image_search`**, pending an endpoint of
+  its own. `topic` goes with it — `design` was its only value besides the
+  default — along with `html_snippet`, which only carries anything for that
+  corpus, and the snippet line in the rendered result. The API still documents
+  all three, so the contract test records them as a deliberate withdrawal
+  rather than dropping them from its transcript of the reference.
+
 ## [0.6.0] — 2026-09-29
 
 ### Added

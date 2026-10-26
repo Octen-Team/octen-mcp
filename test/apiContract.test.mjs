@@ -96,8 +96,7 @@ const DOCUMENTED = {
     tool: imageSearchTool,
     fields: {
       "count": { minimum: 1, maximum: 10 },
-      "html_snippet.max_tokens": { minimum: 100, maximum: 100000 },
-    },
+      },
   },
   video_search: {
     tool: videoSearchTool,
@@ -207,6 +206,22 @@ const DOCUMENTED_PARAMS = {
             "include_images", "include_videos", "include_audio", "mode", "include_links"],
 };
 
+/**
+ * Documented parameters a tool deliberately does not offer, each with a reason.
+ *
+ * Not the same as a gap: the table above stays a transcript of the published
+ * reference, and this records where we knowingly offer less. Both entries are
+ * the design corpus, withdrawn from the public surface pending an endpoint of
+ * its own — `topic: design` is the only way to reach it, and `html_snippet`
+ * only carries anything there.
+ */
+const WITHDRAWN = {
+  image_search: {
+    topic: "general is the only value left; design is withdrawn pending its own endpoint",
+    html_snippet: "only populated for topic=design, which is withdrawn",
+  },
+};
+
 test("no tool advertises a parameter the API reference does not document", () => {
   const byName = { image_search: imageSearchTool, video_search: videoSearchTool, extract: extractTool };
   for (const [name, documented] of Object.entries(DOCUMENTED_PARAMS)) {
@@ -216,11 +231,25 @@ test("no tool advertises a parameter the API reference does not document", () =>
       `${name} advertises ${extra.join(", ")}, which its API reference does not document`);
   }
   // And the other direction: a documented parameter we do not offer is a
-  // capability the caller simply cannot reach.
+  // capability the caller simply cannot reach — unless it was withdrawn on
+  // purpose, which WITHDRAWN records.
   for (const [name, documented] of Object.entries(DOCUMENTED_PARAMS)) {
     const declared = Object.keys(byName[name].inputSchema.properties);
-    const missing = documented.filter((p) => !declared.includes(p));
+    const withdrawn = WITHDRAWN[name] ?? {};
+    const missing = documented.filter((p) => !declared.includes(p) && !(p in withdrawn));
     assert.deepEqual(missing, [], `${name} does not offer documented ${missing.join(", ")}`);
+  }
+});
+
+test("a withdrawal is dropped once the tool offers the parameter again", () => {
+  // Otherwise the list only grows, and a parameter that came back stays
+  // outside the check that should now cover it.
+  const byName = { image_search: imageSearchTool, video_search: videoSearchTool, extract: extractTool };
+  for (const [name, params] of Object.entries(WITHDRAWN)) {
+    const declared = Object.keys(byName[name].inputSchema.properties);
+    for (const p of Object.keys(params)) {
+      assert.equal(declared.includes(p), false, `${name} offers ${p} now — drop it from WITHDRAWN`);
+    }
   }
 });
 

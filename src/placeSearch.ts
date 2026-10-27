@@ -210,8 +210,11 @@ function formatPlace(p: any, idx: number, total: number): string {
   if (hours.length) head.push("Hours:", ...hours.map((h: string) => `  ${h}`));
 
   if (p?.attributes && typeof p.attributes === "object") {
+    // `false` is rendered, not dropped: "not wheelchair accessible" is the
+    // kind of fact someone chooses a place on, and dropping it would make a
+    // definite no read the same as an unknown.
     const attrs = Object.entries(p.attributes)
-      .map(([k, v]) => (v === true ? k : v === false || v == null ? "" : `${k}=${v}`))
+      .map(([k, v]) => (v === true ? k : v === false ? `no ${k}` : v == null ? "" : `${k}=${v}`))
       .filter(Boolean)
       .join(", ");
     if (attrs) head.push(`Attributes: ${attrs}`);

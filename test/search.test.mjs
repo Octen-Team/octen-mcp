@@ -515,3 +515,29 @@ test("place_search: a sparse card prints no empty labels", async () => {
     assert.ok(!text.includes(absent), `${absent} should not appear for a card without it`);
   }
 });
+
+test("place_search: a false attribute is stated, not dropped", async () => {
+  // "not wheelchair accessible" is a reason to pick a different place; if it
+  // vanished, a definite no would read the same as an unknown.
+  captureFetch({
+    code: 0,
+    data: {
+      places: [{
+        name: "X",
+        attributes: { wheelchair_accessible: false, wifi: true, outdoor_seating: "limited" },
+      }],
+      results: [],
+    },
+  });
+  const r = await handlePlaceSearch({ query: "q" });
+  const line = r.content[0].text.split("\n").find((l) => l.startsWith("Attributes:"));
+  assert.match(line, /no wheelchair_accessible/);
+  assert.match(line, /wifi/);
+  assert.match(line, /outdoor_seating=limited/);
+});
+
+test("place_search: an unknown attribute is dropped, unlike a false one", async () => {
+  captureFetch({ code: 0, data: { places: [{ name: "X", attributes: { wifi: null } }], results: [] } });
+  const r = await handlePlaceSearch({ query: "q" });
+  assert.ok(!r.content[0].text.includes("Attributes:"), "a card with only unknowns has no attributes line");
+});

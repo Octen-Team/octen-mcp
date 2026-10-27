@@ -505,12 +505,17 @@ export const PEER_HEADER = "x-octen-mcp-peer";
  * The end user's address as this server established it, under a name nothing
  * on the path rewrites.
  *
- * The forwarded address headers do not survive the trip. `api.octen.ai` sits
- * behind its own Front Door, which recomputes the `x-azure-*` pair from the
- * connection it accepted — this server — and appends to `x-forwarded-for`
- * rather than replacing it, leaving the end user leftmost, the position every
- * guide says to treat as forged. No proxy recognises this name, so what is
- * written here is what arrives.
+ * Whether the forwarded address headers survive the trip depends on where
+ * `OCTEN_API_URL` points, which is exactly why they are not the ones to read.
+ * At the default `api.octen.ai` they do not: it sits behind its own Front
+ * Door, which recomputes the `x-azure-*` pair from the connection it accepted
+ * — this server — and appends to `x-forwarded-for` rather than replacing it,
+ * leaving the end user leftmost, the position every guide says to treat as
+ * forged. Pointed at an address with no front door in between, such as a
+ * cluster-internal service, they arrive intact.
+ *
+ * This header is the one constant across both: no proxy recognises the name,
+ * so what is written here is what arrives.
  */
 export const CLIENT_IP_HEADER = "x-octen-client-ip";
 
@@ -562,9 +567,11 @@ function clientAddress(
  *
  * `user-agent` identifies the end client. The address headers are kept for
  * their log value only — {@link CLIENT_IP_HEADER} is what carries the address
- * meant to be acted on — because the front door at `api.octen.ai` recomputes
- * the `x-azure-*` pair from its own connection and appends to
- * `x-forwarded-for`, so none of the three arrives as written.
+ * meant to be acted on — because whether they arrive as written depends on
+ * where `OCTEN_API_URL` points: at the default `api.octen.ai` a front door
+ * recomputes the `x-azure-*` pair from its own connection and appends to
+ * `x-forwarded-for`, while an address with nothing in between passes all
+ * three through.
  *
  * `x-real-ip` is absent here yet still sent, because it is written rather than
  * relayed — see {@link forwardableHeaders}. No front door on the path claims

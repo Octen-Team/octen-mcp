@@ -425,3 +425,93 @@ test("an empty image_search result names the input that was actually used", asyn
       `${Object.keys(args)[0]} produced an undefined in the empty-result message`);
   }
 });
+
+// ---- place_search: not a search variant --------------------------------------
+
+const { placeSearchTool, handlePlaceSearch } = await import("../dist/placeSearch.js");
+
+test("place_search: goes to its own endpoint with the query top-level", async () => {
+  const captured = captureFetch({ code: 0, data: { places: [], results: [] } });
+  await handlePlaceSearch({ query: "coffee shops", places: { count: 3 } });
+  assert.ok(captured.url.endsWith("/place-search"), captured.url);
+  assert.equal(captured.body.query, "coffee shops");
+  assert.deepEqual(captured.body.places, { count: 3 });
+});
+
+test("place_search: web filters nest under web_search, never top-level", async () => {
+  const captured = captureFetch({ code: 0, data: { places: [], results: [] } });
+  await handlePlaceSearch({
+    query: "ramen",
+    web_search: { enable: true, count: 4, language: ["ja"] },
+  });
+  assert.equal("count" in captured.body, false, "count must not be top-level on /place-search");
+  assert.equal("language" in captured.body, false);
+  assert.equal(captured.body.web_search.count, 4);
+  assert.deepEqual(captured.body.web_search.language, ["ja"]);
+});
+
+test("place_search: web_search and places are omitted when unset", async () => {
+  const captured = captureFetch({ code: 0, data: { places: [], results: [] } });
+  await handlePlaceSearch({ query: "museums" });
+  // web_search defaults to off at the API — the inverse of the other search
+  // tools — so sending our own copy would pin a default we do not own.
+  assert.deepEqual(captured.body, { query: "museums" });
+});
+
+test("place_search: half a coordinate pair is refused before the call", async () => {
+  for (const [args, missing] of [
+    [{ query: "q", latitude: 35.6 }, "longitude"],
+    [{ query: "q", longitude: 139.7 }, "latitude"],
+  ]) {
+    const captured = captureFetch({ code: 0, data: { places: [] } });
+    const r = await handlePlaceSearch(args);
+    assert.match(r.content[0].text, new RegExp(missing));
+    assert.equal(captured.url, undefined, "nothing should reach the API");
+  }
+});
+
+test("place_search: radius without a point is refused before the call", async () => {
+  const captured = captureFetch({ code: 0, data: { places: [] } });
+  const r = await handlePlaceSearch({ query: "q", radius: 500 });
+  assert.match(r.content[0].text, /radius/);
+  assert.equal(captured.url, undefined, "nothing should reach the API");
+});
+
+test("place_search: a full coordinate pair with a radius is sent through", async () => {
+  const captured = captureFetch({ code: 0, data: { places: [], results: [] } });
+  await handlePlaceSearch({ query: "q", latitude: 35.6, longitude: 139.7, radius: 500 });
+  assert.equal(captured.body.latitude, 35.6);
+  assert.equal(captured.body.longitude, 139.7);
+  assert.equal(captured.body.radius, 500);
+});
+
+test("place_search: a place card renders the fields that are present", async () => {
+  captureFetch({
+    code: 0,
+    data: {
+      places: [{
+        name: "Kagari", category: "Ramen", address: "Ginza, Tokyo",
+        distance: 1240, rating: 4.6, review_count: 980, status: "open",
+        phone: "+81 3 0000 0000", opening_hours: ["Mon-Sat 11:00-21:00"],
+        latitude: 35.6, longitude: 139.7,
+      }],
+      results: [],
+    },
+  });
+  const r = await handlePlaceSearch({ query: "ramen" });
+  const text = r.content[0].text;
+  assert.match(text, /Kagari/);
+  assert.match(text, /1\.2 km/, "metres past 1000 should read as km");
+  assert.match(text, /4\.6\/5 \(980 reviews\) · open/);
+  assert.match(text, /Mon-Sat 11:00-21:00/);
+});
+
+test("place_search: a sparse card prints no empty labels", async () => {
+  captureFetch({ code: 0, data: { places: [{ name: "Nameless" }], results: [] } });
+  const r = await handlePlaceSearch({ query: "q" });
+  const text = r.content[0].text;
+  assert.match(text, /Nameless/);
+  for (const absent of ["Phone:", "Website:", "Hours:", "Coordinates:", "Attributes:"]) {
+    assert.ok(!text.includes(absent), `${absent} should not appear for a card without it`);
+  }
+});

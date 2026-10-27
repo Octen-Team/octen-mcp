@@ -15,6 +15,7 @@ process.env.OCTEN_API_KEY = process.env.OCTEN_API_KEY ?? "test-key";
 const { searchTool, broadSearchTool } = await import("../dist/search.js");
 const { newsSearchTool } = await import("../dist/newsSearch.js");
 const { businessSearchTool } = await import("../dist/businessSearch.js");
+const { placeSearchTool } = await import("../dist/placeSearch.js");
 const { extractTool } = await import("../dist/extract.js");
 const { imageSearchTool } = await import("../dist/imageSearch.js");
 const { videoSearchTool } = await import("../dist/videoSearch.js");
@@ -24,6 +25,7 @@ const tools = [
   searchTool,
   newsSearchTool,
   businessSearchTool,
+  placeSearchTool,
   broadSearchTool,
   extractTool,
   imageSearchTool,
@@ -33,7 +35,7 @@ const tools = [
 test("the annotation roster covers every advertised tool", () => {
   assert.deepEqual(
     tools.map((t) => t.name).sort(),
-    ["broad_search", "business_search", "extract", "image_search", "news_search", "search", "video_search"],
+    ["broad_search", "business_search", "extract", "image_search", "news_search", "place_search", "search", "video_search"],
   );
 });
 

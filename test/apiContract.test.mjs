@@ -20,6 +20,7 @@ process.env.OCTEN_API_KEY = process.env.OCTEN_API_KEY ?? "test-key";
 const { searchTool, broadSearchTool } = await import("../dist/search.js");
 const { newsSearchTool } = await import("../dist/newsSearch.js");
 const { businessSearchTool } = await import("../dist/businessSearch.js");
+const { placeSearchTool } = await import("../dist/placeSearch.js");
 const { extractTool } = await import("../dist/extract.js");
 const { imageSearchTool } = await import("../dist/imageSearch.js");
 const { videoSearchTool } = await import("../dist/videoSearch.js");
@@ -69,6 +70,24 @@ const DOCUMENTED = {
       "entities.count": { minimum: 1, maximum: 20 },
       "entities.max_activities": { minimum: 1, maximum: 20 },
       "entities.max_news": { minimum: 1, maximum: 20 },
+    },
+  },
+  // Not a search variant: the web filters nest under `web_search` instead of
+  // sitting beside `query`, and the location parameters have no counterpart
+  // anywhere else — which is why none of this is shared out of search's schema.
+  place_search: {
+    tool: placeSearchTool,
+    fields: {
+      "query": { maxLength: 500 },
+      "latitude": { minimum: -90, maximum: 90 },
+      "longitude": { minimum: -180, maximum: 180 },
+      "radius": { minimum: 1, maximum: 50000 },
+      "places.count": { minimum: 1, maximum: 20 },
+      "web_search.count": { minimum: 1, maximum: 100 },
+      "web_search.include_domains": { maxItems: 1200, itemMaxLength: 60 },
+      "web_search.exclude_domains": { maxItems: 1200, itemMaxLength: 60 },
+      "web_search.highlight.max_tokens": { minimum: 100, maximum: 20000 },
+      "web_search.full_content.max_tokens": { minimum: 100, maximum: 100000 },
     },
   },
   broad_search: {
@@ -167,6 +186,10 @@ test("enum values match the published API reference", () => {
     [newsSearchTool, "time_range", ["day", "week", "month", "year", "d", "w", "m", "y"]],
     [businessSearchTool, "time_basis", ["auto", "published", "crawled"]],
     [businessSearchTool, "time_range", ["day", "week", "month", "year", "d", "w", "m", "y"]],
+    // Nested, not shared: place_search declares these inside `web_search`.
+    [placeSearchTool, "web_search.time_basis", ["auto", "published", "crawled"]],
+    [placeSearchTool, "web_search.time_range", ["day", "week", "month", "year", "d", "w", "m", "y"]],
+    [placeSearchTool, "user_location.type", ["approximate"]],
   ];
   for (const [tool, field, want] of enums) {
     const s = at(tool.inputSchema, field);

@@ -1135,11 +1135,11 @@ test("?tools narrows the roster, and the excluded tools really are gone", async 
       assert.equal(r.status, 200, `tools/list failed for ${q || "(no filter)"}`);
       return [...r.text.matchAll(/"name":"([a-z_]+)"/g)].map((m) => m[1]);
     };
-    assert.equal((await list("")).length, 7);
+    assert.equal((await list("")).length, 8);
     assert.deepEqual(await list("?tools=search"), ["search"]);
     assert.deepEqual(await list("?tools=search,extract"), ["search", "extract"]);
     assert.deepEqual(await list("?tools=search,search"), ["search"], "duplicates must not advertise a tool twice");
-    assert.equal((await list("?tools=")).length, 7, "an empty value means no selection, not no tools");
+    assert.equal((await list("?tools=")).length, 8, "an empty value means no selection, not no tools");
 
     // The reverse case that makes the feature real rather than decorative: a
     // client can call a tool it was never shown, so filtering the list alone
@@ -1204,7 +1204,7 @@ test("a real tool the deployment does not serve is not called unknown", async ()
     // Whatever the reason, the reader is told what they can actually ask for,
     // and the Beta tool is absent from that list on this deployment.
     for (const m of [disabled, typo, mixed]) {
-      assert.match(m, /Available: search, news_search, business_search, broad_search, extract, image_search\./);
+      assert.match(m, /Available: search, news_search, business_search, place_search, broad_search, extract, image_search\./);
       assert.doesNotMatch(m, /Available:[^.]*video_search/);
     }
   } finally { stack.stop(); }
@@ -1218,9 +1218,9 @@ test("a selection cannot re-enable a Beta tool that the switch turned off", asyn
   try {
     // video_search is the only Beta tool left; image_search stopped being one
     // when the API opened it to every account, so the switch now hides one
-    // tool out of seven rather than two out of six.
+    // tool out of eight rather than two out of six.
     const all = await probe(stack.srv.port, "tools/list", { "x-api-key": "k" });
-    assert.equal([...all.text.matchAll(/"name":"([a-z_]+)"/g)].length, 6, "the Beta tool should be absent");
+    assert.equal([...all.text.matchAll(/"name":"([a-z_]+)"/g)].length, 7, "the Beta tool should be absent");
 
     const r = await probe(stack.srv.port, "tools/list", { "x-api-key": "k" }, "?tools=video_search");
     assert.equal(r.status, 400, "a disabled Beta tool must read as a name that does not exist");

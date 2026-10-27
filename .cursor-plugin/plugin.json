@@ -3,7 +3,7 @@
   "displayName": "Octen",
   "publisher": "Octen",
   "version": "0.6.0",
-  "description": "Real-time web search, news with storyline clustering, company and person profiles, broad multi-angle research, URL extraction and image search through Octen's hosted MCP server, plus video search in invite-only Beta. Authorizes over OAuth on first use \u2014 nothing to install and no API key to paste.",
+  "description": "Real-time web search, news with storyline clustering, company and person profiles, local place lookup, broad multi-angle research, URL extraction and image search through Octen's hosted MCP server, plus video search in invite-only Beta. Authorizes over OAuth on first use \u2014 nothing to install and no API key to paste.",
   "author": {
     "name": "Octen",
     "email": "support@octen.ai"
@@ -26,6 +26,7 @@
     "broad search",
     "news search",
     "business search",
+    "place search",
     "research",
     "extract",
     "fetch",

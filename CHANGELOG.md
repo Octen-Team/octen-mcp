@@ -18,6 +18,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   costs a fraction of the context. `entities` tunes them; omitted, the API's
   own default applies. The domain, time and language filters narrow the ranked
   results only, never the cards.
+- **`place_search`** — wraps `POST /place-search`. Real-world places as
+  structured cards: name, category, address, coordinates, phone, website,
+  opening hours, status, rating and review count. Pass a coordinate pair to
+  search around a point and every card carries its `distance`; `radius` caps
+  how far, and `user_location` is the fallback when only the city is known.
+  Half a coordinate pair, or a `radius` without one, is refused here rather
+  than spent on a round trip the API answers with a 400.
+
+  Not a search variant, and its schema shares nothing with `search`'s: the web
+  filters nest under `web_search` instead of sitting beside `query`, and
+  `web_search.enable` defaults to **false** — the places are the answer and the
+  pages cost context, which is the inverse of every other search tool here.
 - **`news_search` returns storylines.** Its new endpoint groups the coverage
   into `subjects`, each with a summary and the span it covers, rendered above
   the articles so a model that stops reading there still has the answer.

@@ -11,6 +11,7 @@ Core capabilities:
 
 - **`search`**: search the live web with domain, text, language, and time filters.
 - **`news_search`**: recent news, returned both as articles and as storylines — the coverage grouped into subjects, each with a summary and the span it covers.
+- **`place_search`**: real-world places as structured cards — address, coordinates, phone, opening hours, rating — around a point you give it, or in an area the query names.
 - **`business_search`**: a company or person, returned as a structured card — profile, financials, key people, career history, recent announcements — alongside the sources behind it.
 - **`broad_search`**: decompose a query into multiple sub-queries, search them concurrently, and return results grouped per sub-query for broad coverage.
 - **`extract`**: turn one or more URLs into clean, LLM-ready content.
@@ -326,12 +327,13 @@ request; it is the one an engineer can look up.
 | `search` | Search the live web with domain, text, language (ISO 639-1), time, and content controls | a single focused web search |
 | `news_search` | Recent news as ranked articles plus `subjects` — the coverage grouped into storylines with summaries | current events and timely reporting |
 | `business_search` | Company and person cards (profile, financials, key people, career, recent activity) plus the ranked sources | due diligence, competitor and executive lookup |
+| `place_search` | Place cards (address, coordinates, phone, hours, status, rating) around a point or in a named area; web pages about them are opt-in | "near me", local lookup, opening hours, contact details |
 | `broad_search` | Decompose a query into up to `max_queries` sub-queries, search concurrently, return grouped results (same per-sub-query options as `search`, including the `language` filter) | research-style, multi-angle coverage |
 | `extract` | Fetch 1-20 URLs and return clean content, labels, and optional highlights | summarization, RAG, fact lookup |
 | `image_search` | Search the web for images by text query (optional reference `image_url`) | finding pictures, photos, visual references |
 | `video_search` | _In Beta — contact us for beta access._ Search the web for videos by text query | finding videos, clips, footage |
 
-These seven are the whole surface, on purpose. Embeddings, chat completions,
+These eight are the whole surface, on purpose. Embeddings, chat completions,
 Answer and Research are Octen APIs that this server deliberately does not
 expose — reach them through the [Python SDK](https://pypi.org/project/octen/)
 or the [CLI](https://www.npmjs.com/package/@octen.ai/cli). A tool an agent can
@@ -436,6 +438,29 @@ default (on, 2 storylines, 5 supporting articles each).
 The domain, time and language filters narrow the ranked results only — never
 the entity cards. Omit `entities` to take the API's default (on, 2 entities,
 5 activities and 5 news items each).
+
+#### `place_search`
+
+| Parameter | Type | Required | Limits | Default |
+|---|---|---|---|---|
+| `query` | string | yes | 1–500 chars |  |
+| `latitude` | number |  | −90–90, WGS84; needs `longitude` |  |
+| `longitude` | number |  | −180–180, WGS84; needs `latitude` |  |
+| `radius` | integer |  | 1–50000 m; needs both coordinates |  |
+| `user_location` | object |  | `type` (`approximate`), `city`, `region`, `country`, `timezone` |  |
+| `places` | object |  | `count` 1–20 |  |
+| `web_search` | object |  | see below | off |
+| `timeout` | integer |  | 1–60 |  |
+
+`web_search` holds the filters the other search tools take top-level:
+`enable` (default **false**), `count` 1–100, `highlight`, `full_content`,
+`include_domains`, `exclude_domains`, `language`, `time_basis`, `time_range`,
+`start_time`, `end_time`.
+
+The places are the answer here and the pages cost context, which is why
+`web_search` is off unless asked for. Pass a coordinate pair to get a
+`distance` on every card; `user_location` is the fallback when only the city
+is known, and returns no distances.
 
 #### `broad_search`
 

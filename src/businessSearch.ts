@@ -189,7 +189,13 @@ function formatMetrics(m: any): string[] {
   const fund = Array.isArray(m.funding) ? m.funding : [];
   if (fund.length) {
     out.push("Funding:");
-    out.push(...fund.slice(0, SERIES_SHOWN).map((f: any) => periodLine(f, [["amount", "amount"]], "date")));
+    out.push(...fund.slice(0, SERIES_SHOWN).map((f: any) => {
+      const line = periodLine(f, [["amount", "amount"]], "date");
+      // Dropped before: "who funded them" is a question the card can answer
+      // and the ranked results usually cannot.
+      const led = flatten(f?.lead_investors);
+      return led ? `${line} — led by ${led.split(";").join(", ")}` : line;
+    }));
     if (fund.length > SERIES_SHOWN) out.push(`  (+${fund.length - SERIES_SHOWN} earlier rounds)`);
   }
 
@@ -213,12 +219,26 @@ function formatMetrics(m: any): string[] {
   return out;
 }
 
-/** A news item or activity, as one line. */
-function itemLine(n: any): string {
-  if (typeof n !== "object" || n == null) return flatten(n) ? `  - ${flatten(n)}` : "";
+/**
+ * A news item or activity: a line, plus whatever content it carries.
+ *
+ * These are not duplicates of the ranked results — an entity's news need not
+ * appear in `data.results` at all — so rendering only the title discarded
+ * `highlight` and `full_content` the caller had enabled and been billed for,
+ * leaving a generic headline in place of the facts under it.
+ */
+function itemLine(n: any): string[] {
+  if (typeof n !== "object" || n == null) {
+    const f = flatten(n);
+    return f ? [`  - ${f}`] : [];
+  }
   const head = n.title || n.name || n.text || n.summary || "(untitled)";
   const when = n.time_published || n.time || n.date;
-  return `  - ${head}${when ? ` (${when})` : ""}${n.url ? ` — ${n.url}` : ""}`;
+  const out = [`  - ${head}${when ? ` (${when})` : ""}${n.url ? ` — ${n.url}` : ""}`];
+  for (const key of ["highlight", "full_content"] as const) {
+    if (typeof n[key] === "string" && n[key]) out.push(`    ${n[key]}`);
+  }
+  return out;
 }
 
 /** An entity card: the part of the answer the ranked results would otherwise have to be read for. */
@@ -276,7 +296,7 @@ function formatEntity(e: any, idx: number, total: number): string {
 
   for (const [label, key] of [["Recent", "activities"], ["News", "news"]] as const) {
     const items = Array.isArray(e?.[key]) ? e[key] : [];
-    if (items.length) lines.push(`${label}:`, ...items.map(itemLine).filter(Boolean));
+    if (items.length) lines.push(`${label}:`, ...items.flatMap(itemLine));
   }
 
   return lines.join("\n");

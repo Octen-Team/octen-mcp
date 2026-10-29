@@ -692,3 +692,62 @@ test("business_search: a metrics key the API adds later still shows", async () =
   const text = (await handleBusinessSearch({ query: "q" })).content[0].text;
   assert.match(text, /headcount: 29600/);
 });
+
+// ---- content the caller enabled must not be discarded ------------------------
+
+test("news_search: a storyline's articles keep the content that was asked for", async () => {
+  // top_news / sub_news need not appear in data.results at all — verified
+  // against the live API — so dropping their highlight and full_content threw
+  // away content the caller had enabled and been billed for.
+  captureFetch({
+    code: 0,
+    data: {
+      results: [],
+      subjects: [{
+        name: "S",
+        top_news: { title: "Lead", url: "https://a.com", time_published: "2026-10-22T11:14:39Z",
+                    summary: "sum", highlight: "HL-TOP", full_content: "FC-TOP" },
+        sub_news: [{ title: "Sub", url: "https://b.com", time_published: "2026-10-21T00:00:00Z",
+                     highlight: "HL-SUB", full_content: "FC-SUB" }],
+      }],
+    },
+  });
+  const text = (await handleNewsSearch({ query: "q" })).content[0].text;
+  for (const kept of ["HL-TOP", "FC-TOP", "HL-SUB", "FC-SUB", "2026-10-22T11:14:39Z"]) {
+    assert.ok(text.includes(kept), `${kept} was dropped`);
+  }
+});
+
+test("business_search: entity news and activities keep their content", async () => {
+  captureFetch({
+    code: 0,
+    data: {
+      entities: [{
+        type: "company", name: "X",
+        news: [{ title: "Quarterly update", url: "https://n.com", highlight: "HL-NEWS", full_content: "FC-NEWS" }],
+        activities: [{ title: "Post", url: "https://p.com", highlight: "HL-ACT" }],
+      }],
+      results: [],
+    },
+  });
+  const text = (await handleBusinessSearch({ query: "q" })).content[0].text;
+  for (const kept of ["HL-NEWS", "FC-NEWS", "HL-ACT"]) {
+    assert.ok(text.includes(kept), `${kept} was dropped`);
+  }
+});
+
+test("business_search: a funding round names who led it", async () => {
+  captureFetch({
+    code: 0,
+    data: {
+      entities: [{
+        name: "X",
+        metrics: { funding: [{ round: "Series H", amount: 50000000000, currency: "USD",
+                               date: "2026-05-28", lead_investors: "Altimeter Capital;Coatue" }] },
+      }],
+      results: [],
+    },
+  });
+  const text = (await handleBusinessSearch({ query: "q" })).content[0].text;
+  assert.match(text, /Series H — amount 50\.0B USD \(2026-05-28\) — led by Altimeter Capital, Coatue/);
+});

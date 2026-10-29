@@ -88,10 +88,31 @@ interface NewsSearchArgs {
   timeout?: number;
 }
 
-/** One line per article inside a storyline — title and url only; the article's own block carries the rest. */
-function newsLine(n: any): string {
+/**
+ * Whatever content an article carries, indented under it.
+ *
+ * These are not duplicates of the ranked results: a storyline's articles need
+ * not appear in `data.results` at all, so dropping their `highlight` and
+ * `full_content` discarded content the caller had enabled and been billed
+ * for, with nowhere else to find it.
+ */
+function articleContent(n: any, indent: string): string[] {
+  const out: string[] = [];
+  if (typeof n?.highlight === "string" && n.highlight) out.push(`${indent}${n.highlight}`);
+  if (typeof n?.full_content === "string" && n.full_content) {
+    out.push(`${indent}${n.full_content}`);
+  }
+  return out;
+}
+
+/** One article inside a storyline: a line, plus its content when it carries any. */
+function newsLine(n: any): string[] {
   const title = n?.title || "(untitled)";
-  return n?.url ? `  - ${title} — ${n.url}` : `  - ${title}`;
+  const when = n?.time_published ? ` (${n.time_published})` : "";
+  return [
+    n?.url ? `  - ${title}${when} — ${n.url}` : `  - ${title}${when}`,
+    ...articleContent(n, "    "),
+  ];
 }
 
 /**
@@ -109,12 +130,14 @@ function formatSubject(s: any, idx: number, total: number): string {
 
   const top = s?.top_news;
   if (top) {
-    lines.push(`Top: ${top.title || "(untitled)"}${top.url ? ` — ${top.url}` : ""}`);
+    const when = top.time_published ? ` (${top.time_published})` : "";
+    lines.push(`Top: ${top.title || "(untitled)"}${when}${top.url ? ` — ${top.url}` : ""}`);
     if (top.summary) lines.push(`  ${top.summary}`);
+    lines.push(...articleContent(top, "  "));
   }
 
   const subs = Array.isArray(s?.sub_news) ? s.sub_news : [];
-  if (subs.length) lines.push("Also:", ...subs.map(newsLine));
+  if (subs.length) lines.push("Also:", ...subs.flatMap(newsLine));
 
   return lines.join("\n");
 }

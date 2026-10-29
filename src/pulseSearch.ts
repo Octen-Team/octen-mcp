@@ -144,7 +144,10 @@ interface PulseSearchArgs {
  */
 function withScheme(url: unknown): unknown {
   if (typeof url !== "string" || url === "") return url;
-  return /^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : `https://${url}`;
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(url)) return url;
+  // `//host/path` already has the slashes and wants only the scheme; adding
+  // the pair as well produced `https:////host/path`.
+  return url.startsWith("//") ? `https:${url}` : `https://${url}`;
 }
 
 /** Handler — POSTs to Octen Pulse Search and reshapes the response for the LLM. */

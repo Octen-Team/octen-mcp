@@ -581,6 +581,22 @@ test("pulse_search: a URL that already has a scheme is left alone", async () => 
   assert.ok(!text.includes("https://http://"), "http must not be prefixed with https");
 });
 
+test("pulse_search: a protocol-relative URL gets only the scheme", async () => {
+  // `//host/path` already carries the slashes; adding the pair as well
+  // produced `https:////host/path`.
+  captureFetch({ code: 0, data: { results: [{ title: "C", url: "//cdn.example.com/x" }] } });
+  const r = await handlePulseSearch({ query: "q" });
+  assert.match(r.content[0].text, /https:\/\/cdn\.example\.com\/x/);
+  assert.ok(!r.content[0].text.includes("https:///"), "the slashes must not be doubled");
+});
+
+test("pulse_search: a non-http scheme is left alone", async () => {
+  captureFetch({ code: 0, data: { results: [{ title: "F", url: "ftp://f.com" }] } });
+  const r = await handlePulseSearch({ query: "q" });
+  assert.match(r.content[0].text, /ftp:\/\/f\.com/);
+  assert.ok(!r.content[0].text.includes("https://ftp"), "an existing scheme must not be prefixed");
+});
+
 test("pulse_search: advertises none of search's filters", () => {
   // A destination predictor takes no filters; offering them would gate
   // arguments the endpoint then ignores.

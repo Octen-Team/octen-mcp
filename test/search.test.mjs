@@ -751,3 +751,18 @@ test("business_search: a funding round names who led it", async () => {
   const text = (await handleBusinessSearch({ query: "q" })).content[0].text;
   assert.match(text, /Series H — amount 50\.0B USD \(2026-05-28\) — led by Altimeter Capital, Coatue/);
 });
+
+test("no tool advertises `country` — the API accepts it and ignores it", () => {
+  // Verified 2026-10-29 against the live API: /search returns 200 for
+  // `country` and gives identical results for no value, `JP`, `DE` and the
+  // invalid `ZZ`. Offering it would promise a regional bias that does not
+  // happen, and an invalid code raises no error to catch the mistake.
+  for (const tool of [searchTool, newsSearchTool, businessSearchTool, pulseSearchTool, broadSearchTool]) {
+    assert.equal(tool.inputSchema.properties.country, undefined, `${tool.name} advertises country`);
+  }
+  // place_search's is a different parameter: a documented field of
+  // `user_location`, not a search-wide bias.
+  assert.equal(placeSearchTool.inputSchema.properties.country, undefined);
+  assert.ok(placeSearchTool.inputSchema.properties.user_location.properties.country,
+    "user_location.country is documented and must stay");
+});

@@ -26,6 +26,7 @@ import {
 import { newsSearchTool, handleNewsSearch } from "./newsSearch.js";
 import { businessSearchTool, handleBusinessSearch } from "./businessSearch.js";
 import { placeSearchTool, handlePlaceSearch } from "./placeSearch.js";
+import { pulseSearchTool, handlePulseSearch } from "./pulseSearch.js";
 import { imageSearchTool, handleImageSearch } from "./imageSearch.js";
 import { videoSearchTool, handleVideoSearch } from "./videoSearch.js";
 import { logEvent, type HandlerContext } from "./http.js";
@@ -54,6 +55,7 @@ const allTools = [
   newsSearchTool,
   businessSearchTool,
   placeSearchTool,
+  pulseSearchTool,
   broadSearchTool,
   extractTool,
   imageSearchTool,
@@ -225,6 +227,8 @@ export function createOctenServer(opts: CreateServerOptions): Server {
           return await handleBusinessSearch(args ?? {}, ctx);
         case "place_search":
           return await handlePlaceSearch(args ?? {}, ctx);
+        case "pulse_search":
+          return await handlePulseSearch(args ?? {}, ctx);
         case "broad_search":
           return await handleBroadSearch(args ?? {}, ctx);
         case "extract":

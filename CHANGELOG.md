@@ -18,6 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   costs a fraction of the context. `entities` tunes them; omitted, the API's
   own default applies. The domain, time and language filters narrow the ranked
   results only, never the cards.
+- **`pulse_search`** — wraps `POST /pulse-search`. The URL a query most likely
+  means, in about 10ms: one inference predicts destinations instead of
+  searching and ranking. For official docs, help centres and sites you could
+  almost name; the docs point news, fresh pages and filtered queries back at
+  `search`, and this tool has none of those parameters to offer.
+
+  `mode` is the whole surface. `lite` returns titles and URLs and ignores
+  `highlight`, `full_content` and `include_images`; `standard` turns them on at
+  roughly twice the latency. In `lite` the API returns URLs **without a
+  scheme**, so this server puts `https://` back — a result handed to `extract`
+  would otherwise be a URL nothing can fetch.
 - **`place_search`** — wraps `POST /place-search`. Real-world places as
   structured cards: name, category, address, coordinates, phone, website,
   opening hours, status, rating and review count. Pass a coordinate pair to

@@ -32,13 +32,13 @@ test("initialize succeeds without a credential (auth is enforced at call time)",
   } finally { srv.stop(); }
 });
 
-test("tools/list succeeds without a credential and shows all eight tools", async () => {
+test("tools/list succeeds without a credential and shows all nine tools", async () => {
   const srv = await startHttp();
   try {
     const { msg } = await rpc(srv.port, { jsonrpc: "2.0", id: 2, method: "tools/list" });
     assert.deepEqual(
       msg.result.tools.map((t) => t.name).sort(),
-      ["broad_search", "business_search", "extract", "image_search", "news_search", "place_search", "search", "video_search"]
+      ["broad_search", "business_search", "extract", "image_search", "news_search", "place_search", "pulse_search", "search", "video_search"]
     );
   } finally { srv.stop(); }
 });

@@ -541,3 +541,51 @@ test("place_search: an unknown attribute is dropped, unlike a false one", async 
   const r = await handlePlaceSearch({ query: "q" });
   assert.ok(!r.content[0].text.includes("Attributes:"), "a card with only unknowns has no attributes line");
 });
+
+// ---- pulse_search: a destination predictor, not a search ---------------------
+
+const { pulseSearchTool, handlePulseSearch } = await import("../dist/pulseSearch.js");
+
+test("pulse_search: goes to its own endpoint", async () => {
+  const captured = captureFetch({ code: 0, data: { results: [{ title: "T", url: "github.com/docs" }] } });
+  await handlePulseSearch({ query: "github docs", mode: "standard", count: 3 });
+  assert.ok(captured.url.endsWith("/pulse-search"), captured.url);
+  assert.equal(captured.body.mode, "standard");
+  assert.equal(captured.body.count, 3);
+});
+
+test("pulse_search: mode is omitted when unset", async () => {
+  const captured = captureFetch({ code: 0, data: { results: [{ title: "T", url: "x.com" }] } });
+  await handlePulseSearch({ query: "youtube" });
+  assert.deepEqual(captured.body, { query: "youtube" });
+});
+
+test("pulse_search: a schemeless lite URL gets its scheme back", async () => {
+  // lite returns `github.com/docs`; handed on as-is, anything that fetches it
+  // — `extract`, say — gets a URL it cannot resolve.
+  captureFetch({ code: 0, data: { results: [{ title: "GitHub Docs", url: "github.com/docs" }] } });
+  const r = await handlePulseSearch({ query: "github docs" });
+  assert.match(r.content[0].text, /https:\/\/github\.com\/docs/);
+});
+
+test("pulse_search: a URL that already has a scheme is left alone", async () => {
+  captureFetch({
+    code: 0,
+    data: { results: [{ title: "A", url: "https://a.com/x" }, { title: "B", url: "http://b.com" }] },
+  });
+  const r = await handlePulseSearch({ query: "q" });
+  const text = r.content[0].text;
+  assert.match(text, /https:\/\/a\.com\/x/);
+  assert.match(text, /http:\/\/b\.com/);
+  assert.ok(!text.includes("https://https://"), "a scheme must not be doubled");
+  assert.ok(!text.includes("https://http://"), "http must not be prefixed with https");
+});
+
+test("pulse_search: advertises none of search's filters", () => {
+  // A destination predictor takes no filters; offering them would gate
+  // arguments the endpoint then ignores.
+  for (const absent of ["include_domains", "exclude_domains", "include_text", "exclude_text",
+                        "language", "time_basis", "time_range", "start_time", "end_time", "format"]) {
+    assert.equal(pulseSearchTool.inputSchema.properties[absent], undefined, absent);
+  }
+});

@@ -11,6 +11,7 @@ Core capabilities:
 
 - **`search`**: search the live web with domain, text, language, and time filters.
 - **`news_search`**: recent news, returned both as articles and as storylines — the coverage grouped into subjects, each with a summary and the span it covers.
+- **`pulse_search`**: the URL a query most likely means, in about 10ms — official docs, help centres, a site you could almost name. No freshness, no filters.
 - **`place_search`**: real-world places as structured cards — address, coordinates, phone, opening hours, rating — around a point you give it, or in an area the query names.
 - **`business_search`**: a company or person, returned as a structured card — profile, financials, key people, career history, recent announcements — alongside the sources behind it.
 - **`broad_search`**: decompose a query into multiple sub-queries, search them concurrently, and return results grouped per sub-query for broad coverage.
@@ -328,12 +329,13 @@ request; it is the one an engineer can look up.
 | `news_search` | Recent news as ranked articles plus `subjects` — the coverage grouped into storylines with summaries | current events and timely reporting |
 | `business_search` | Company and person cards (profile, financials, key people, career, recent activity) plus the ranked sources | due diligence, competitor and executive lookup |
 | `place_search` | Place cards (address, coordinates, phone, hours, status, rating) around a point or in a named area; web pages about them are opt-in | "near me", local lookup, opening hours, contact details |
+| `pulse_search` | Predicted destinations — titles and URLs in ~10ms, or page content in `standard` mode. No filters, no freshness | reaching known docs, help pages, a site you could name |
 | `broad_search` | Decompose a query into up to `max_queries` sub-queries, search concurrently, return grouped results (same per-sub-query options as `search`, including the `language` filter) | research-style, multi-angle coverage |
 | `extract` | Fetch 1-20 URLs and return clean content, labels, and optional highlights | summarization, RAG, fact lookup |
 | `image_search` | Search the web for images by text query (optional reference `image_url`) | finding pictures, photos, visual references |
 | `video_search` | _In Beta — contact us for beta access._ Search the web for videos by text query | finding videos, clips, footage |
 
-These eight are the whole surface, on purpose. Embeddings, chat completions,
+These nine are the whole surface, on purpose. Embeddings, chat completions,
 Answer and Research are Octen APIs that this server deliberately does not
 expose — reach them through the [Python SDK](https://pypi.org/project/octen/)
 or the [CLI](https://www.npmjs.com/package/@octen.ai/cli). A tool an agent can
@@ -461,6 +463,27 @@ The places are the answer here and the pages cost context, which is why
 `web_search` is off unless asked for. Pass a coordinate pair to get a
 `distance` on every card; `user_location` is the fallback when only the city
 is known, and returns no distances.
+
+#### `pulse_search`
+
+| Parameter | Type | Required | Limits | Default |
+|---|---|---|---|---|
+| `query` | string | yes | 1–500 chars |  |
+| `mode` | string |  | `lite` / `standard` | `"lite"` |
+| `count` | integer |  | 1–10 | `5` |
+| `safesearch` | string |  | `off` / `strict` | `"strict"` |
+| `include_images` | boolean |  | no effect in `lite` | `false` |
+| `highlight` | object |  | `enable`, `max_tokens`; no effect in `lite` |  |
+| `full_content` | object |  | `enable`, `max_tokens`; no effect in `lite` |  |
+| `timeout` | integer |  | 1–60 |  |
+
+A destination predictor, not a search: one inference produces the URLs a query
+most likely means. It takes none of `search`'s domain, text, time or language
+filters, sees no fresh content, and caps `count` at 10 rather than 100.
+
+In `lite` the API returns URLs **without a scheme**; this server puts `https://`
+back so the result can be passed straight to `extract`. `standard` adds
+highlights, full content and images at roughly twice the latency.
 
 #### `broad_search`
 

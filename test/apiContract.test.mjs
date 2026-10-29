@@ -21,6 +21,7 @@ const { searchTool, broadSearchTool } = await import("../dist/search.js");
 const { newsSearchTool } = await import("../dist/newsSearch.js");
 const { businessSearchTool } = await import("../dist/businessSearch.js");
 const { placeSearchTool } = await import("../dist/placeSearch.js");
+const { pulseSearchTool } = await import("../dist/pulseSearch.js");
 const { extractTool } = await import("../dist/extract.js");
 const { imageSearchTool } = await import("../dist/imageSearch.js");
 const { videoSearchTool } = await import("../dist/videoSearch.js");
@@ -88,6 +89,18 @@ const DOCUMENTED = {
       "web_search.exclude_domains": { maxItems: 1200, itemMaxLength: 60 },
       "web_search.highlight.max_tokens": { minimum: 100, maximum: 20000 },
       "web_search.full_content.max_tokens": { minimum: 100, maximum: 100000 },
+    },
+  },
+  // Flat like the search family, but sharing almost none of it: a destination
+  // predictor takes no domain, text, time or language filter, and `count` tops
+  // out an order of magnitude lower.
+  pulse_search: {
+    tool: pulseSearchTool,
+    fields: {
+      "query": { maxLength: 500 },
+      "count": { minimum: 1, maximum: 10 },
+      "highlight.max_tokens": { minimum: 100, maximum: 20000 },
+      "full_content.max_tokens": { minimum: 100, maximum: 100000 },
     },
   },
   broad_search: {
@@ -190,6 +203,8 @@ test("enum values match the published API reference", () => {
     [placeSearchTool, "web_search.time_basis", ["auto", "published", "crawled"]],
     [placeSearchTool, "web_search.time_range", ["day", "week", "month", "year", "d", "w", "m", "y"]],
     [placeSearchTool, "user_location.type", ["approximate"]],
+    [pulseSearchTool, "mode", ["lite", "standard"]],
+    [pulseSearchTool, "safesearch", ["off", "strict"]],
   ];
   for (const [tool, field, want] of enums) {
     const s = at(tool.inputSchema, field);

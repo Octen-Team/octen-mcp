@@ -42,7 +42,7 @@ Set \`places.max_reviews\` (0-5) when what reviewers actually wrote is the quest
 
 Set \`web_search.enable\` to true when the pages discussing these places matter too (round-ups, articles). It is off by default: the places are the answer here, and the pages cost context.
 
-ALWAYS pass the caller's location when you have it. Without it a query that names no area is not limited to one, and "near me" means nothing.
+Pass the caller's location when the question is relative to them ("near me", "nearby", "closest") or names no area at all — without it such a query is not limited to anywhere, and "near me" means nothing. A query that names its own area does not need it, and sending coordinates there is data the search will not use.
 
 keywords: places, near me, nearby, restaurant, cafe, coffee shop, bar, hotel, museum, shop, store, address, directions, opening hours, phone number, rating, reviews, local, map`,
   inputSchema: {

@@ -2,7 +2,7 @@
   "name": "octen",
   "displayName": "Octen",
   "publisher": "Octen",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Real-time web search, news with storyline clustering, company and person profiles, local place lookup, fast destination lookup, broad multi-angle research, URL extraction and image search through Octen's hosted MCP server, plus video search in invite-only Beta. Authorizes over OAuth on first use — nothing to install and no API key to paste.",
   "author": {
     "name": "Octen",

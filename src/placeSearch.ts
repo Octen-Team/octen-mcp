@@ -38,7 +38,9 @@ export const placeSearchTool: Tool = {
 
 USE FOR anything with a location: "coffee shops near me", "family-friendly restaurants", "museums in Lisbon", "is this place open on Sunday", "what's their phone number". The cards answer these directly — \`search\` would return pages *about* places that then have to be read.
 
-Set \`web_search.enable\` to true when the pages discussing these places matter too (reviews, round-ups, articles). It is off by default: the places are the answer here, and the pages cost context.
+Set \`places.max_reviews\` (0-5) when what reviewers actually wrote is the question — "is it good for groups", "do people complain about the wait". Off by default: review text is long, and \`rating\` plus \`review_count\` already come on every card.
+
+Set \`web_search.enable\` to true when the pages discussing these places matter too (round-ups, articles). It is off by default: the places are the answer here, and the pages cost context.
 
 ALWAYS pass the caller's location when you have it. Without it a query that names no area is not limited to one, and "near me" means nothing.
 
@@ -87,7 +89,7 @@ keywords: places, near me, nearby, restaurant, cafe, coffee shop, bar, hotel, mu
       },
       places: {
         type: "object",
-        description: "How many places to return. Omit to use the server default.",
+        description: "What to return per place. Omit to use the server defaults.",
         properties: {
           count: {
             type: "integer",
@@ -95,6 +97,16 @@ keywords: places, near me, nearby, restaurant, cafe, coffee shop, bar, hotel, mu
             maximum: 20,
             default: 5,
             description: "Places to return (1-20).",
+          },
+          max_reviews: {
+            type: "integer",
+            minimum: 0,
+            maximum: 5,
+            description:
+              "Review excerpts to return per place (0-5). Defaults to 0 — " +
+              "review text runs long, so ask for it only when what people " +
+              "actually said is the question. `rating` and `review_count` " +
+              "come back either way.",
           },
         },
       },
@@ -172,7 +184,7 @@ interface PlaceSearchArgs {
   longitude?: number;
   radius?: number;
   user_location?: Record<string, unknown>;
-  places?: { count?: number };
+  places?: { count?: number; max_reviews?: number };
   web_search?: Record<string, unknown>;
   timeout?: number;
 }
@@ -222,6 +234,26 @@ function formatPlace(p: any, idx: number, total: number): string {
 
   if (typeof p?.latitude === "number" && typeof p?.longitude === "number") {
     head.push(`Coordinates: ${p.latitude}, ${p.longitude}`);
+  }
+
+  // Last, because review text is the longest thing on the card and the
+  // structured facts above are what most questions turn on. Only present when
+  // the caller asked for it via `places.max_reviews`, so nothing is rendered
+  // that was not paid for — and nothing that was paid for is dropped.
+  const reviews = Array.isArray(p?.reviews) ? p.reviews.filter(Boolean) : [];
+  if (reviews.length) {
+    head.push("Reviews:");
+    for (const r of reviews) {
+      const stamp = [
+        typeof r?.rating === "number" ? `${r.rating}/5` : "",
+        r?.time_published || "",
+      ].filter(Boolean).join(" · ");
+      if (stamp) head.push(`  ${stamp}`);
+      // The text carries the reviewer's own line breaks; indenting each line
+      // keeps a multi-paragraph review from reading as new card fields.
+      const text = typeof r?.text === "string" ? r.text.trim() : "";
+      if (text) head.push(...text.split("\n").map((l: string) => `  ${l}`));
+    }
   }
 
   return head.join("\n");

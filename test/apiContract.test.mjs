@@ -84,6 +84,7 @@ const DOCUMENTED = {
       "longitude": { minimum: -180, maximum: 180 },
       "radius": { minimum: 1, maximum: 50000 },
       "places.count": { minimum: 1, maximum: 20 },
+      "places.max_reviews": { minimum: 0, maximum: 5 },
       "web_search.count": { minimum: 1, maximum: 100 },
       "web_search.include_domains": { maxItems: 1200, itemMaxLength: 60 },
       "web_search.exclude_domains": { maxItems: 1200, itemMaxLength: 60 },

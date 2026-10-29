@@ -511,9 +511,48 @@ test("place_search: a sparse card prints no empty labels", async () => {
   const r = await handlePlaceSearch({ query: "q" });
   const text = r.content[0].text;
   assert.match(text, /Nameless/);
-  for (const absent of ["Phone:", "Website:", "Hours:", "Coordinates:", "Attributes:"]) {
+  for (const absent of ["Phone:", "Website:", "Hours:", "Coordinates:", "Attributes:", "Reviews:"]) {
     assert.ok(!text.includes(absent), `${absent} should not appear for a card without it`);
   }
+});
+
+test("place_search: max_reviews reaches the API inside `places`", async () => {
+  const captured = captureFetch({ code: 0, data: { places: [], results: [] } });
+  await handlePlaceSearch({ query: "coffee", places: { count: 2, max_reviews: 3 } });
+  assert.deepEqual(captured.body.places, { count: 2, max_reviews: 3 },
+    "max_reviews is a `places` sub-field, not top-level");
+});
+
+test("place_search: returned reviews are rendered, not discarded", async () => {
+  // The API only sends `reviews` when the caller asked for them, so dropping
+  // them here would discard content that was explicitly requested.
+  captureFetch({
+    code: 0,
+    data: {
+      places: [{
+        name: "Kagari",
+        rating: 4.6,
+        review_count: 980,
+        reviews: [
+          { text: "Worth the queue.", rating: 5, time_published: "2 months ago" },
+          { text: "Two lines\nof review.", rating: 3 },
+        ],
+      }],
+      results: [],
+    },
+  });
+  const r = await handlePlaceSearch({ query: "ramen", places: { max_reviews: 2 } });
+  const text = r.content[0].text;
+  assert.match(text, /Reviews:/);
+  assert.match(text, /5\/5 · 2 months ago/);
+  assert.match(text, /Worth the queue\./);
+  // A review missing `time_published` still prints its rating.
+  assert.match(text, /^ {2}3\/5$/m);
+  // Every line of a multi-line review stays indented, so a paragraph break
+  // cannot be read as the start of a new card field.
+  assert.match(text, /^ {2}of review\.$/m);
+  // The summary rating line is separate from the excerpts and survives.
+  assert.match(text, /4\.6\/5 \(980 reviews\)/);
 });
 
 test("place_search: a false attribute is stated, not dropped", async () => {

@@ -505,12 +505,10 @@ export const PEER_HEADER = "x-octen-mcp-peer";
  * The end user's address as this server established it, under a name nothing
  * on the path rewrites.
  *
- * The forwarded address headers do not survive the trip. `api.octen.ai` sits
- * behind its own Front Door, which recomputes the `x-azure-*` pair from the
- * connection it accepted — this server — and appends to `x-forwarded-for`
- * rather than replacing it, leaving the end user leftmost, the position every
- * guide says to treat as forged. No proxy recognises this name, so what is
- * written here is what arrives.
+ * Read this one, not `x-forwarded-for` or the `x-azure-*` pair: whether those
+ * arrive as written depends on what fronts `OCTEN_API_URL`, and a proxy that
+ * rewrites them leaves the end user in the position every guide treats as
+ * forged. Nothing recognises this name, so it arrives either way.
  */
 export const CLIENT_IP_HEADER = "x-octen-client-ip";
 
@@ -560,16 +558,14 @@ function clientAddress(
  * carries this server's own credential, and blindly relaying whatever arrived
  * would forward a second one alongside it.
  *
- * `user-agent` identifies the end client. The address headers are kept for
- * their log value only — {@link CLIENT_IP_HEADER} is what carries the address
- * meant to be acted on — because the front door at `api.octen.ai` recomputes
- * the `x-azure-*` pair from its own connection and appends to
- * `x-forwarded-for`, so none of the three arrives as written.
+ * `user-agent` identifies the end client. The address headers are here for
+ * their log value only — a proxy in front of `OCTEN_API_URL` may rewrite
+ * them, so {@link CLIENT_IP_HEADER} is the one to act on.
  *
  * `x-real-ip` is absent here yet still sent, because it is written rather than
- * relayed — see {@link forwardableHeaders}. No front door on the path claims
- * it, so a relayed one would reach the API exactly as the caller set it, under
- * the name nginx and Express read as the client's address by default.
+ * relayed — see {@link forwardableHeaders}. No proxy manages that name, so a
+ * relayed one would arrive exactly as the caller set it, under the header
+ * nginx and Express read as the client's address by default.
  */
 export const FORWARDED_HEADERS = [
   "user-agent",

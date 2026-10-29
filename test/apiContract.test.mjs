@@ -17,7 +17,11 @@ import assert from "node:assert/strict";
 
 process.env.OCTEN_API_KEY = process.env.OCTEN_API_KEY ?? "test-key";
 
-const { searchTool, newsSearchTool, broadSearchTool } = await import("../dist/search.js");
+const { searchTool, broadSearchTool } = await import("../dist/search.js");
+const { newsSearchTool } = await import("../dist/newsSearch.js");
+const { businessSearchTool } = await import("../dist/businessSearch.js");
+const { placeSearchTool } = await import("../dist/placeSearch.js");
+const { pulseSearchTool } = await import("../dist/pulseSearch.js");
 const { extractTool } = await import("../dist/extract.js");
 const { imageSearchTool } = await import("../dist/imageSearch.js");
 const { videoSearchTool } = await import("../dist/videoSearch.js");
@@ -37,13 +41,67 @@ const DOCUMENTED = {
       "full_content.max_tokens": { minimum: 100, maximum: 100000 },
     },
   },
-  // Same engine, so the same options table applies — and it is derived from
-  // searchTool's, which is exactly why a drift there would go unnoticed here.
+  // Its own endpoint since 2026-10-26, so its own table: it shares most of
+  // search's parameters but not all, and adds `subjects`. This entry used to
+  // carry two fields on the grounds that the schema was derived from search's
+  // — which is how it went on advertising `topic` after /search stopped
+  // documenting the parameter.
   news_search: {
     tool: newsSearchTool,
     fields: {
+      "query": { maxLength: 500 },
       "count": { minimum: 1, maximum: 100 },
       "include_domains": { maxItems: 1200, itemMaxLength: 60 },
+      "exclude_domains": { maxItems: 1200, itemMaxLength: 60 },
+      "highlight.max_tokens": { minimum: 100, maximum: 20000 },
+      "full_content.max_tokens": { minimum: 100, maximum: 100000 },
+      "subjects.count": { minimum: 1, maximum: 5 },
+      "subjects.max_sub_news": { minimum: 1, maximum: 20 },
+    },
+  },
+  business_search: {
+    tool: businessSearchTool,
+    fields: {
+      "query": { maxLength: 500 },
+      "count": { minimum: 1, maximum: 100 },
+      "include_domains": { maxItems: 1200, itemMaxLength: 60 },
+      "exclude_domains": { maxItems: 1200, itemMaxLength: 60 },
+      "highlight.max_tokens": { minimum: 100, maximum: 20000 },
+      "full_content.max_tokens": { minimum: 100, maximum: 100000 },
+      "entities.count": { minimum: 1, maximum: 20 },
+      "entities.max_activities": { minimum: 1, maximum: 20 },
+      "entities.max_news": { minimum: 1, maximum: 20 },
+    },
+  },
+  // Not a search variant: the web filters nest under `web_search` instead of
+  // sitting beside `query`, and the location parameters have no counterpart
+  // anywhere else — which is why none of this is shared out of search's schema.
+  place_search: {
+    tool: placeSearchTool,
+    fields: {
+      "query": { maxLength: 500 },
+      "latitude": { minimum: -90, maximum: 90 },
+      "longitude": { minimum: -180, maximum: 180 },
+      "radius": { minimum: 1, maximum: 50000 },
+      "places.count": { minimum: 1, maximum: 20 },
+      "places.max_reviews": { minimum: 0, maximum: 5 },
+      "web_search.count": { minimum: 1, maximum: 100 },
+      "web_search.include_domains": { maxItems: 1200, itemMaxLength: 60 },
+      "web_search.exclude_domains": { maxItems: 1200, itemMaxLength: 60 },
+      "web_search.highlight.max_tokens": { minimum: 100, maximum: 20000 },
+      "web_search.full_content.max_tokens": { minimum: 100, maximum: 100000 },
+    },
+  },
+  // Flat like the search family, but sharing almost none of it: a destination
+  // predictor takes no domain, text, time or language filter, and `count` tops
+  // out an order of magnitude lower.
+  pulse_search: {
+    tool: pulseSearchTool,
+    fields: {
+      "query": { maxLength: 500 },
+      "count": { minimum: 1, maximum: 10 },
+      "highlight.max_tokens": { minimum: 100, maximum: 20000 },
+      "full_content.max_tokens": { minimum: 100, maximum: 100000 },
     },
   },
   broad_search: {
@@ -71,8 +129,7 @@ const DOCUMENTED = {
     tool: imageSearchTool,
     fields: {
       "count": { minimum: 1, maximum: 10 },
-      "html_snippet.max_tokens": { minimum: 100, maximum: 100000 },
-    },
+      },
   },
   video_search: {
     tool: videoSearchTool,
@@ -128,7 +185,6 @@ test("extract's optional query is not given an unpublished minimum", () => {
 
 test("enum values match the published API reference", () => {
   const enums = [
-    [searchTool, "topic", ["general", "news"]],
     [searchTool, "time_basis", ["auto", "published", "crawled"]],
     [searchTool, "time_range", ["day", "week", "month", "year", "d", "w", "m", "y"]],
     [searchTool, "format", ["text", "markdown"]],
@@ -138,6 +194,18 @@ test("enum values match the published API reference", () => {
     [extractTool, "include_links.scope", ["prefer_internal", "prefer_external"]],
     [imageSearchTool, "safesearch", ["off", "strict"]],
     [videoSearchTool, "safesearch", ["off", "strict"]],
+    // Shared out of search's schema rather than restated, so these assert the
+    // sharing held — not that someone typed the same list three times.
+    [newsSearchTool, "time_basis", ["auto", "published", "crawled"]],
+    [newsSearchTool, "time_range", ["day", "week", "month", "year", "d", "w", "m", "y"]],
+    [businessSearchTool, "time_basis", ["auto", "published", "crawled"]],
+    [businessSearchTool, "time_range", ["day", "week", "month", "year", "d", "w", "m", "y"]],
+    // Nested, not shared: place_search declares these inside `web_search`.
+    [placeSearchTool, "web_search.time_basis", ["auto", "published", "crawled"]],
+    [placeSearchTool, "web_search.time_range", ["day", "week", "month", "year", "d", "w", "m", "y"]],
+    [placeSearchTool, "user_location.type", ["approximate"]],
+    [pulseSearchTool, "mode", ["lite", "standard"]],
+    [pulseSearchTool, "safesearch", ["off", "strict"]],
   ];
   for (const [tool, field, want] of enums) {
     const s = at(tool.inputSchema, field);
@@ -177,6 +245,22 @@ const DOCUMENTED_PARAMS = {
             "include_images", "include_videos", "include_audio", "mode", "include_links"],
 };
 
+/**
+ * Documented parameters a tool deliberately does not offer, each with a reason.
+ *
+ * Not the same as a gap: the table above stays a transcript of the published
+ * reference, and this records where we knowingly offer less. Both entries are
+ * the design corpus, withdrawn from the public surface pending an endpoint of
+ * its own — `topic: design` is the only way to reach it, and `html_snippet`
+ * only carries anything there.
+ */
+const WITHDRAWN = {
+  image_search: {
+    topic: "general is the only value left; design is withdrawn pending its own endpoint",
+    html_snippet: "only populated for topic=design, which is withdrawn",
+  },
+};
+
 test("no tool advertises a parameter the API reference does not document", () => {
   const byName = { image_search: imageSearchTool, video_search: videoSearchTool, extract: extractTool };
   for (const [name, documented] of Object.entries(DOCUMENTED_PARAMS)) {
@@ -186,11 +270,25 @@ test("no tool advertises a parameter the API reference does not document", () =>
       `${name} advertises ${extra.join(", ")}, which its API reference does not document`);
   }
   // And the other direction: a documented parameter we do not offer is a
-  // capability the caller simply cannot reach.
+  // capability the caller simply cannot reach — unless it was withdrawn on
+  // purpose, which WITHDRAWN records.
   for (const [name, documented] of Object.entries(DOCUMENTED_PARAMS)) {
     const declared = Object.keys(byName[name].inputSchema.properties);
-    const missing = documented.filter((p) => !declared.includes(p));
+    const withdrawn = WITHDRAWN[name] ?? {};
+    const missing = documented.filter((p) => !declared.includes(p) && !(p in withdrawn));
     assert.deepEqual(missing, [], `${name} does not offer documented ${missing.join(", ")}`);
+  }
+});
+
+test("a withdrawal is dropped once the tool offers the parameter again", () => {
+  // Otherwise the list only grows, and a parameter that came back stays
+  // outside the check that should now cover it.
+  const byName = { image_search: imageSearchTool, video_search: videoSearchTool, extract: extractTool };
+  for (const [name, params] of Object.entries(WITHDRAWN)) {
+    const declared = Object.keys(byName[name].inputSchema.properties);
+    for (const p of Object.keys(params)) {
+      assert.equal(declared.includes(p), false, `${name} offers ${p} now — drop it from WITHDRAWN`);
+    }
   }
 });
 

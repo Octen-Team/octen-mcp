@@ -48,7 +48,7 @@ Set `max_queries` to the scope:
 | Landscape scan | 10–20 |
 | Exhaustive survey | 20–30 |
 
-For a question about recent events, add `topic: news`. Narrow with
+For a question about recent events, reach for `news_search` instead. Narrow with
 `include_domains` when the credible sources are known (`arxiv.org`, a vendor's
 docs domain), and `exclude_domains` to drop content farms.
 

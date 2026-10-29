@@ -1,7 +1,8 @@
 /**
  * `image_search` tool — wraps Octen Image Search API (POST /image-search).
  *
- * Invite-only beta. Surfaced to the LLM as an image-search tool: it takes a
+ * Open to every account since the API lifted the invite. Surfaced to the LLM
+ * as an image-search tool: it takes a
  * text `query` (and an optional reference `image_url`) and returns ranked
  * images (title, source page, dimensions, thumbnail, description, summary).
  *
@@ -36,9 +37,9 @@ export const imageSearchTool: Tool = {
     destructiveHint: false,
   },
   description:
-    `Find images on the web by text query OR by a reference image — returns ranked results (title, source page, dimensions, thumbnail, description, summary). In Beta; contact us to request beta access. Pass exactly one of: a text \`query\`, an \`image_url\` (a picture already on the web), or \`image_data\` (base64, for a picture you hold). Never more than one. Set \`topic\` to \`design\` for UI design references — each result then carries a structured style \`summary\` and an \`html_snippet\` for building/restyling frontends. Use this when the user wants pictures, photos, diagrams, screenshots, or visual references — not for general text web search.
+    `Find images on the web by text query OR by a reference image — returns ranked results (title, source page, dimensions, thumbnail, description, summary). Pass exactly one of: a text \`query\`, an \`image_url\` (a picture already on the web), or \`image_data\` (base64, for a picture you hold). Never more than one. Use this when the user wants pictures, photos, diagrams, screenshots, or visual references — not for general text web search.
 
-keywords: find images, image search, photos, pictures, screenshots, visual reference, diagram, icon, illustration, UI design, reference image`,
+keywords: find images, image search, photos, pictures, screenshots, visual reference, diagram, icon, illustration, reference image`,
   inputSchema: {
     type: "object",
     properties: {
@@ -66,14 +67,6 @@ keywords: find images, image search, photos, pictures, screenshots, visual refer
           "accepted — its payload is used. Exactly one of `query`, `image_url` " +
           "or `image_data` — never more than one.",
       },
-      topic: {
-        type: "string",
-        enum: ["general", "design"],
-        default: "general",
-        description:
-          "Image category: `general` for broad image search, `design` for " +
-          "design / illustration oriented results. Default general.",
-      },
       count: {
         type: "integer",
         minimum: 1,
@@ -97,22 +90,6 @@ keywords: find images, image search, photos, pictures, screenshots, visual refer
         default: "strict",
         description: "Adult-content filter. Default strict.",
       },
-      html_snippet: {
-        type: "object",
-        description:
-          "Return an HTML snippet of the source context per result. Omit to use " +
-          "the server default.",
-        properties: {
-          enable: { type: "boolean", description: "Whether to return HTML snippets." },
-          max_tokens: {
-            type: "integer",
-            minimum: 100,
-            maximum: 100000,
-            default: 5000,
-            description: "Max tokens per HTML snippet (100-100000). Default 5000.",
-          },
-        },
-      },
       timeout: {
         type: "integer",
         minimum: 1,
@@ -127,21 +104,14 @@ keywords: find images, image search, photos, pictures, screenshots, visual refer
   },
 };
 
-interface HtmlSnippetOptions {
-  enable?: boolean;
-  max_tokens?: number;
-}
-
 interface ImageSearchArgs {
   query: string;
   image_url?: string;
   image_data?: string;
-  topic?: "general" | "design";
   count?: number;
   include_domains?: string[];
   exclude_domains?: string[];
   safesearch?: "off" | "strict";
-  html_snippet?: HtmlSnippetOptions;
   timeout?: number;
 }
 
@@ -279,9 +249,6 @@ function formatResult(r: any, idx: number, total: number): string {
   }
   if (typeof r.summary === "string" && r.summary.length > 0) {
     lines.push(`\n### Summary\n${r.summary}`);
-  }
-  if (typeof r.html_snippet === "string" && r.html_snippet.length > 0) {
-    lines.push(`**HTML snippet:** present (${r.html_snippet.length} chars)`);
   }
   return lines.join("\n");
 }

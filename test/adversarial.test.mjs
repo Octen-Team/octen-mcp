@@ -928,7 +928,7 @@ test("out-of-contract arguments are refused before anything is relayed upstream"
       [{ query: "q", count: "many" }, /Expected integer for `count`/],
       [{ query: "q", count: 2.5 }, /Expected integer for `count`, got 2\.5/],
       [{ query: "x".repeat(5000) }, /at most 500 characters, got 5000/],
-      [{ query: "q", topic: "gossip" }, /Allowed: "general", "news"/],
+      [{ query: "q", time_basis: "whenever" }, /Allowed: "auto", "published", "crawled"/],
       [{ query: "q", include_domains: Array.from({ length: 5000 }, (_, i) => `d${i}`) }, /at most 1200 item\(s\), got 5000/],
       [{ query: "q", include_domains: ["x".repeat(99)] }, /include_domains\[0\]` must be at most 60/],
       [{ query: "q", highlight: { enable: true, max_tokens: 999999 } }, /highlight\.max_tokens` must be at most 20000/],
@@ -975,7 +975,7 @@ test("arguments at every declared boundary still pass", async () => {
         params: {
           name: "search",
           arguments: {
-            query: "x".repeat(500), count: 100, topic: "news",
+            query: "x".repeat(500), count: 100,
             include_domains: ["a.com"], highlight: { enable: true, max_tokens: 20000 },
             full_content: { enable: false, max_tokens: 100000 }, language: ["zh", "ja"],
             time_basis: "published", format: "markdown", safesearch: "off",
@@ -994,16 +994,16 @@ test("arguments at every declared boundary still pass", async () => {
 test("each tool is validated against its own schema, not another's", async () => {
   const stack = await startStack();
   try {
-    // `news_search` publishes no `topic` — it is fixed to news — so passing one
-    // is out of contract even though `search` accepts it.
+    // `/news-search` takes no `include_images`, so `news_search` does not
+    // publish one — out of contract here even though `search` accepts it.
     const news = await fetch(`http://127.0.0.1:${stack.srv.port}/mcp`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", "x-api-key": "k" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "news_search", arguments: { query: "q", topic: "general" } } }),
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "news_search", arguments: { query: "q", include_images: true } } }),
     });
     const msg = JSON.parse((await news.text()).split("\n").filter((l) => l.startsWith("data: ")).pop().slice(6))
       .result.content[0].text;
-    assert.match(msg, /Unknown parameter `topic`/);
+    assert.match(msg, /Unknown parameter `include_images`/);
 
     // And `extract` has a different required parameter entirely.
     const extract = await fetch(`http://127.0.0.1:${stack.srv.port}/mcp`, {
@@ -1135,11 +1135,11 @@ test("?tools narrows the roster, and the excluded tools really are gone", async 
       assert.equal(r.status, 200, `tools/list failed for ${q || "(no filter)"}`);
       return [...r.text.matchAll(/"name":"([a-z_]+)"/g)].map((m) => m[1]);
     };
-    assert.equal((await list("")).length, 6);
+    assert.equal((await list("")).length, 9);
     assert.deepEqual(await list("?tools=search"), ["search"]);
     assert.deepEqual(await list("?tools=search,extract"), ["search", "extract"]);
     assert.deepEqual(await list("?tools=search,search"), ["search"], "duplicates must not advertise a tool twice");
-    assert.equal((await list("?tools=")).length, 6, "an empty value means no selection, not no tools");
+    assert.equal((await list("?tools=")).length, 9, "an empty value means no selection, not no tools");
 
     // The reverse case that makes the feature real rather than decorative: a
     // client can call a tool it was never shown, so filtering the list alone
@@ -1187,7 +1187,7 @@ test("a real tool the deployment does not serve is not called unknown", async ()
       return JSON.parse(r.text).error.message;
     };
 
-    const disabled = await msg("?tools=image_search");
+    const disabled = await msg("?tools=video_search");
     assert.match(disabled, /not enabled on this deployment/);
     assert.match(disabled, /OCTEN_ENABLE_BETA_TOOLS/, "name the switch that is responsible");
     assert.doesNotMatch(disabled, /Unknown tool name/, "the name is real; saying otherwise misdirects");
@@ -1202,10 +1202,10 @@ test("a real tool the deployment does not serve is not called unknown", async ()
     assert.match(mixed, /"video_search" is not enabled on this deployment/);
 
     // Whatever the reason, the reader is told what they can actually ask for,
-    // and Beta tools are absent from that list on this deployment.
+    // and the Beta tool is absent from that list on this deployment.
     for (const m of [disabled, typo, mixed]) {
-      assert.match(m, /Available: search, news_search, broad_search, extract\./);
-      assert.doesNotMatch(m, /Available:[^.]*image_search/);
+      assert.match(m, /Available: search, news_search, business_search, place_search, pulse_search, broad_search, extract, image_search\./);
+      assert.doesNotMatch(m, /Available:[^.]*video_search/);
     }
   } finally { stack.stop(); }
 });
@@ -1216,13 +1216,22 @@ test("a selection cannot re-enable a Beta tool that the switch turned off", asyn
   // which is a much worse way to find out.
   const stack = await startStack({ env: { OCTEN_ENABLE_BETA_TOOLS: "false" } });
   try {
+    // video_search is the only Beta tool left; image_search stopped being one
+    // when the API opened it to every account, so the switch now hides one
+    // tool out of nine rather than two out of six.
     const all = await probe(stack.srv.port, "tools/list", { "x-api-key": "k" });
-    assert.equal([...all.text.matchAll(/"name":"([a-z_]+)"/g)].length, 4, "Beta tools should be absent");
+    assert.equal([...all.text.matchAll(/"name":"([a-z_]+)"/g)].length, 8, "the Beta tool should be absent");
 
-    const r = await probe(stack.srv.port, "tools/list", { "x-api-key": "k" }, "?tools=image_search");
+    const r = await probe(stack.srv.port, "tools/list", { "x-api-key": "k" }, "?tools=video_search");
     assert.equal(r.status, 400, "a disabled Beta tool must read as a name that does not exist");
-    assert.doesNotMatch(JSON.parse(r.text).error.message, /image_search, video_search/,
+    // Naming the refused tool is the point of the message; what it must not do
+    // is offer it back in the list of things that can be asked for.
+    assert.doesNotMatch(JSON.parse(r.text).error.message, /Available:[^.]*video_search/,
       "the available list must not advertise tools this process will not serve");
+
+    // The other half of the change: with Beta off, image_search is still served.
+    const ok = await probe(stack.srv.port, "tools/list", { "x-api-key": "k" }, "?tools=image_search");
+    assert.equal(ok.status, 200, "image_search is no longer gated by the Beta switch");
   } finally { stack.stop(); }
 });
 

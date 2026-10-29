@@ -20,11 +20,13 @@ import { extractTool, handleExtract } from "./extract.js";
 import {
   searchTool,
   handleSearch,
-  newsSearchTool,
-  handleNewsSearch,
   broadSearchTool,
   handleBroadSearch,
 } from "./search.js";
+import { newsSearchTool, handleNewsSearch } from "./newsSearch.js";
+import { businessSearchTool, handleBusinessSearch } from "./businessSearch.js";
+import { placeSearchTool, handlePlaceSearch } from "./placeSearch.js";
+import { pulseSearchTool, handlePulseSearch } from "./pulseSearch.js";
 import { imageSearchTool, handleImageSearch } from "./imageSearch.js";
 import { videoSearchTool, handleVideoSearch } from "./videoSearch.js";
 import { logEvent, type HandlerContext } from "./http.js";
@@ -36,20 +38,24 @@ import { validateArgs } from "./validate.js";
 const require = createRequire(import.meta.url);
 export const { version: VERSION } = require("../package.json") as { version: string };
 
-// Beta tools (image_search, video_search) are invite-only. A host can hide them
-// from tool discovery so agents never surface capabilities most accounts can't
-// use. This is a process-level switch: under stdio that means per-install;
+// Beta tools are invite-only. A host can hide them from tool discovery so
+// agents never surface capabilities most accounts can't use. `image_search`
+// was one until the API opened it to every account; it is now listed like any
+// other tool. This is a process-level switch: under stdio that means per-install;
 // under HTTP it gates the whole deployment. The tool list is deliberately NOT
 // per-key: `initialize` and `tools/list` are
 // unauthenticated, so the list must be computable without a credential — a key
 // without Beta access gets a clear 403 envelope error at call time instead.
 const betaFlag = (process.env.OCTEN_ENABLE_BETA_TOOLS ?? "").trim().toLowerCase();
 const BETA_TOOLS_ENABLED = !["false", "0", "off", "no"].includes(betaFlag);
-const BETA_TOOL_NAMES = new Set(["image_search", "video_search"]);
+const BETA_TOOL_NAMES = new Set(["video_search"]);
 
 const allTools = [
   searchTool,
   newsSearchTool,
+  businessSearchTool,
+  placeSearchTool,
+  pulseSearchTool,
   broadSearchTool,
   extractTool,
   imageSearchTool,
@@ -217,6 +223,12 @@ export function createOctenServer(opts: CreateServerOptions): Server {
           return await handleSearch(args ?? {}, ctx);
         case "news_search":
           return await handleNewsSearch(args ?? {}, ctx);
+        case "business_search":
+          return await handleBusinessSearch(args ?? {}, ctx);
+        case "place_search":
+          return await handlePlaceSearch(args ?? {}, ctx);
+        case "pulse_search":
+          return await handlePulseSearch(args ?? {}, ctx);
         case "broad_search":
           return await handleBroadSearch(args ?? {}, ctx);
         case "extract":

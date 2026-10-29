@@ -12,7 +12,11 @@ import assert from "node:assert/strict";
 // The tool modules read OCTEN_API_KEY at import time — set it before importing.
 process.env.OCTEN_API_KEY = process.env.OCTEN_API_KEY ?? "test-key";
 
-const { searchTool, newsSearchTool, broadSearchTool } = await import("../dist/search.js");
+const { searchTool, broadSearchTool } = await import("../dist/search.js");
+const { newsSearchTool } = await import("../dist/newsSearch.js");
+const { businessSearchTool } = await import("../dist/businessSearch.js");
+const { placeSearchTool } = await import("../dist/placeSearch.js");
+const { pulseSearchTool } = await import("../dist/pulseSearch.js");
 const { extractTool } = await import("../dist/extract.js");
 const { imageSearchTool } = await import("../dist/imageSearch.js");
 const { videoSearchTool } = await import("../dist/videoSearch.js");
@@ -21,6 +25,9 @@ const { ToolSchema } = await import("@modelcontextprotocol/sdk/types.js");
 const tools = [
   searchTool,
   newsSearchTool,
+  businessSearchTool,
+  placeSearchTool,
+  pulseSearchTool,
   broadSearchTool,
   extractTool,
   imageSearchTool,
@@ -30,7 +37,7 @@ const tools = [
 test("the annotation roster covers every advertised tool", () => {
   assert.deepEqual(
     tools.map((t) => t.name).sort(),
-    ["broad_search", "extract", "image_search", "news_search", "search", "video_search"],
+    ["broad_search", "business_search", "extract", "image_search", "news_search", "place_search", "pulse_search", "search", "video_search"],
   );
 });
 

@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`business_search`** — wraps `POST /business-search`. Returns the companies
+  and people behind a query as structured cards (profile, identifiers,
+  financial and stock metrics, key people, career history, recent
+  announcements) alongside the ranked sources. Name two companies in one query
+  and each gets a card with the same fields. The cards carry what the model
+  would otherwise assemble by reading a dozen pages, so a company question
+  costs a fraction of the context. `entities` tunes them; omitted, the API's
+  own default applies. The domain, time and language filters narrow the ranked
+  results only, never the cards.
+- **`pulse_search`** — wraps `POST /pulse-search`. The URL a query most likely
+  means, in about 10ms: one inference predicts destinations instead of
+  searching and ranking. For official docs, help centres and sites you could
+  almost name; the docs point news, fresh pages and filtered queries back at
+  `search`, and this tool has none of those parameters to offer.
+
+  `mode` is the whole surface. `lite` returns titles and URLs and ignores
+  `highlight`, `full_content` and `include_images`; `standard` turns them on at
+  roughly twice the latency. In `lite` the API returns URLs **without a
+  scheme**, so this server puts `https://` back — a result handed to `extract`
+  would otherwise be a URL nothing can fetch.
+- **`place_search`** — wraps `POST /place-search`. Real-world places as
+  structured cards: name, category, address, coordinates, phone, website,
+  opening hours, status, rating and review count. Pass a coordinate pair to
+  search around a point and every card carries its `distance`; `radius` caps
+  how far, and `user_location` is the fallback when only the city is known.
+  Half a coordinate pair, or a `radius` without one, is refused here rather
+  than spent on a round trip the API answers with a 400.
+
+  Not a search variant, and its schema shares nothing with `search`'s: the web
+  filters nest under `web_search` instead of sitting beside `query`, and
+  `web_search.enable` defaults to **false** — the places are the answer and the
+  pages cost context, which is the inverse of every other search tool here.
+- **`news_search` returns storylines.** Its new endpoint groups the coverage
+  into `subjects`, each with a summary and the span it covers, rendered above
+  the articles so a model that stops reading there still has the answer.
+  `subjects` tunes the clustering; omitted, the API's own default applies.
 - Agent Plugins manifests (`plugin.json`, `mcp.json`) at the repository root, so
   the plugin installs in Cursor and any other client that reads the open
   standard, and a `.cursor-plugin/plugin.json` carrying the display fields a
@@ -25,11 +61,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`news_search` has its own endpoint.** It was `search` with `topic: "news"`
+  forced; it now posts to `/news-search`. The two parameter sets have diverged
+  — no `include_text`/`exclude_text`, `format`, `safesearch` or
+  `include_images` there — so its schema names what that endpoint takes instead
+  of being derived from `search`'s by omission. Deriving by omission is what
+  let it keep advertising `topic` after `/search` stopped documenting it, and
+  would have handed it every future `search`-only parameter too.
+- **`image_search` is no longer Beta.** The API opened it to every account, so
+  it is listed like any other tool and `OCTEN_ENABLE_BETA_TOOLS` no longer
+  hides it. `video_search` remains invite-only and is still covered.
+- **`topic` is gone from `search` and `broad_search`.** The API stopped
+  documenting it; the backend still honours it, but a schema that advertises an
+  undocumented parameter points agents at a path with no contract behind it,
+  and news now has both a dedicated tool and a dedicated endpoint.
 - Plugin keywords now name capabilities rather than the transport: `mcp` and
   the duplicate `search` are gone, and `broad search` and `fetch` are listed
   alongside `extract`. A saved search for `mcp` no longer matches the plugin.
 - The listing description names the invite-only Beta tools the endpoint serves,
   and every manifest carries the same description and category.
+
+### Removed
+
+- **The design corpus is withdrawn from `image_search`**, pending an endpoint of
+  its own. `topic` goes with it — `design` was its only value besides the
+  default — along with `html_snippet`, which only carries anything for that
+  corpus, and the snippet line in the rendered result. The API still documents
+  all three, so the contract test records them as a deliberate withdrawal
+  rather than dropping them from its transcript of the reference.
 
 ## [0.6.0] — 2026-09-29
 

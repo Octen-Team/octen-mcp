@@ -12,8 +12,10 @@ import assert from "node:assert/strict";
 // The module reads OCTEN_API_KEY at import time — set it before importing.
 process.env.OCTEN_API_KEY = process.env.OCTEN_API_KEY ?? "test-key";
 
-const { searchTool, newsSearchTool, broadSearchTool, handleSearch, handleNewsSearch, handleBroadSearch } =
+const { searchTool, broadSearchTool, handleSearch, handleBroadSearch } =
   await import("../dist/search.js");
+const { newsSearchTool, handleNewsSearch } = await import("../dist/newsSearch.js");
+const { businessSearchTool, handleBusinessSearch } = await import("../dist/businessSearch.js");
 const { _setFetchForTests } = await import("../dist/http.js");
 
 /** Stub the HTTP layer's fetch for one call; returns the captured {url, body}. */
@@ -38,9 +40,31 @@ test("search: schema advertises `query` (required) and `count`", () => {
   assert.ok(searchTool.inputSchema.required.includes("query"));
 });
 
-test("news_search: schema inherits `count`, drops `topic`", () => {
+test("news_search: schema shares `count` and adds `subjects`", () => {
   assert.ok(newsSearchTool.inputSchema.properties.count);
-  assert.equal(newsSearchTool.inputSchema.properties.topic, undefined);
+  assert.ok(newsSearchTool.inputSchema.properties.subjects);
+});
+
+test("business_search: schema shares `count` and adds `entities`", () => {
+  assert.ok(businessSearchTool.inputSchema.properties.count);
+  assert.ok(businessSearchTool.inputSchema.properties.entities);
+});
+
+test("no tool advertises `topic` — /search stopped documenting it", () => {
+  // news_search used to be `search` with topic=news forced, so this guards
+  // both halves: the parameter is gone from search's schema, and nothing
+  // reintroduced it on the tool that depended on it.
+  for (const tool of [searchTool, newsSearchTool, businessSearchTool, broadSearchTool]) {
+    assert.equal(tool.inputSchema.properties.topic, undefined, `${tool.name} advertises topic`);
+  }
+});
+
+test("news_search: the endpoint-only params of `search` are not advertised", () => {
+  // /news-search takes neither, and a schema that offers them would gate
+  // arguments the API then ignores.
+  for (const absent of ["include_text", "exclude_text", "format", "safesearch", "include_images"]) {
+    assert.equal(newsSearchTool.inputSchema.properties[absent], undefined, absent);
+  }
 });
 
 test("broad_search: schema inherits `count` and adds `max_queries`", () => {
@@ -59,9 +83,16 @@ test("search: schema advertises `language` as an enum array (ISO 639-1)", () => 
   assert.deepEqual(lang.default, []);
 });
 
-test("news_search: schema inherits `language`", () => {
+test("news_search: schema shares `language`", () => {
   const lang = newsSearchTool.inputSchema.properties.language;
   assert.ok(lang, "language missing from news_search inputSchema");
+  assert.equal(lang.type, "array");
+  assert.deepEqual(lang.items.enum, LANGUAGE_ENUM);
+});
+
+test("business_search: schema shares `language`", () => {
+  const lang = businessSearchTool.inputSchema.properties.language;
+  assert.ok(lang, "language missing from business_search inputSchema");
   assert.equal(lang.type, "array");
   assert.deepEqual(lang.items.enum, LANGUAGE_ENUM);
 });
@@ -104,7 +135,6 @@ test("news_search: `language` passes through top-level", async () => {
   const captured = captureFetch();
   await handleNewsSearch({ query: "chip news", language: ["de"] });
   assert.deepEqual(captured.body.language, ["de"]);
-  assert.equal(captured.body.topic, "news");
 });
 
 test("broad_search: `language` nests under search_options, never top-level", async () => {
@@ -120,11 +150,35 @@ test("broad_search: `language` absent from search_options when unset", async () 
   assert.equal("language" in captured.body.search_options, false);
 });
 
-test("news_search: options pass through top-level, topic forced to news", async () => {
+test("news_search: goes to its own endpoint, carrying no topic", async () => {
   const captured = captureFetch();
   await handleNewsSearch({ query: "chip news", count: 3 });
+  assert.ok(captured.url.endsWith("/news-search"), captured.url);
   assert.equal(captured.body.count, 3);
-  assert.equal(captured.body.topic, "news");
+  assert.equal("topic" in captured.body, false);
+});
+
+test("news_search: `subjects` is sent when asked for and omitted otherwise", async () => {
+  let captured = captureFetch();
+  await handleNewsSearch({ query: "chip news", subjects: { count: 3 } });
+  assert.deepEqual(captured.body.subjects, { count: 3 });
+
+  // On by default at the API; sending our own copy would pin that default here.
+  captured = captureFetch();
+  await handleNewsSearch({ query: "chip news" });
+  assert.equal("subjects" in captured.body, false);
+});
+
+test("business_search: goes to its own endpoint and passes `entities` through", async () => {
+  let captured = captureFetch();
+  await handleBusinessSearch({ query: "NVIDIA company overview", entities: { count: 2 } });
+  assert.ok(captured.url.endsWith("/business-search"), captured.url);
+  assert.equal(captured.body.query, "NVIDIA company overview");
+  assert.deepEqual(captured.body.entities, { count: 2 });
+
+  captured = captureFetch();
+  await handleBusinessSearch({ query: "Anthropic" });
+  assert.equal("entities" in captured.body, false);
 });
 
 test("broad_search: search options are nested under search_options, not top-level", async () => {
@@ -370,4 +424,384 @@ test("an empty image_search result names the input that was actually used", asyn
     assert.doesNotMatch(out.content[0].text, /undefined/,
       `${Object.keys(args)[0]} produced an undefined in the empty-result message`);
   }
+});
+
+// ---- place_search: not a search variant --------------------------------------
+
+const { placeSearchTool, handlePlaceSearch } = await import("../dist/placeSearch.js");
+
+test("place_search: goes to its own endpoint with the query top-level", async () => {
+  const captured = captureFetch({ code: 0, data: { places: [], results: [] } });
+  await handlePlaceSearch({ query: "coffee shops", places: { count: 3 } });
+  assert.ok(captured.url.endsWith("/place-search"), captured.url);
+  assert.equal(captured.body.query, "coffee shops");
+  assert.deepEqual(captured.body.places, { count: 3 });
+});
+
+test("place_search: web filters nest under web_search, never top-level", async () => {
+  const captured = captureFetch({ code: 0, data: { places: [], results: [] } });
+  await handlePlaceSearch({
+    query: "ramen",
+    web_search: { enable: true, count: 4, language: ["ja"] },
+  });
+  assert.equal("count" in captured.body, false, "count must not be top-level on /place-search");
+  assert.equal("language" in captured.body, false);
+  assert.equal(captured.body.web_search.count, 4);
+  assert.deepEqual(captured.body.web_search.language, ["ja"]);
+});
+
+test("place_search: web_search and places are omitted when unset", async () => {
+  const captured = captureFetch({ code: 0, data: { places: [], results: [] } });
+  await handlePlaceSearch({ query: "museums" });
+  // web_search defaults to off at the API — the inverse of the other search
+  // tools — so sending our own copy would pin a default we do not own.
+  assert.deepEqual(captured.body, { query: "museums" });
+});
+
+test("place_search: half a coordinate pair is refused before the call", async () => {
+  for (const [args, missing] of [
+    [{ query: "q", latitude: 35.6 }, "longitude"],
+    [{ query: "q", longitude: 139.7 }, "latitude"],
+  ]) {
+    const captured = captureFetch({ code: 0, data: { places: [] } });
+    const r = await handlePlaceSearch(args);
+    assert.match(r.content[0].text, new RegExp(missing));
+    assert.equal(captured.url, undefined, "nothing should reach the API");
+  }
+});
+
+test("place_search: radius without a point is refused before the call", async () => {
+  const captured = captureFetch({ code: 0, data: { places: [] } });
+  const r = await handlePlaceSearch({ query: "q", radius: 500 });
+  assert.match(r.content[0].text, /radius/);
+  assert.equal(captured.url, undefined, "nothing should reach the API");
+});
+
+test("place_search: a full coordinate pair with a radius is sent through", async () => {
+  const captured = captureFetch({ code: 0, data: { places: [], results: [] } });
+  await handlePlaceSearch({ query: "q", latitude: 35.6, longitude: 139.7, radius: 500 });
+  assert.equal(captured.body.latitude, 35.6);
+  assert.equal(captured.body.longitude, 139.7);
+  assert.equal(captured.body.radius, 500);
+});
+
+test("place_search: a place card renders the fields that are present", async () => {
+  captureFetch({
+    code: 0,
+    data: {
+      places: [{
+        name: "Kagari", category: "Ramen", address: "Ginza, Tokyo",
+        distance: 1240, rating: 4.6, review_count: 980, status: "open",
+        phone: "+81 3 0000 0000", opening_hours: ["Mon-Sat 11:00-21:00"],
+        latitude: 35.6, longitude: 139.7,
+      }],
+      results: [],
+    },
+  });
+  const r = await handlePlaceSearch({ query: "ramen" });
+  const text = r.content[0].text;
+  assert.match(text, /Kagari/);
+  assert.match(text, /1\.2 km/, "metres past 1000 should read as km");
+  assert.match(text, /4\.6\/5 \(980 reviews\) · open/);
+  assert.match(text, /Mon-Sat 11:00-21:00/);
+});
+
+test("place_search: a sparse card prints no empty labels", async () => {
+  captureFetch({ code: 0, data: { places: [{ name: "Nameless" }], results: [] } });
+  const r = await handlePlaceSearch({ query: "q" });
+  const text = r.content[0].text;
+  assert.match(text, /Nameless/);
+  for (const absent of ["Phone:", "Website:", "Hours:", "Coordinates:", "Attributes:", "Reviews:"]) {
+    assert.ok(!text.includes(absent), `${absent} should not appear for a card without it`);
+  }
+});
+
+test("place_search: max_reviews reaches the API inside `places`", async () => {
+  const captured = captureFetch({ code: 0, data: { places: [], results: [] } });
+  await handlePlaceSearch({ query: "coffee", places: { count: 2, max_reviews: 3 } });
+  assert.deepEqual(captured.body.places, { count: 2, max_reviews: 3 },
+    "max_reviews is a `places` sub-field, not top-level");
+});
+
+test("place_search: returned reviews are rendered, not discarded", async () => {
+  // The API only sends `reviews` when the caller asked for them, so dropping
+  // them here would discard content that was explicitly requested.
+  captureFetch({
+    code: 0,
+    data: {
+      places: [{
+        name: "Kagari",
+        rating: 4.6,
+        review_count: 980,
+        reviews: [
+          { text: "Worth the queue.", rating: 5, time_published: "2 months ago" },
+          { text: "Two lines\nof review.", rating: 3 },
+        ],
+      }],
+      results: [],
+    },
+  });
+  const r = await handlePlaceSearch({ query: "ramen", places: { max_reviews: 2 } });
+  const text = r.content[0].text;
+  assert.match(text, /Reviews:/);
+  assert.match(text, /5\/5 · 2 months ago/);
+  assert.match(text, /Worth the queue\./);
+  // A review missing `time_published` still prints its rating.
+  assert.match(text, /^ {2}3\/5$/m);
+  // Every line of a multi-line review stays indented, so a paragraph break
+  // cannot be read as the start of a new card field.
+  assert.match(text, /^ {2}of review\.$/m);
+  // The summary rating line is separate from the excerpts and survives.
+  assert.match(text, /4\.6\/5 \(980 reviews\)/);
+});
+
+test("place_search: a false attribute is stated, not dropped", async () => {
+  // "not wheelchair accessible" is a reason to pick a different place; if it
+  // vanished, a definite no would read the same as an unknown.
+  captureFetch({
+    code: 0,
+    data: {
+      places: [{
+        name: "X",
+        attributes: { wheelchair_accessible: false, wifi: true, outdoor_seating: "limited" },
+      }],
+      results: [],
+    },
+  });
+  const r = await handlePlaceSearch({ query: "q" });
+  const line = r.content[0].text.split("\n").find((l) => l.startsWith("Attributes:"));
+  assert.match(line, /no wheelchair_accessible/);
+  assert.match(line, /wifi/);
+  assert.match(line, /outdoor_seating=limited/);
+});
+
+test("place_search: an unknown attribute is dropped, unlike a false one", async () => {
+  captureFetch({ code: 0, data: { places: [{ name: "X", attributes: { wifi: null } }], results: [] } });
+  const r = await handlePlaceSearch({ query: "q" });
+  assert.ok(!r.content[0].text.includes("Attributes:"), "a card with only unknowns has no attributes line");
+});
+
+// ---- pulse_search: a destination predictor, not a search ---------------------
+
+const { pulseSearchTool, handlePulseSearch } = await import("../dist/pulseSearch.js");
+
+test("pulse_search: goes to its own endpoint", async () => {
+  const captured = captureFetch({ code: 0, data: { results: [{ title: "T", url: "github.com/docs" }] } });
+  await handlePulseSearch({ query: "github docs", mode: "standard", count: 3 });
+  assert.ok(captured.url.endsWith("/pulse-search"), captured.url);
+  assert.equal(captured.body.mode, "standard");
+  assert.equal(captured.body.count, 3);
+});
+
+test("pulse_search: mode is omitted when unset", async () => {
+  const captured = captureFetch({ code: 0, data: { results: [{ title: "T", url: "x.com" }] } });
+  await handlePulseSearch({ query: "youtube" });
+  assert.deepEqual(captured.body, { query: "youtube" });
+});
+
+test("pulse_search: a schemeless lite URL gets its scheme back", async () => {
+  // lite returns `github.com/docs`; handed on as-is, anything that fetches it
+  // — `extract`, say — gets a URL it cannot resolve.
+  captureFetch({ code: 0, data: { results: [{ title: "GitHub Docs", url: "github.com/docs" }] } });
+  const r = await handlePulseSearch({ query: "github docs" });
+  assert.match(r.content[0].text, /https:\/\/github\.com\/docs/);
+});
+
+test("pulse_search: a URL that already has a scheme is left alone", async () => {
+  captureFetch({
+    code: 0,
+    data: { results: [{ title: "A", url: "https://a.com/x" }, { title: "B", url: "http://b.com" }] },
+  });
+  const r = await handlePulseSearch({ query: "q" });
+  const text = r.content[0].text;
+  assert.match(text, /https:\/\/a\.com\/x/);
+  assert.match(text, /http:\/\/b\.com/);
+  assert.ok(!text.includes("https://https://"), "a scheme must not be doubled");
+  assert.ok(!text.includes("https://http://"), "http must not be prefixed with https");
+});
+
+test("pulse_search: a protocol-relative URL gets only the scheme", async () => {
+  // `//host/path` already carries the slashes; adding the pair as well
+  // produced `https:////host/path`.
+  captureFetch({ code: 0, data: { results: [{ title: "C", url: "//cdn.example.com/x" }] } });
+  const r = await handlePulseSearch({ query: "q" });
+  assert.match(r.content[0].text, /https:\/\/cdn\.example\.com\/x/);
+  assert.ok(!r.content[0].text.includes("https:///"), "the slashes must not be doubled");
+});
+
+test("pulse_search: a non-http scheme is left alone", async () => {
+  captureFetch({ code: 0, data: { results: [{ title: "F", url: "ftp://f.com" }] } });
+  const r = await handlePulseSearch({ query: "q" });
+  assert.match(r.content[0].text, /ftp:\/\/f\.com/);
+  assert.ok(!r.content[0].text.includes("https://ftp"), "an existing scheme must not be prefixed");
+});
+
+test("pulse_search: advertises none of search's filters", () => {
+  // A destination predictor takes no filters; offering them would gate
+  // arguments the endpoint then ignores.
+  for (const absent of ["include_domains", "exclude_domains", "include_text", "exclude_text",
+                        "language", "time_basis", "time_range", "start_time", "end_time", "format"]) {
+    assert.equal(pulseSearchTool.inputSchema.properties[absent], undefined, absent);
+  }
+});
+
+// ---- business_search: the card is sold on saving context ---------------------
+
+test("business_search: metrics stay structured and the long series are capped", async () => {
+  // Shaped from a real NVIDIA response. Flattened generically this was one
+  // 2000-character line of `revenue=81615003648, ...` — on a tool whose point
+  // is costing less context than reading the pages.
+  captureFetch({
+    code: 0,
+    data: {
+      entities: [{
+        type: "company",
+        name: "NVIDIA",
+        metrics: {
+          financials: Array.from({ length: 16 }, (_, i) => ({
+            period: `Q${(i % 4) + 1}, ${2027 - Math.floor(i / 4)}`,
+            revenue: 81615003648, net_income: 58320998400, currency: "USD",
+          })),
+          stock: { price: 213.86, todays_change_percent: -1.872074882995313, week_52_high: 243.37, week_52_low: 164.27, currency: "USD", date: "2026-10-28" },
+          funding: [{ round: "Post-IPO Debt", amount: 25000000000, currency: "USD", date: "2026-06-01" },
+                    { round: "Secondary Market", currency: "USD", date: "2025-11-01" }],
+          web_traffic: { visits_monthly: 38505903, rank: 903, period: "2026-08" },
+        },
+        key_people: [{ name: "Jensen Huang", title: "Founder, CEO" }, { name: "Colette Kress", title: "EVP & CFO" }],
+      }],
+      results: [],
+    },
+  });
+  const text = (await handleBusinessSearch({ query: "NVIDIA" })).content[0].text;
+
+  assert.match(text, /revenue 81\.6B/, "big integers read as scaled figures");
+  assert.match(text, /\(\+12 earlier periods\)/, "the series is capped and says what it left out");
+  assert.match(text, /Stock: 213\.86 USD, -1\.87% today, 52w 164\.27-243\.37/);
+  assert.match(text, /Post-IPO Debt — amount 25\.0B USD \(2026-06-01\)/);
+  assert.match(text, /Secondary Market \(2025-11-01\)/, "a round with no amount keeps its date");
+  assert.ok(!/Secondary Market \(USD\)/.test(text), "a lone currency is noise");
+  assert.match(text, /Web traffic: 38\.5M visits\/month, rank 903 \(2026-08\)/);
+  assert.match(text, /Key people: Jensen Huang \(Founder, CEO\); Colette Kress \(EVP & CFO\)/);
+  assert.ok(!text.includes("81615003648"), "the raw integer should not survive");
+});
+
+test("business_search: the card is labelled from `type`, not guessed", async () => {
+  // Inferring from `linkedin_url` labelled any company with a LinkedIn page
+  // a person; every real company card carries one.
+  captureFetch({
+    code: 0,
+    data: {
+      entities: [
+        { type: "company", name: "Stripe", identifiers: { linkedin_url: "https://linkedin.com/company/stripe" } },
+        { type: "person", name: "Lisa Su", linkedin_url: "https://linkedin.com/in/lisasu" },
+      ],
+      results: [],
+    },
+  });
+  const text = (await handleBusinessSearch({ query: "q" })).content[0].text;
+  assert.match(text, /## Company 1\/2: Stripe/);
+  assert.match(text, /## Person 2\/2: Lisa Su/);
+});
+
+test("business_search: a career reads as roles, not key=value", async () => {
+  // Real shape from a person card. `organization=AMD, title=Chair & CEO,
+  // start=February 2022` is what the API sends and not what anyone reads.
+  captureFetch({
+    code: 0,
+    data: {
+      entities: [{
+        type: "person",
+        name: "Lisa Su",
+        career: [
+          { organization: "AMD", title: "Chair & CEO", start: "February 2022" },
+          { organization: "AMD", title: "President & CEO", start: "October 2014", end: "February 2022" },
+        ],
+      }],
+      results: [],
+    },
+  });
+  const text = (await handleBusinessSearch({ query: "q" })).content[0].text;
+  assert.match(text, /Chair & CEO at AMD \(February 2022 – present\)/);
+  assert.match(text, /President & CEO at AMD \(October 2014 – February 2022\)/);
+  assert.ok(!text.includes("organization=AMD"), "the raw shape should not survive");
+});
+
+test("business_search: a metrics key the API adds later still shows", async () => {
+  captureFetch({ code: 0, data: { entities: [{ name: "X", metrics: { headcount: 29600 } }], results: [] } });
+  const text = (await handleBusinessSearch({ query: "q" })).content[0].text;
+  assert.match(text, /headcount: 29600/);
+});
+
+// ---- content the caller enabled must not be discarded ------------------------
+
+test("news_search: a storyline's articles keep the content that was asked for", async () => {
+  // top_news / sub_news need not appear in data.results at all — verified
+  // against the live API — so dropping their highlight and full_content threw
+  // away content the caller had enabled and been billed for.
+  captureFetch({
+    code: 0,
+    data: {
+      results: [],
+      subjects: [{
+        name: "S",
+        top_news: { title: "Lead", url: "https://a.com", time_published: "2026-10-22T11:14:39Z",
+                    summary: "sum", highlight: "HL-TOP", full_content: "FC-TOP" },
+        sub_news: [{ title: "Sub", url: "https://b.com", time_published: "2026-10-21T00:00:00Z",
+                     highlight: "HL-SUB", full_content: "FC-SUB" }],
+      }],
+    },
+  });
+  const text = (await handleNewsSearch({ query: "q" })).content[0].text;
+  for (const kept of ["HL-TOP", "FC-TOP", "HL-SUB", "FC-SUB", "2026-10-22T11:14:39Z"]) {
+    assert.ok(text.includes(kept), `${kept} was dropped`);
+  }
+});
+
+test("business_search: entity news and activities keep their content", async () => {
+  captureFetch({
+    code: 0,
+    data: {
+      entities: [{
+        type: "company", name: "X",
+        news: [{ title: "Quarterly update", url: "https://n.com", highlight: "HL-NEWS", full_content: "FC-NEWS" }],
+        activities: [{ title: "Post", url: "https://p.com", highlight: "HL-ACT" }],
+      }],
+      results: [],
+    },
+  });
+  const text = (await handleBusinessSearch({ query: "q" })).content[0].text;
+  for (const kept of ["HL-NEWS", "FC-NEWS", "HL-ACT"]) {
+    assert.ok(text.includes(kept), `${kept} was dropped`);
+  }
+});
+
+test("business_search: a funding round names who led it", async () => {
+  captureFetch({
+    code: 0,
+    data: {
+      entities: [{
+        name: "X",
+        metrics: { funding: [{ round: "Series H", amount: 50000000000, currency: "USD",
+                               date: "2026-05-28", lead_investors: "Altimeter Capital;Coatue" }] },
+      }],
+      results: [],
+    },
+  });
+  const text = (await handleBusinessSearch({ query: "q" })).content[0].text;
+  assert.match(text, /Series H — amount 50\.0B USD \(2026-05-28\) — led by Altimeter Capital, Coatue/);
+});
+
+test("no tool advertises `country` — the API accepts it and ignores it", () => {
+  // Verified 2026-10-29 against the live API: /search returns 200 for
+  // `country` and gives identical results for no value, `JP`, `DE` and the
+  // invalid `ZZ`. Offering it would promise a regional bias that does not
+  // happen, and an invalid code raises no error to catch the mistake.
+  for (const tool of [searchTool, newsSearchTool, businessSearchTool, pulseSearchTool, broadSearchTool]) {
+    assert.equal(tool.inputSchema.properties.country, undefined, `${tool.name} advertises country`);
+  }
+  // place_search's is a different parameter: a documented field of
+  // `user_location`, not a search-wide bias.
+  assert.equal(placeSearchTool.inputSchema.properties.country, undefined);
+  assert.ok(placeSearchTool.inputSchema.properties.user_location.properties.country,
+    "user_location.country is documented and must stay");
 });

@@ -2,7 +2,6 @@
  * `search` tool — wraps Octen Search API (https://docs.octen.ai/api-reference/search).
  *
  * Surfaced to the LLM as a web-search tool. Differentiators worth advertising:
- *  - `topic` (general | news) — switch between broad web and news-focused search
  *  - per-result `highlight` (ranked snippet) OR `full_content` (cleaned page body),
  *    each with a token budget so the model controls how much context it pulls back
  *  - domain / text include-exclude filters, a `language` filter (ISO 639-1
@@ -50,9 +49,9 @@ export const searchTool: Tool = {
     destructiveHint: false,
   },
   description:
-    `Search the live web and return ranked results (title, url, snippet) — fast, fresh, real-time web search for one focused lookup. Set \`topic\` to \`news\` for news-focused results. Pass \`highlight\` to get a ranked snippet per result, or \`full_content\` to pull the cleaned page body inline (heavier — costs more context). Narrow with domain / text include-exclude filters, a \`language\` filter (ISO 639-1 codes), and a time window (published/crawled \`start_time\`/\`end_time\`, or a relative \`time_range\`). Set \`include_images\` to return image URLs per result.
+    `Search the live web and return ranked results (title, url, snippet) — fast, fresh, real-time web search for one focused lookup. For news use \`news_search\`; for anything about a company or the people in one — what it does, who runs it, its revenue or share price, what it has announced — use \`business_search\`; when all you need is the URL of a site or docs page you could almost name, use \`pulse_search\`. Pass \`highlight\` to get a ranked snippet per result, or \`full_content\` to pull the cleaned page body inline (heavier — costs more context). Narrow with domain / text include-exclude filters, a \`language\` filter (ISO 639-1 codes), and a time window (published/crawled \`start_time\`/\`end_time\`, or a relative \`time_range\`). Set \`include_images\` to return image URLs per result.
 
-USE FOR a single focused lookup: one fact, one entity, one document. If the question spans several independent subtopics, load and use \`broad_search\` instead — a sequence of search calls is slower and gives worse coverage than one fan-out. To read a page you already have the URL for, use \`extract\`.
+USE FOR a single focused lookup that needs real retrieval and is not already covered by a tool above: one fact, one page, one document you do not already know the address of. If the question spans several independent subtopics, load and use \`broad_search\` instead — a sequence of search calls is slower and gives worse coverage than one fan-out. To read a page you already have the URL for, use \`extract\`.
 
 keywords: web search, search the web, look up, find, check, fact, current information, latest, news, source, url, real-time`,
   inputSchema: {
@@ -63,14 +62,6 @@ keywords: web search, search the web, look up, find, check, fact, current inform
         minLength: 1,
         maxLength: 500,
         description: "Non-empty search query. Max 500 chars.",
-      },
-      topic: {
-        type: "string",
-        enum: ["general", "news"],
-        default: "general",
-        description:
-          "Search category: `general` for broad web search, `news` for " +
-          "news-focused results. Default general.",
       },
       count: {
         type: "integer",
@@ -195,37 +186,27 @@ keywords: web search, search the web, look up, find, check, fact, current inform
 };
 
 /**
- * `news_search` tool — Octen Search locked to `topic: "news"`.
+ * Pick named parameters out of `search`'s schema for a sibling tool.
  *
- * Same engine as `search`, but purpose-built so the model reaches for it when the
- * user wants news without having to remember to pass `topic="news"`. Schema is
- * derived from `searchTool` minus the `topic` field, so it stays in sync as the
- * search params evolve.
+ * The news and business endpoints take a subset of `search`'s parameters and
+ * ignore the rest, so each one names what it supports rather than inheriting
+ * whatever `search` grows next. Deriving by omission is what let `news_search`
+ * go on advertising `topic` after its endpoint stopped taking it, and would
+ * have handed these two every future `search`-only parameter as well.
+ *
+ * Throws on a name `search` no longer has, so a rename there fails the build
+ * instead of quietly shrinking a sibling's schema.
  */
-const { topic: _omitTopic, ...newsProperties } =
-  (searchTool.inputSchema as any).properties as Record<string, object>;
-
-export const newsSearchTool: Tool = {
-  name: "news_search",
-  title: "News Search",
-  annotations: {
-    title: "News Search",
-    readOnlyHint: true,
-    openWorldHint: true,
-    destructiveHint: false,
-  },
-  description:
-    `Search recent news and return ranked articles (title, url, snippet) — current events, headlines, timely reporting. This is \`search\` locked to \`topic: news\`; same options as \`search\` (domain / text filters, \`language\` filter, time window, highlight / full_content, media) except \`topic\`, which is fixed to news.
-
-For a single news lookup this is the right tool. For a multi-angle news question ("what shipped across the industry this month", "how are different outlets covering X"), use \`broad_search\` with topic=news instead of looping news_search.
-
-keywords: news search, latest news, headlines, current events, breaking news, recent, today, this week, press coverage`,
-  inputSchema: {
-    type: "object",
-    properties: newsProperties,
-    required: ["query"],
-  },
-};
+export function sharedSearchProperties(...names: string[]): Record<string, object> {
+  const all = (searchTool.inputSchema as { properties: Record<string, object> }).properties;
+  const out: Record<string, object> = {};
+  for (const name of names) {
+    const prop = all[name];
+    if (!prop) throw new Error(`search has no \`${name}\` parameter to share`);
+    out[name] = prop;
+  }
+  return out;
+}
 
 interface HighlightOptions {
   enable?: boolean;
@@ -239,7 +220,6 @@ interface FullContentOptions {
 
 interface SearchArgs {
   query: string;
-  topic?: "general" | "news";
   count?: number;
   include_domains?: string[];
   exclude_domains?: string[];
@@ -336,11 +316,6 @@ export async function handleSearch(rawArgs: Record<string, unknown>, ctx?: Handl
   return { content: [{ type: "text", text }] };
 }
 
-/** Handler — news search. Forces `topic=news`, ignoring any caller-supplied topic. */
-export async function handleNewsSearch(rawArgs: Record<string, unknown>, ctx?: HandlerContext): Promise<CallToolResult> {
-  const { topic: _ignored, ...rest } = rawArgs ?? {};
-  return handleSearch({ ...rest, topic: "news" }, ctx);
-}
 
 /**
  * `broad_search` tool — wraps Octen Broad Search (POST /broad-search).
@@ -372,23 +347,28 @@ USE WHEN the question has multiple distinct parts or entities that one search ca
   - literature reviews, market or landscape surveys
   - open-ended "what are the options for X" / "how do people solve Y"
   - a question that clearly decomposes into 3+ independent sub-questions
-  - multi-angle questions about recent events ("what shipped across the industry this month") — set topic=news, do NOT loop news_search
+  - multi-angle questions about recent events ("what shipped across the industry this month") — do NOT loop news_search
 
-DO NOT USE for:
+DO NOT USE for anything another tool answers directly — fanning out costs Nx and returns pages where those return the answer:
   - a single fact, entity, or document → use \`search\`
+  - a company or the people in one, including its financials → use \`business_search\`
+  - news or recent events on a *single* topic → use \`news_search\` (multi-angle is the exception above)
+  - a real-world place, address, opening hours → use \`place_search\`
+  - the URL of a site or docs page you could almost name → use \`pulse_search\`
+  - images or videos → use \`image_search\` / \`video_search\`
   - re-running a disappointing search → do NOT call broad_search twice; follow up with a targeted \`search\` or \`extract\` on the specific gaps
   - reading a page you already have the URL for → use \`extract\`
   - a straight A-vs-B comparison of two known entities → two targeted \`search\` calls are cheaper and more controllable
 
 COST: fans out into \`max_queries\` concurrent searches — roughly Nx the cost and notably higher latency than a single \`search\`. When in doubt, prefer \`search\`.
 
-QUERY: pass one natural-language question (max 500 chars). Resolve pronouns and references from the conversation first — "how does it compare to the other one" is a useless query. Do NOT pre-split into sub-queries; that is this tool's job. For broader coverage raise \`max_queries\` rather than calling repeatedly. Per-sub-query options (count, topic, \`language\` filter, domain / text filters, time window, highlight / full_content, media) match \`search\` and apply to every sub-query.
+QUERY: pass one natural-language question (max 500 chars). Resolve pronouns and references from the conversation first — "how does it compare to the other one" is a useless query. Do NOT pre-split into sub-queries; that is this tool's job. For broader coverage raise \`max_queries\` rather than calling repeatedly. Per-sub-query options (count, \`language\` filter, domain / text filters, time window, highlight / full_content, media) match \`search\` and apply to every sub-query.
 
 RESULTS are grouped per sub-query and NOT deduplicated — the same URL may appear under several sub-queries.
 
 max_queries: 3-5 focused comparison (2-3 entities) | 5-10 multi-facet research | 10-20 landscape scan | 20-30 exhaustive survey
 
-For a single focused lookup use \`search\`; to read a specific page use \`extract\`.
+For a single focused lookup use \`search\`; to read a specific page use \`extract\`. Reach for this one only when no single tool above covers the question.
 
 keywords: web search, search the web, look up, find information, research, compare, comparison, versus, alternatives, options, landscape, survey, market research, pricing, latest, current information, multi-part question`,
   inputSchema: {
@@ -550,7 +530,7 @@ export function formatMediaList(label: string, items: unknown): string[] {
   return [head, ...shown.map((m) => `- ${formatMediaItem(m)}`)];
 }
 
-function formatResult(r: any, idx: number, total: number): string {
+export function formatResult(r: any, idx: number, total: number): string {
   const lines: string[] = [`## Result ${idx}/${total}: ${r.title ?? "(untitled)"}`];
   if (r.url) lines.push(r.url);
   if (r.authors) lines.push(`**Authors:** ${r.authors}`);

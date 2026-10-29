@@ -129,6 +129,90 @@ function field(label: string, v: unknown): string {
   return f ? `${label}: ${f}` : "";
 }
 
+/** `81615003648` → `81.6B`. The raw integer is a digit-counting exercise nothing should have to do. */
+function money(v: unknown): string {
+  if (typeof v !== "number" || !Number.isFinite(v)) return flatten(v);
+  const abs = Math.abs(v);
+  for (const [scale, suffix] of [[1e12, "T"], [1e9, "B"], [1e6, "M"], [1e3, "K"]] as const) {
+    if (abs >= scale) return `${(v / scale).toFixed(1)}${suffix}`;
+  }
+  return String(v);
+}
+
+/** One period of financials, or one funding round, on a line. */
+function periodLine(o: any, fields: readonly (readonly [string, string])[], when?: string): string {
+  const label = o?.period ?? o?.round ?? o?.date ?? "";
+  const parts = fields
+    .map(([key, name]) => (o?.[key] == null ? "" : `${name} ${money(o[key])}`))
+    .filter(Boolean);
+  // Currency only means something next to an amount; alone it is noise, and a
+  // funding round with no amount disclosed is still worth its date.
+  if (parts.length && o?.currency) parts[parts.length - 1] += ` ${o.currency}`;
+  const date = when && o?.[when] ? ` (${o[when]})` : "";
+  return `  ${label}${label && parts.length ? " — " : ""}${parts.join(", ")}${date}`.trimEnd();
+}
+
+/**
+ * `metrics`, kept structured.
+ *
+ * Flattening it the generic way put sixteen quarters of financials on one
+ * line, which is the opposite of what a tool sold on saving context should
+ * do. Each sub-key gets its own shape, and the long series are capped — the
+ * recent periods are what a question turns on, and the count of the rest says
+ * what was left out.
+ */
+const SERIES_SHOWN = 4;
+
+function formatMetrics(m: any): string[] {
+  if (!m || typeof m !== "object") return [];
+  const out: string[] = [];
+
+  const fin = Array.isArray(m.financials) ? m.financials : [];
+  if (fin.length) {
+    out.push("Financials:");
+    out.push(...fin.slice(0, SERIES_SHOWN).map((f: any) =>
+      periodLine(f, [["revenue", "revenue"], ["net_income", "net income"], ["gross_profit", "gross profit"]])));
+    if (fin.length > SERIES_SHOWN) out.push(`  (+${fin.length - SERIES_SHOWN} earlier periods)`);
+  }
+
+  const s = m.stock;
+  if (s && typeof s === "object") {
+    const bits = [
+      s.price != null ? `${s.price}${s.currency ? ` ${s.currency}` : ""}` : "",
+      typeof s.todays_change_percent === "number" ? `${s.todays_change_percent.toFixed(2)}% today` : "",
+      s.week_52_low != null && s.week_52_high != null ? `52w ${s.week_52_low}-${s.week_52_high}` : "",
+      s.date ? `as of ${s.date}` : "",
+    ].filter(Boolean);
+    if (bits.length) out.push(`Stock: ${bits.join(", ")}`);
+  }
+
+  const fund = Array.isArray(m.funding) ? m.funding : [];
+  if (fund.length) {
+    out.push("Funding:");
+    out.push(...fund.slice(0, SERIES_SHOWN).map((f: any) => periodLine(f, [["amount", "amount"]], "date")));
+    if (fund.length > SERIES_SHOWN) out.push(`  (+${fund.length - SERIES_SHOWN} earlier rounds)`);
+  }
+
+  const w = m.web_traffic;
+  if (w && typeof w === "object") {
+    const bits = [
+      w.visits_monthly != null ? `${money(w.visits_monthly)} visits/month` : "",
+      w.rank != null ? `rank ${w.rank}` : "",
+    ].filter(Boolean);
+    const when = w.period ? ` (${w.period})` : "";
+    if (bits.length) out.push(`Web traffic: ${bits.join(", ")}${when}`);
+  }
+
+  // Anything the API adds later still shows, rather than being dropped for
+  // not being one of the four shapes above.
+  for (const [k, v] of Object.entries(m)) {
+    if (["financials", "stock", "funding", "web_traffic"].includes(k)) continue;
+    const line = field(k, v);
+    if (line) out.push(line);
+  }
+  return out;
+}
+
 /** A news item or activity, as one line. */
 function itemLine(n: any): string {
   if (typeof n !== "object" || n == null) return flatten(n) ? `  - ${flatten(n)}` : "";
@@ -139,15 +223,37 @@ function itemLine(n: any): string {
 
 /** An entity card: the part of the answer the ranked results would otherwise have to be read for. */
 function formatEntity(e: any, idx: number, total: number): string {
-  const kind = e?.linkedin_url || e?.current_position || e?.career ? "Person" : "Company";
+  // The API states which it is; inferring from `linkedin_url` was a guess
+  // that would have labelled any company with a LinkedIn page a person.
+  const kind = typeof e?.type === "string" && e.type
+    ? e.type[0].toUpperCase() + e.type.slice(1)
+    : e?.current_position || e?.career ? "Person" : "Company";
   const lines = [`## ${kind} ${idx}/${total}: ${e?.name || "(unnamed)"}`];
 
   if (e?.summary) lines.push(e.summary);
 
   for (const [label, key] of [
     ["Also known as", "aliases"], ["Identifiers", "identifiers"],
-    ["Attributes", "attributes"], ["Metrics", "metrics"],
-    ["Key people", "key_people"], ["Position", "current_position"],
+    ["Attributes", "attributes"],
+  ] as const) {
+    const line = field(label, e?.[key]);
+    if (line) lines.push(line);
+  }
+
+  lines.push(...formatMetrics(e?.metrics));
+
+  const people = Array.isArray(e?.key_people) ? e.key_people : [];
+  if (people.length) {
+    const named = people
+      .map((p: any) => (typeof p === "object" && p?.name
+        ? `${p.name}${p.title ? ` (${p.title})` : ""}`
+        : flatten(p)))
+      .filter(Boolean);
+    if (named.length) lines.push(`Key people: ${named.join("; ")}`);
+  }
+
+  for (const [label, key] of [
+    ["Position", "current_position"],
     ["Career", "career"], ["LinkedIn", "linkedin_url"],
   ] as const) {
     const line = field(label, e?.[key]);

@@ -605,3 +605,67 @@ test("pulse_search: advertises none of search's filters", () => {
     assert.equal(pulseSearchTool.inputSchema.properties[absent], undefined, absent);
   }
 });
+
+// ---- business_search: the card is sold on saving context ---------------------
+
+test("business_search: metrics stay structured and the long series are capped", async () => {
+  // Shaped from a real NVIDIA response. Flattened generically this was one
+  // 2000-character line of `revenue=81615003648, ...` — on a tool whose point
+  // is costing less context than reading the pages.
+  captureFetch({
+    code: 0,
+    data: {
+      entities: [{
+        type: "company",
+        name: "NVIDIA",
+        metrics: {
+          financials: Array.from({ length: 16 }, (_, i) => ({
+            period: `Q${(i % 4) + 1}, ${2027 - Math.floor(i / 4)}`,
+            revenue: 81615003648, net_income: 58320998400, currency: "USD",
+          })),
+          stock: { price: 213.86, todays_change_percent: -1.872074882995313, week_52_high: 243.37, week_52_low: 164.27, currency: "USD", date: "2026-10-28" },
+          funding: [{ round: "Post-IPO Debt", amount: 25000000000, currency: "USD", date: "2026-06-01" },
+                    { round: "Secondary Market", currency: "USD", date: "2025-11-01" }],
+          web_traffic: { visits_monthly: 38505903, rank: 903, period: "2026-08" },
+        },
+        key_people: [{ name: "Jensen Huang", title: "Founder, CEO" }, { name: "Colette Kress", title: "EVP & CFO" }],
+      }],
+      results: [],
+    },
+  });
+  const text = (await handleBusinessSearch({ query: "NVIDIA" })).content[0].text;
+
+  assert.match(text, /revenue 81\.6B/, "big integers read as scaled figures");
+  assert.match(text, /\(\+12 earlier periods\)/, "the series is capped and says what it left out");
+  assert.match(text, /Stock: 213\.86 USD, -1\.87% today, 52w 164\.27-243\.37/);
+  assert.match(text, /Post-IPO Debt — amount 25\.0B USD \(2026-06-01\)/);
+  assert.match(text, /Secondary Market \(2025-11-01\)/, "a round with no amount keeps its date");
+  assert.ok(!/Secondary Market \(USD\)/.test(text), "a lone currency is noise");
+  assert.match(text, /Web traffic: 38\.5M visits\/month, rank 903 \(2026-08\)/);
+  assert.match(text, /Key people: Jensen Huang \(Founder, CEO\); Colette Kress \(EVP & CFO\)/);
+  assert.ok(!text.includes("81615003648"), "the raw integer should not survive");
+});
+
+test("business_search: the card is labelled from `type`, not guessed", async () => {
+  // Inferring from `linkedin_url` labelled any company with a LinkedIn page
+  // a person; every real company card carries one.
+  captureFetch({
+    code: 0,
+    data: {
+      entities: [
+        { type: "company", name: "Stripe", identifiers: { linkedin_url: "https://linkedin.com/company/stripe" } },
+        { type: "person", name: "Lisa Su", linkedin_url: "https://linkedin.com/in/lisasu" },
+      ],
+      results: [],
+    },
+  });
+  const text = (await handleBusinessSearch({ query: "q" })).content[0].text;
+  assert.match(text, /## Company 1\/2: Stripe/);
+  assert.match(text, /## Person 2\/2: Lisa Su/);
+});
+
+test("business_search: a metrics key the API adds later still shows", async () => {
+  captureFetch({ code: 0, data: { entities: [{ name: "X", metrics: { headcount: 29600 } }], results: [] } });
+  const text = (await handleBusinessSearch({ query: "q" })).content[0].text;
+  assert.match(text, /headcount: 29600/);
+});

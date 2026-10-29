@@ -26,9 +26,12 @@ const PULSE_SEARCH_TIMEOUT_SEC = 30;
 
 export const pulseSearchTool: Tool = {
   name: "pulse_search",
-  title: "Pulse Search",
+  // The endpoint's product name says nothing about what the tool does, and
+  // `name` is fixed — clients allowlist it. `title` is the display name, so
+  // that is where the purpose goes.
+  title: "Pulse Search — find a site's URL",
   annotations: {
-    title: "Pulse Search",
+    title: "Pulse Search — find a site's URL",
     readOnlyHint: true,
     openWorldHint: true,
     destructiveHint: false,

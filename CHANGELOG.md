@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] — 2026-10-29
+
+### Changed
+
+- **`place_search` no longer tells the model to always send the caller's
+  location.** The description said `ALWAYS pass the caller's location when you
+  have it` two lines after saying a query that names its own area works without
+  it. For "museums in Lisbon" the coordinates are data the search never uses,
+  and OpenAI's automated tool review flagged the tool as requesting information
+  beyond what its operation requires. It now asks for the location only when the
+  question is relative to the caller or names no area.
+- **`pulse_search` says what it does in its display title.** `name` is fixed —
+  clients allowlist it — so the purpose goes in `title`, which is the field a
+  reader sees: "Pulse Search — find a site's URL". The product name alone
+  communicated nothing, which the same review flagged.
+
 ## [0.7.0] — 2026-10-29
 
 ### Added
@@ -788,7 +804,8 @@ Aligns the `extract` tool with the current Extract API reference
 - `OCTEN_API_KEY` env var for authentication.
 - `OCTEN_API_URL` override for staging or self-hosted endpoints.
 
-[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/Octen-Team/octen-mcp/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/Octen-Team/octen-mcp/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/Octen-Team/octen-mcp/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/Octen-Team/octen-mcp/compare/v0.5.0...v0.5.2

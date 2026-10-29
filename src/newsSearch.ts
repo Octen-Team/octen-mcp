@@ -31,7 +31,7 @@ export const newsSearchTool: Tool = {
     destructiveHint: false,
   },
   description:
-    `Search recent news and return ranked articles (title, url, snippet) — current events, headlines, timely reporting. Alongside the articles it returns \`subjects\`: the coverage grouped into storylines, each with a summary and the span it covers, so a "what happened with X" question is answerable without reading every article. Narrow with domain filters, a \`language\` filter (ISO 639-1 codes), and a time window (published/crawled \`start_time\`/\`end_time\`, or a relative \`time_range\`). Pass \`highlight\` for a ranked snippet per article, or \`full_content\` for the cleaned article body (heavier — costs more context).
+    `Search recent news and return ranked articles (title, url, snippet) — current events, headlines, timely reporting. Alongside the articles it returns \`subjects\`: the coverage grouped into storylines, each with a summary and the span it covers, so a "what happened with X" question is answerable without reading every article. Narrow with domain filters, a \`language\` filter (ISO 639-1 codes), and a time window (published/crawled \`start_time\`/\`end_time\`, or a relative \`time_range\`). **\`include_domains\`/\`exclude_domains\` narrow the ranked articles only — the storylines are built from the open web either way.** When the question restricts its sources ("what is Reuters saying about X"), answer from the articles, not the storylines. Pass \`highlight\` for a ranked snippet per article, or \`full_content\` for the cleaned article body (heavier — costs more context).
 
 USE FOR what is being reported right now: breaking events, announcements, coverage of a company or person over the last days or weeks. For a company or person *profile* — financials, key people, career history — use \`business_search\`, which returns that as structured cards instead of articles to read. For non-news web pages use \`search\`. For a multi-angle question spanning several independent subtopics, use \`broad_search\` rather than looping this tool.
 
@@ -215,7 +215,10 @@ export async function handleNewsSearch(rawArgs: Record<string, unknown>, ctx?: H
   }
 
   // Storylines first: they are the summary of what follows, and a model that
-  // stops reading after them should still have the answer.
+  // stops reading after them should still have the answer — with one
+  // exception the tool description carries, since only the model can act on
+  // it: domain filters never reach `subjects`, so on a source-restricted
+  // query the storylines may draw on outlets the caller excluded.
   const blocks = [
     ...subjects.map((s: any, i: number) => formatSubject(s, i + 1, subjects.length)),
     ...results.map((r: any, i: number) => formatResult(r, i + 1, results.length)),

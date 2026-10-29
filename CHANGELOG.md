@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.7.0] — 2026-10-29
 
 ### Added
 
@@ -52,6 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scripts/sync-plugin-manifests.mjs`, wired into `npm version`, which writes
   `package.json`'s version into every manifest instead of leaving four copies
   to be edited by hand.
+- **`place_search` returns review excerpts.** `places.max_reviews` (0-5) is
+  live on the API and returns what reviewers wrote, but no client declared it,
+  so the parameter could not be sent and any `reviews` that came back were
+  dropped by the renderer. Off by default, matching the server, so existing
+  calls are unchanged; `rating` and `review_count` still come on every card.
 - **Calls to the API now say who they are for.** `x-octen-source` and
   `x-octen-mcp-version` mark a call as arriving through this server rather than
   from a customer's own code, and `x-octen-client-ip` carries the end user's
@@ -75,6 +80,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   documenting it; the backend still honours it, but a schema that advertises an
   undocumented parameter points agents at a path with no contract behind it,
   and news now has both a dedicated tool and a dedicated endpoint.
+- **Domain filters never reach the news storylines.** Verified against the
+  API: with `include_domains: ["reuters.com"]` the ranked articles are all
+  Reuters while `data.subjects` still draws on other outlets. The storylines
+  render first, so a model that stops reading after them would answer a
+  source-restricted question from the outlets the caller excluded. The tool
+  description now says so.
+- **`broad_search` no longer contradicts itself about news.** Its prohibition
+  list sent news and recent events to `news_search` while the same description
+  told it multi-angle recent events belong here and must not be looped through
+  `news_search`. The prohibition now names single-topic news only.
 - Plugin keywords now name capabilities rather than the transport: `mcp` and
   the duplicate `search` are gone, and `broad search` and `fetch` are listed
   alongside `extract`. A saved search for `mcp` no longer matches the plugin.
@@ -773,7 +788,11 @@ Aligns the `extract` tool with the current Extract API reference
 - `OCTEN_API_KEY` env var for authentication.
 - `OCTEN_API_URL` override for staging or self-hosted endpoints.
 
-[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/Octen-Team/octen-mcp/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/Octen-Team/octen-mcp/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/Octen-Team/octen-mcp/compare/v0.5.2...v0.6.0
+[0.5.2]: https://github.com/Octen-Team/octen-mcp/compare/v0.5.0...v0.5.2
+[0.5.0]: https://github.com/Octen-Team/octen-mcp/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/Octen-Team/octen-mcp/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/Octen-Team/octen-mcp/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Octen-Team/octen-mcp/compare/v0.3.7...v0.4.0

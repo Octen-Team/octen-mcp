@@ -34,7 +34,7 @@ export const pulseSearchTool: Tool = {
     destructiveHint: false,
   },
   description:
-    `**When what is wanted is a URL you could almost name, this is the tool.** Official docs and API references ("github docs", "uv documentation", "python list methods"), help centres ("how do I return an amazon order"), a site you know exists ("youtube") — anything where the answer is the destination rather than what is written on it.
+    `**When what is wanted is a web address rather than what is written on the page, this is the tool.** It returns up to 10 ranked candidate URLs with titles — the single most likely one, the top three, or a shortlist to choose from, whichever the question calls for. Official docs and API references ("github docs", "uv documentation", "python list methods"), help centres ("how do I return an amazon order"), a site you know exists ("youtube").
 
 Prefer it over \`search\` for those: one inference predicts the URLs instead of searching and ranking them, so it answers in about 10ms for a fraction of the cost. Reaching for \`search\` to look up an address is slower and costs more for the same answer.
 
@@ -42,7 +42,7 @@ NOT FOR news or anything needing freshness — use \`news_search\`. NOT FOR a qu
 
 \`mode\` decides what comes back. \`lite\` (the default) returns titles and URLs only. \`standard\` adds highlights, full page content and images at roughly twice the latency; \`highlight\`, \`full_content\` and \`include_images\` do nothing in \`lite\`.
 
-keywords: url lookup, find the site, official docs, api reference, documentation, help centre, homepage, where is, quick lookup, destination, autocomplete`,
+keywords: url lookup, find the site, official docs, api reference, documentation, help centre, homepage, where is, which url, candidate urls, top urls, quick lookup, destination, autocomplete`,
   inputSchema: {
     type: "object",
     properties: {

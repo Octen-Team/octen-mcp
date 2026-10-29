@@ -32,7 +32,9 @@ export const businessSearchTool: Tool = {
   description:
     `Look up a company or a person and get a structured card back, plus the ranked sources behind it. A company card carries the profile, identifiers, financial and stock metrics, key people and recent announcements; a person card carries the current position, career history and recent activity. Name two companies in one query and you get a card for each, same fields, ready to compare. Set \`entities.enable\` to false for a plain ranked list instead.
 
-USE FOR questions about a business or the people in one: "what does this company do", due diligence, who runs it, how two of them compare, what they have announced lately. The cards answer these from one call — reaching for \`search\` and reading a dozen pages costs far more context for the same facts.
+USE FOR **any** question about a company or the people in one, including the numbers: revenue, net income, gross profit by quarter and year, share price and 52-week range, funding rounds and who led them, headcount and web traffic, key people and their titles, career history, recent announcements. Also "what does this company do", due diligence, and how two of them compare.
+
+The card already holds those figures, so a question like "what was their revenue last quarter" is one call here. Reaching for \`search\` means reading a dozen pages for numbers this returns directly, and far more context for the same facts.
 
 NOT FOR breaking coverage of an event — use \`news_search\`, which returns articles and storylines. NOT FOR general web pages — use \`search\`.
 

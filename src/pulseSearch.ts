@@ -34,11 +34,11 @@ export const pulseSearchTool: Tool = {
     destructiveHint: false,
   },
   description:
-    `Get the URL a query most likely means, fast. One inference predicts the destinations instead of searching and ranking, so it answers in about 10ms for a fraction of the cost — but it sees no fresh content and takes no filters.
+    `**When what is wanted is a URL you could almost name, this is the tool.** Official docs and API references ("github docs", "uv documentation", "python list methods"), help centres ("how do I return an amazon order"), a site you know exists ("youtube") — anything where the answer is the destination rather than what is written on it.
 
-USE FOR reaching a page you could almost name yourself: official docs and API references ("github docs", "python list methods"), help centres ("how do I return an amazon order"), a site you know exists ("youtube"). Anything where the answer is a well-known URL.
+Prefer it over \`search\` for those: one inference predicts the URLs instead of searching and ranking them, so it answers in about 10ms for a fraction of the cost. Reaching for \`search\` to look up an address is slower and costs more for the same answer.
 
-NOT FOR news, recent events, or anything needing freshness — use \`news_search\`. NOT FOR a question that needs real retrieval across the open web, domain or language filters, or a time window — use \`search\`. Pulse has none of those parameters and is not a cheaper substitute for them.
+NOT FOR news or anything needing freshness — use \`news_search\`. NOT FOR a question that needs real retrieval across the open web, domain or language filters, or a time window — pulse has none of those parameters, sees no fresh content, and is not a cheaper substitute for \`search\`.
 
 \`mode\` decides what comes back. \`lite\` (the default) returns titles and URLs only. \`standard\` adds highlights, full page content and images at roughly twice the latency; \`highlight\`, \`full_content\` and \`include_images\` do nothing in \`lite\`.
 

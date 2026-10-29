@@ -2,8 +2,8 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "octen",
   "displayName": "Octen",
-  "description": "Real-time web search, news with storyline clustering, company and person profiles, local place lookup, fast destination lookup, broad multi-angle research, URL extraction and image search through Octen's hosted MCP server, plus video search in invite-only Beta. Authorizes over OAuth on first use \u2014 nothing to install and no API key to paste.",
-  "version": "0.6.0",
+  "description": "Real-time web search, news with storyline clustering, company and person profiles, local place lookup, fast destination lookup, broad multi-angle research, URL extraction and image search through Octen's hosted MCP server, plus video search in invite-only Beta. Authorizes over OAuth on first use — nothing to install and no API key to paste.",
+  "version": "0.7.0",
   "author": {
     "name": "Octen",
     "email": "support@octen.ai",

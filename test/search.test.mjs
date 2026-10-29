@@ -664,6 +664,29 @@ test("business_search: the card is labelled from `type`, not guessed", async () 
   assert.match(text, /## Person 2\/2: Lisa Su/);
 });
 
+test("business_search: a career reads as roles, not key=value", async () => {
+  // Real shape from a person card. `organization=AMD, title=Chair & CEO,
+  // start=February 2022` is what the API sends and not what anyone reads.
+  captureFetch({
+    code: 0,
+    data: {
+      entities: [{
+        type: "person",
+        name: "Lisa Su",
+        career: [
+          { organization: "AMD", title: "Chair & CEO", start: "February 2022" },
+          { organization: "AMD", title: "President & CEO", start: "October 2014", end: "February 2022" },
+        ],
+      }],
+      results: [],
+    },
+  });
+  const text = (await handleBusinessSearch({ query: "q" })).content[0].text;
+  assert.match(text, /Chair & CEO at AMD \(February 2022 – present\)/);
+  assert.match(text, /President & CEO at AMD \(October 2014 – February 2022\)/);
+  assert.ok(!text.includes("organization=AMD"), "the raw shape should not survive");
+});
+
 test("business_search: a metrics key the API adds later still shows", async () => {
   captureFetch({ code: 0, data: { entities: [{ name: "X", metrics: { headcount: 29600 } }], results: [] } });
   const text = (await handleBusinessSearch({ query: "q" })).content[0].text;

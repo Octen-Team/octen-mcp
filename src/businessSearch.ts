@@ -252,9 +252,23 @@ function formatEntity(e: any, idx: number, total: number): string {
     if (named.length) lines.push(`Key people: ${named.join("; ")}`);
   }
 
+  const career = Array.isArray(e?.career) ? e.career : [];
+  if (career.length) {
+    // `organization=AMD, title=Chair & CEO, start=February 2022` is the shape
+    // the API sends and not one anybody reads; a role reads as a sentence.
+    const roles = career
+      .map((c: any) => {
+        if (typeof c !== "object" || c == null) return flatten(c);
+        const head = [c.title, c.organization].filter(Boolean).join(" at ");
+        const span = [c.start, c.end ?? "present"].filter(Boolean).join(" – ");
+        return `${head}${head && span ? ` (${span})` : ""}` || flatten(c);
+      })
+      .filter(Boolean);
+    if (roles.length) lines.push("Career:", ...roles.map((r: string) => `  ${r}`));
+  }
+
   for (const [label, key] of [
-    ["Position", "current_position"],
-    ["Career", "career"], ["LinkedIn", "linkedin_url"],
+    ["Position", "current_position"], ["LinkedIn", "linkedin_url"],
   ] as const) {
     const line = field(label, e?.[key]);
     if (line) lines.push(line);

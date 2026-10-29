@@ -352,7 +352,7 @@ USE WHEN the question has multiple distinct parts or entities that one search ca
 DO NOT USE for anything another tool answers directly — fanning out costs Nx and returns pages where those return the answer:
   - a single fact, entity, or document → use \`search\`
   - a company or the people in one, including its financials → use \`business_search\`
-  - news, recent events, or anything needing freshness → use \`news_search\`
+  - news or recent events on a *single* topic → use \`news_search\` (multi-angle is the exception above)
   - a real-world place, address, opening hours → use \`place_search\`
   - the URL of a site or docs page you could almost name → use \`pulse_search\`
   - images or videos → use \`image_search\` / \`video_search\`

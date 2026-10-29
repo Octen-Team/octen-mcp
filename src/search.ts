@@ -349,8 +349,13 @@ USE WHEN the question has multiple distinct parts or entities that one search ca
   - a question that clearly decomposes into 3+ independent sub-questions
   - multi-angle questions about recent events ("what shipped across the industry this month") — do NOT loop news_search
 
-DO NOT USE for:
+DO NOT USE for anything another tool answers directly — fanning out costs Nx and returns pages where those return the answer:
   - a single fact, entity, or document → use \`search\`
+  - a company or the people in one, including its financials → use \`business_search\`
+  - news, recent events, or anything needing freshness → use \`news_search\`
+  - a real-world place, address, opening hours → use \`place_search\`
+  - the URL of a site or docs page you could almost name → use \`pulse_search\`
+  - images or videos → use \`image_search\` / \`video_search\`
   - re-running a disappointing search → do NOT call broad_search twice; follow up with a targeted \`search\` or \`extract\` on the specific gaps
   - reading a page you already have the URL for → use \`extract\`
   - a straight A-vs-B comparison of two known entities → two targeted \`search\` calls are cheaper and more controllable
@@ -363,7 +368,7 @@ RESULTS are grouped per sub-query and NOT deduplicated — the same URL may appe
 
 max_queries: 3-5 focused comparison (2-3 entities) | 5-10 multi-facet research | 10-20 landscape scan | 20-30 exhaustive survey
 
-For a single focused lookup use \`search\`; to read a specific page use \`extract\`.
+For a single focused lookup use \`search\`; to read a specific page use \`extract\`. Reach for this one only when no single tool above covers the question.
 
 keywords: web search, search the web, look up, find information, research, compare, comparison, versus, alternatives, options, landscape, survey, market research, pricing, latest, current information, multi-part question`,
   inputSchema: {

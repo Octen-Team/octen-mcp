@@ -41,12 +41,37 @@ Live web data with minute-level updates. Useful for news, prices, and fast-movin
 ### Efficient
 Clean highlights, optional `full_content`, and page labels keep model context relevant.
 
+## Pricing
+
+Octen bills per call by default: $1 per 1,000 web searches, and new accounts start with $5 in credit.
+
+If your agent searches a lot, **Search Plan** is a flat monthly subscription with no overage fees:
+
+| | Standard | Plus |
+|---|---|---|
+| Price | $20 / month | $100 / month |
+| Web Search (`search`) | Unlimited | Unlimited |
+| Image Search (`image_search`) | 1,000 / month | 5,000 / month |
+| Priority at peak times | – | ✓ |
+
+What each tool costs on a plan:
+
+| Tool | On Search Plan |
+|---|---|
+| `search` | Included, unlimited |
+| `image_search` | Included up to the monthly quota, then pay-as-you-go |
+| `news_search`, `pulse_search`, `broad_search`, `place_search`, `business_search`, `extract`, `video_search` | Pay-as-you-go, billed per call |
+
+Once you subscribe, every API key on your account uses the plan, including keys issued through OAuth sign-in.
+
+Subscribe at [octen.ai/pricing](https://octen.ai/pricing?channel=gh-mcp).
+
 ## Quick start
 
 You need an `OCTEN_API_KEY` from [octen.ai](https://octen.ai) — or nothing at
 all, if your client signs in over OAuth (see [Signing in instead](#signing-in-instead)).
 
-**Two ways to connect.** Both serve the same six tools.
+**Two ways to connect.** Both serve the same nine tools.
 
 | | Endpoint | When |
 |---|---|---|

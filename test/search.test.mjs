@@ -16,6 +16,8 @@ const { searchTool, broadSearchTool, handleSearch, handleBroadSearch } =
   await import("../dist/search.js");
 const { newsSearchTool, handleNewsSearch } = await import("../dist/newsSearch.js");
 const { businessSearchTool, handleBusinessSearch } = await import("../dist/businessSearch.js");
+const { designSearchTool } = await import("../dist/designSearch.js");
+const { validateArgs } = await import("../dist/validate.js");
 const { _setFetchForTests } = await import("../dist/http.js");
 
 /** Stub the HTTP layer's fetch for one call; returns the captured {url, body}. */
@@ -148,6 +150,47 @@ test("broad_search: `language` absent from search_options when unset", async () 
   const captured = captureFetch({ code: 0, data: { search_results: [], queries: [] } });
   await handleBroadSearch({ query: "ai news", count: 2 });
   assert.equal("language" in captured.body.search_options, false);
+});
+
+// `result_type`: documented on /search and, through `search_options`, on
+// /broad-search (docs.octen.ai/api-reference/search, verified 2026-11-23).
+test("search: `result_type` lands top-level in the /search body when set", async () => {
+  const captured = captureFetch();
+  await handleSearch({ query: "climate change", result_type: "dynamic" });
+  assert.equal(captured.body.result_type, "dynamic");
+});
+
+test("search: `result_type` omitted from the body when unset", async () => {
+  const captured = captureFetch();
+  await handleSearch({ query: "climate change", count: 2 });
+  assert.deepEqual(captured.body, { query: "climate change", count: 2 });
+});
+
+test("broad_search: `result_type` nests under search_options, never top-level", async () => {
+  const captured = captureFetch({ code: 0, data: { search_results: [], queries: [] } });
+  await handleBroadSearch({ query: "ai news", result_type: "dynamic", max_queries: 2 });
+  assert.equal("result_type" in captured.body, false, "result_type must not be top-level on /broad-search");
+  assert.equal(captured.body.search_options.result_type, "dynamic");
+});
+
+test("broad_search: `result_type` absent from search_options when unset", async () => {
+  const captured = captureFetch({ code: 0, data: { search_results: [], queries: [] } });
+  await handleBroadSearch({ query: "ai news", count: 2 });
+  assert.deepEqual(captured.body.search_options, { count: 2 });
+});
+
+test("search and broad_search: the schema gate accepts the two documented `result_type` values and refuses the rest", () => {
+  for (const tool of [searchTool, broadSearchTool]) {
+    const prop = tool.inputSchema.properties.result_type;
+    assert.deepEqual(prop.enum, ["standard", "dynamic"], `${tool.name} result_type enum`);
+    for (const ok of ["standard", "dynamic"]) {
+      assert.equal(validateArgs(tool.inputSchema, { query: "x", result_type: ok }), null, `${tool.name} ${ok}`);
+    }
+    for (const bad of ["deep", "Dynamic", ""]) {
+      assert.match(validateArgs(tool.inputSchema, { query: "x", result_type: bad }) ?? "",
+        /Invalid value for `result_type`/, `${tool.name} accepted ${JSON.stringify(bad)}`);
+    }
+  }
 });
 
 test("news_search: goes to its own endpoint, carrying no topic", async () => {
@@ -804,4 +847,16 @@ test("no tool advertises `country` — the API accepts it and ignores it", () =>
   assert.equal(placeSearchTool.inputSchema.properties.country, undefined);
   assert.ok(placeSearchTool.inputSchema.properties.user_location.properties.country,
     "user_location.country is documented and must stay");
+});
+
+// Registered last: it reads tools whose imports sit further down this file.
+test("`result_type` stays out of the schemas of the tools that are not Web Search or Broad Search", () => {
+  // These borrow parameters from `search` by name (or nest their own web
+  // options); their endpoints do not document `result_type`, so a name added
+  // to a list by mistake would advertise a parameter nobody committed to.
+  const nested = (t) => t.inputSchema.properties.web_search?.properties ?? {};
+  for (const tool of [newsSearchTool, businessSearchTool, pulseSearchTool, placeSearchTool, designSearchTool]) {
+    assert.equal("result_type" in tool.inputSchema.properties, false, `${tool.name} advertises result_type`);
+    assert.equal("result_type" in nested(tool), false, `${tool.name}.web_search advertises result_type`);
+  }
 });

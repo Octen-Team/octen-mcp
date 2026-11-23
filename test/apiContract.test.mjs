@@ -252,6 +252,8 @@ test("enum values match the published API reference", () => {
     [placeSearchTool, "user_location.type", ["approximate"]],
     [pulseSearchTool, "mode", ["lite", "standard"]],
     [pulseSearchTool, "safesearch", ["off", "strict"]],
+    [searchTool, "result_type", ["standard", "dynamic"]],
+    [broadSearchTool, "result_type", ["standard", "dynamic"]],
     [premierSearchTool, "result_type", ["standard", "dynamic"]],
     [premierSearchTool, "time_basis", ["auto", "published", "crawled"]],
     [premierSearchTool, "time_range", ["day", "week", "month", "year", "d", "w", "m", "y"]],

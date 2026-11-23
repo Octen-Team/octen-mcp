@@ -10,6 +10,7 @@ MCP server for **Octen**. Plug it into Claude, Cursor, VS Code, Windsurf, or any
 Core capabilities:
 
 - **`search`**: search the live web with domain, text, language, and time filters.
+- **`premier_search`**: the same search with deeper retrieval and more careful reranking — for the exact page that holds an answer, a niche document, or a query `search` answered thinly. Takes every parameter `search` takes, plus `result_type`; slower, and billed separately.
 - **`news_search`**: recent news, returned both as articles and as storylines — the coverage grouped into subjects, each with a summary and the span it covers.
 - **`pulse_search`**: the URL a query most likely means, in about 10ms — official docs, help centres, a site you could almost name. No freshness, no filters.
 - **`place_search`**: real-world places as structured cards — address, coordinates, phone, opening hours, rating — around a point you give it, or in an area the query names.
@@ -17,6 +18,7 @@ Core capabilities:
 - **`broad_search`**: decompose a query into multiple sub-queries, search them concurrently, and return results grouped per sub-query for broad coverage.
 - **`extract`**: turn one or more URLs into clean, LLM-ready content.
 - **`image_search`**: search the web for images by text query, by a reference image URL, or by base64 image data — exactly one of the three.
+- **`design_search`**: real designs to build from — screenshots of web pages, page sections, app screens and slides, each with the design values behind it, and the HTML for page sections.
 - **`video_search`** (In Beta — contact us for beta access): search the web for videos by text query.
 
 What makes Octen useful for agents is that `extract` returns more than page text. Each successful result also includes:
@@ -60,7 +62,9 @@ What each tool costs on a plan:
 |---|---|
 | `search` | Included, unlimited |
 | `image_search` | Included up to the monthly quota, then pay-as-you-go |
-| `news_search`, `pulse_search`, `broad_search`, `place_search`, `business_search`, `extract`, `video_search` | Pay-as-you-go, billed per call |
+| `premier_search`, `news_search`, `pulse_search`, `broad_search`, `place_search`, `business_search`, `design_search`, `extract`, `video_search` | Pay-as-you-go, billed per call |
+
+`full_content` is billed separately from the call, per result, on every tool that offers it. Pay-as-you-go, the first results of each search are free and only the ones beyond that allowance are billed; a Search Plan does not cover full content and has no free allowance. The rates and the allowance for each tool are on the pricing page.
 
 Once you subscribe, every API key on your account uses the plan, including keys issued through OAuth sign-in.
 
@@ -71,7 +75,7 @@ Subscribe at [octen.ai/pricing](https://octen.ai/pricing?channel=gh-mcp).
 You need an `OCTEN_API_KEY` from [octen.ai](https://octen.ai) — or nothing at
 all, if your client signs in over OAuth (see [Signing in instead](#signing-in-instead)).
 
-**Two ways to connect.** Both serve the same nine tools.
+**Two ways to connect.** Both serve the same eleven tools.
 
 | | Endpoint | When |
 |---|---|---|
@@ -351,6 +355,7 @@ request; it is the one an engineer can look up.
 | Tool | What it does | Best for |
 |---|---|---|
 | `search` | Search the live web with domain, text, language (ISO 639-1), time, and content controls | a single focused web search |
+| `premier_search` | Web Search Premier: every parameter `search` takes plus `result_type`, and the same results, with deeper retrieval and more careful reranking. Slower, and billed at its own rate | the exact page behind a specific fact, niche or hard-to-find documents, a query `search` answered thinly |
 | `news_search` | Recent news as ranked articles plus `subjects` — the coverage grouped into storylines with summaries | current events and timely reporting |
 | `business_search` | Company and person cards (profile, financials, key people, career, recent activity) plus the ranked sources | due diligence, competitor and executive lookup |
 | `place_search` | Place cards (address, coordinates, phone, hours, status, rating) around a point or in a named area; web pages about them are opt-in | "near me", local lookup, opening hours, contact details |
@@ -358,9 +363,10 @@ request; it is the one an engineer can look up.
 | `broad_search` | Decompose a query into up to `max_queries` sub-queries, search concurrently, return grouped results (same per-sub-query options as `search`, including the `language` filter) | research-style, multi-angle coverage |
 | `extract` | Fetch 1-20 URLs and return clean content, labels, and optional highlights | summarization, RAG, fact lookup |
 | `image_search` | Search the web for images by text query (optional reference `image_url`) | finding pictures, photos, visual references |
+| `design_search` | Screenshots of real web pages, page sections, app screens and slides, each with its design values (colours, fonts, sizes) and, for page sections, the HTML; web pages on the same query alongside | building or restyling a UI or a deck from real references |
 | `video_search` | _In Beta — contact us for beta access._ Search the web for videos by text query | finding videos, clips, footage |
 
-These nine are the whole surface, on purpose. Embeddings, chat completions,
+These eleven are the whole surface, on purpose. Embeddings, chat completions,
 Answer and Research are Octen APIs that this server deliberately does not
 expose — reach them through the [Python SDK](https://pypi.org/project/octen/)
 or the [CLI](https://www.npmjs.com/package/@octen.ai/cli). A tool an agent can
@@ -370,6 +376,8 @@ a tool list.
 Reference docs:
 
 - Search: [docs.octen.ai/api-reference/search](https://docs.octen.ai/api-reference/search)
+- Web Search Premier: [docs.octen.ai/api-reference/search-premier](https://docs.octen.ai/api-reference/search-premier)
+- Design Search: [docs.octen.ai/api-reference/design-search](https://docs.octen.ai/api-reference/design-search)
 - Extract: [docs.octen.ai/api-reference/extract](https://docs.octen.ai/api-reference/extract)
 
 ### Parameters
@@ -383,10 +391,13 @@ two drift apart.
 `image_search` takes **exactly one** of `query`, `image_url` or `image_data`.
 
 `query` must be non-empty: an empty string is refused by the schema, and a
-whitespace-only one by the handler. Neither reaches the API.
+whitespace-only one by the handler. Neither reaches the API. `design_search`
+is the one exception — its `query` may be left out when `images.group_id`
+names a group to fetch.
 
-**`timeout` means two different things.** On `search`, `news_search`,
-`broad_search`, `image_search` and `video_search` it is this server's own HTTP
+**`timeout` means two different things.** On `search`, `premier_search`,
+`news_search`, `broad_search`, `image_search`, `design_search` and
+`video_search` it is this server's own HTTP
 deadline for the call — it is removed from the request body and never sent to
 the API. On `extract` it is the API's documented **per-URL fetch budget**
 (1-60s) and does travel in the body; the local deadline for an extract call is
@@ -420,6 +431,42 @@ reorders your filters — you get the API's answer.
 | `full_content` | object |  | `enable`, `max_tokens` |  |
 | `include_images` | boolean |  |  | `false` |
 | `timeout` | integer |  | 1–60 |  |
+
+#### `premier_search`
+
+| Parameter | Type | Required | Limits | Default |
+|---|---|---|---|---|
+| `query` | string | yes | 1–500 chars |  |
+| `result_type` | string |  | `standard` / `dynamic` | `"standard"` |
+| `count` | integer |  | 1–100 | `5` |
+| `include_domains` | array |  | ≤1200 items; each ≤60 |  |
+| `exclude_domains` | array |  | ≤1200 items; each ≤60 |  |
+| `include_text` | array |  | ≤5 items; each ≤30 |  |
+| `exclude_text` | array |  | ≤5 items; each ≤30 |  |
+| `time_basis` | string |  | `auto` / `published` / `crawled` | `"auto"` |
+| `time_range` | string |  | `day` / `week` / `month` / `year` / `d` / `w` / `m` / `y` |  |
+| `start_time` | string |  |  |  |
+| `end_time` | string |  |  |  |
+| `format` | string |  | `text` / `markdown` | `"text"` |
+| `safesearch` | string |  | `off` / `strict` | `"strict"` |
+| `language` | array |  |  | `[]` |
+| `highlight` | object |  | `enable`, `max_tokens` |  |
+| `full_content` | object |  | `enable`, `max_tokens` |  |
+| `include_images` | boolean |  |  | `false` |
+| `timeout` | integer |  | 1–60 |  |
+
+`/search-premier` is documented as a drop-in for `/search`: the same request
+body and the same response. As tools the two differ by one parameter — this
+one takes `result_type`, which `search` does not offer — so arguments written
+for `search` work here unchanged, and the reverse holds unless `result_type`
+is among them. `result_type: dynamic` returns only the relevant results, up to
+`count`, and adjusts highlight length per result.
+
+What differs is behind the endpoint — deeper retrieval and more careful
+reranking, so the page that holds the answer ranks higher — and what a call
+costs: it takes longer than `search`, it is billed at its own per-call rate,
+and a Search Plan's unlimited searches do not cover it. Use `search` by
+default and this one when ranking quality is what is missing.
 
 #### `news_search`
 
@@ -578,6 +625,54 @@ which is authoritative for billing.
 | `safesearch` | string |  | `off` / `strict` | `"strict"` |
 | `timeout` | integer |  | 1–60 |  |
 
+#### `design_search`
+
+| Parameter | Type | Required | Limits | Default |
+|---|---|---|---|---|
+| `query` | string | unless `images.group_id` is set | ≤500 chars |  |
+| `images` | object |  | see below | on |
+| `web_search` | object |  | see below | on |
+| `timeout` | integer |  | 1–60 |  |
+
+`images` holds what comes back per design: `enable` (default **true**),
+`count` 1–100 (default 5), `design_facts` (default true), `snippet` (`enable`,
+default true; `max_tokens` 100–100000, default 5000) and `group_id`.
+
+`web_search` holds the filters the other search tools take top-level:
+`enable` (default **true**), `count` 1–100, `highlight`, `full_content`,
+`include_domains`, `exclude_domains`, `language`, `time_basis`, `time_range`,
+`start_time`, `end_time`. They apply to the web results only.
+
+Each image is a `web_page`, a `web_section`, an `app_screen` or a `slide`, and
+comes back as a link to the screenshot, a thumbnail, its design values and —
+for page sections — the HTML. The links are signed and time-limited, so use
+them rather than store them. The design values are passed through as the API
+returns them, because their shape depends on what the image is.
+
+A page section or a slide belongs to a group — the page it was cut from, the
+deck it came out of — and its result names the `group_id`, its position and
+the size of the group. Pass that id as `images.group_id` to get the group in
+order; that call needs no `query`. `images.count` still applies and still
+defaults to 5, so set it to the group's size to get all of it — up to 100,
+the most one call returns. A group id the
+API does not know is answered with an empty success, which this server reports
+as `No images in group …`.
+
+Three calls are refused here rather than sent: neither a `query` nor a group;
+a group with `images.enable: false`; and `images` and `web_search` both
+switched off, which the API answers with an empty success that still counts
+as a search. A `group_id` is trimmed before it is sent, and a blank one is
+treated as no group.
+
+A non-2xx answer that carries no Octen error code, or a 2xx whose body is not
+an Octen response at all, is reported as an error rather than as an empty
+result. An entry that cannot be rendered is named in its place rather than
+taking the valid ones with it, and an empty result keeps its meta line.
+`premier_search` does the same.
+
+The response is large — a default call returns five designs with their values
+and code plus five web results. Switch off what the task does not need.
+
 #### `video_search`
 
 | Parameter | Type | Required | Limits | Default |
@@ -632,6 +727,8 @@ For the full decision tree and integration patterns, see [docs/best-practices.md
 - `Search for recent MCP news from the last week.`
 - `Fetch these URLs and only summarize the ones whose category is Finance.`
 - `Search site:docs.anthropic.com prompt caching and return only the relevant highlights.`
+- `Find real pricing-section designs for a SaaS landing page, then build one from the closest match.`
+- `Use premier search to find the page that states Kafka's default topic retention period.`
 
 ## Self-hosting the HTTP server
 

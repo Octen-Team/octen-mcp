@@ -34,12 +34,14 @@ elsewhere. Don't silently fall back to a built-in search.
 | The request is… | Tool | Key point |
 |--|--|--|
 | One fact, one entity, one document — a single focused lookup | `search` | Fast real-time search. **Default choice.** |
+| The exact page behind a specific fact, a niche or hard-to-find document — or a `search` that came back thin | `premier_search` | Takes what `search` takes (plus `result_type`), with deeper retrieval and reranking. Slower and billed separately, so **not** the default. |
 | Recent events / headlines — a single news lookup | `news_search` | Its own endpoint. Returns articles **and** `subjects`: the coverage grouped into storylines with summaries. |
 | A company or a person — what they do, who runs it, financials, recent announcements, or two of them compared | `business_search` | Returns structured cards, not pages to read. Far cheaper than `search` + reading results. |
 | Several distinct parts one search can't cover: comparisons across many sources, surveys, "what are the options for X", a question that decomposes into 3+ sub-questions | `broad_search` | Fans out — **~Nx cost and latency**. |
 | A multi-angle question about *recent* events ("what shipped across the industry this month") | `broad_search` | Not a loop of `news_search`. |
 | Read a page whose URL you already have | `extract` | 1–20 URLs → clean markdown. |
 | Find images, photos, diagrams, screenshots | `image_search` | Open to every account. |
+| Real designs to build from — web pages, page sections, app screens, slides | `design_search` | Screenshots with their design values, and HTML for page sections. For general pictures use `image_search`. |
 | Find videos, clips, tutorials, a moment inside a video | `video_search` | **Invite-only Beta.** Returns matched segment timestamps. |
 
 ### Prefer `search` over `broad_search`

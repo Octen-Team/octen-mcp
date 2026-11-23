@@ -5,6 +5,116 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`premier_search`** — wraps `POST /search-premier`, Web Search Premier. The
+  same request body and the same response as `/search`, with deeper retrieval
+  and more careful reranking behind it: more sources reached, niche and
+  long-tail pages included, and the page that holds the answer ranked higher.
+  For a specific fact buried deep in a page, a document you can name but not
+  locate, or a query `search` answered thinly.
+
+  It takes longer than `search` — measured at roughly 350-550ms server-side
+  against about 100ms — and is billed at its own per-call rate, which a Search
+  Plan's unlimited searches do not cover. The description says both and tells
+  the model to default to `search`: since the two take identical arguments,
+  nothing else would stop an agent from choosing the dearer one every time.
+
+  Its parameters are named one by one rather than taken wholesale from
+  `search`'s schema, and a test holds the list to the reference. "The same as
+  search" is a statement about two references that can stop being true, and
+  deriving one tool's contract from another's is how `news_search` went on
+  advertising a parameter its endpoint had stopped taking. It declares
+  `result_type` (`standard` / `dynamic`), which the reference documents — so
+  as a tool it takes every parameter `search` takes plus that one, and the
+  description says so rather than calling the two interchangeable.
+- **`design_search`** — wraps `POST /design-search`. Real designs to build
+  from: screenshots of live web pages, single page sections, mobile app
+  screens and slides, each with the design values behind it — colours, fonts
+  and font sizes, or an app screen's components — and, for page sections, the
+  HTML. Web pages on the same query come back alongside. This is the design
+  corpus withdrawn from `image_search` in 0.7.0, on the endpoint it was
+  waiting for.
+
+  Two result groups, each with its own options: the designs under `images`,
+  the pages about them under `web_search`. Both are on by default at the API
+  and no client default is injected.
+
+  A page section or a slide names the page or deck it belongs to, and
+  `images.group_id` returns that whole group in order with no `query`.
+  `images.count` still defaults to 5 on that call — measured: a six-section
+  page came back as five — so the description tells the model to set it to
+  the group's size, or to 100 for a larger group, which is the most one call
+  returns.
+
+  The design values are passed through as returned rather than picked apart.
+  The reference says the fields vary by image, and they do: a web page
+  returns design tokens, a slide returns font and colour lists, an app screen
+  returns a component count. A renderer that named fields would drop
+  whichever shape it was not written for.
+
+  Three calls are refused here instead of being sent. Neither a `query` nor a
+  group, and a group with `images.enable: false`, both get a bare
+  `Invalid params.` from the API after the round trip. With `images` and
+  `web_search` both off the API does not refuse at all — it answers with a
+  success that carries no results and still counts as a search.
+
+  A search with `images.enable: false` that finds nothing says `No web
+  results …`, not `No design references …` — no design was searched for.
+
+  An unknown `group_id` is likewise a success with empty arrays, so the result
+  says `No images in group …` rather than leaving a wrong id indistinguishable
+  from a search that found nothing — including when a `query` was sent with
+  it and web results fill the response.
+
+  A `group_id` is trimmed before it is sent. It is trimmed to decide whether
+  a group was asked for and to name it in the result, so sending the untrimmed
+  value would let the API miss the group while the message shows an id that
+  looks right.
+
+  Not offered: `specs`, a third result group the API accepts and returns. The
+  reference does not document it, so there is no contract behind it.
+- **Both new tools report a gateway failure as a failure.** A non-2xx HTTP
+  status whose body is JSON but not Octen's error envelope — a `502` from a
+  proxy, or a redirect with no `Location` that is handed back rather than
+  followed — has no `code` to branch on, and read as an envelope it has no
+  error and no results: a search that completed and found nothing. Octen's own
+  code and message still come first when they are there; after that the status
+  is checked, and the result says `HTTP 502` and quotes what the body said.
+  The same goes for a `200` whose body is not an Octen response at all — a
+  base URL pointed at the wrong service — which is recognised by the absence
+  of `request_id`, the one field the reference requires on every response.
+  A numeric `code` is likewise read as Octen's only when `request_id` is
+  there: a gateway's `{"code": 502, "message": "Bad Gateway"}` keeps its
+  message instead of becoming `code=502 msg=(no msg)`. A `request_id` that
+  does come with a failing response is kept in the message.
+- **Both new tools keep the results that did arrive.** A `null` or other
+  non-object entry in a result list is skipped, an entry that throws while it
+  is rendered is named in its place — `(malformed entry — could not be
+  rendered)` — and a list that is not a list is an empty result. None of the
+  three takes the valid entries with it.
+- **Both new tools keep the meta line on an empty result.** `No results …`
+  now carries the API's `warning`, usage and `request_id` when it sent them,
+  so a caveat about why nothing came back is not dropped along with the
+  results.
+
+### Changed
+
+- **The contract test no longer lists `topic` and `html_snippet` under
+  `image_search`.** They were recorded as a deliberate withdrawal while the
+  design corpus waited for its own endpoint. That endpoint is `/design-search`,
+  and the reference has since dropped both parameters from `/image-search`, so
+  the transcript of the reference drops them too and the withdrawal list is
+  empty.
+- Plugin manifests name the two new capabilities and add `design search` to
+  their keywords.
+- The README's pricing section says that `full_content` is billed per result,
+  separately from the call: beyond a free allowance when paying as you go,
+  and with no allowance on a Search Plan, which does not cover it. Both new
+  tools offer it, and the table beside it spoke only of the per-call rate.
+
 ## [0.7.1] — 2026-10-29
 
 ### Changed

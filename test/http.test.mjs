@@ -223,10 +223,12 @@ test("no retry when the remaining budget cannot fit one", async () => {
 // Branch-completeness: every tool × every body-read failure shape.
 // The real-socket suite proves the shapes are real (bodyTimeout.test.mjs) but
 // only exercises `search`; this pins the shared classifier's wiring — label
-// and branch — for all five handlers, in-process where coverage can see it.
+// and branch — for each handler listed, in-process where coverage can see it.
 // ---------------------------------------------------------------------------
 const { handleImageSearch } = await import("../dist/imageSearch.js");
 const { handleVideoSearch } = await import("../dist/videoSearch.js");
+const { handlePremierSearch } = await import("../dist/premierSearch.js");
+const { handleDesignSearch } = await import("../dist/designSearch.js");
 
 const ALL_TOOLS = [
   ["Octen Search", () => handleSearch({ query: "x" })],
@@ -234,6 +236,8 @@ const ALL_TOOLS = [
   ["Octen Extract", () => handleExtract({ urls: ["https://e.com"] })],
   ["Octen Image Search", () => handleImageSearch({ query: "x" })],
   ["Octen Video Search", () => handleVideoSearch({ query: "x" })],
+  ["Octen Web Search Premier", () => handlePremierSearch({ query: "x" })],
+  ["Octen Design Search", () => handleDesignSearch({ query: "x" })],
 ];
 
 function stubJsonReject(err) {
@@ -287,6 +291,9 @@ test("every tool rejects empty input before touching the network", async () => {
     [() => handleExtract({ urls: [] }), /must be a non-empty/],
     [() => handleImageSearch({}), /`query`.*`image_url`|`image_url`.*`query`/],
     [() => handleVideoSearch({ query: "" }), /must be a non-empty/],
+    [() => handlePremierSearch({ query: "" }), /must be a non-empty/],
+    // `design_search` takes a query or a group, so its message names both.
+    [() => handleDesignSearch({}), /must be a non-empty.*`images\.group_id`/],
   ];
   for (const [invoke, expected] of EMPTY) {
     const out = await invoke();

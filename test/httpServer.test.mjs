@@ -32,13 +32,13 @@ test("initialize succeeds without a credential (auth is enforced at call time)",
   } finally { srv.stop(); }
 });
 
-test("tools/list succeeds without a credential and shows all nine tools", async () => {
+test("tools/list succeeds without a credential and shows all eleven tools", async () => {
   const srv = await startHttp();
   try {
     const { msg } = await rpc(srv.port, { jsonrpc: "2.0", id: 2, method: "tools/list" });
     assert.deepEqual(
       msg.result.tools.map((t) => t.name).sort(),
-      ["broad_search", "business_search", "extract", "image_search", "news_search", "place_search", "pulse_search", "search", "video_search"]
+      ["broad_search", "business_search", "design_search", "extract", "image_search", "news_search", "place_search", "premier_search", "pulse_search", "search", "video_search"]
     );
   } finally { srv.stop(); }
 });
@@ -373,4 +373,55 @@ test("initialize advertises the branding surface (title, websiteUrl, icons)", as
     assert.ok(Array.isArray(info.icons) && info.icons[0].src.startsWith("https://octen.ai/"),
       "directory listings render these fields");
   } finally { srv.stop(); }
+});
+
+test("premier_search and design_search each reach their own endpoint through the server", async () => {
+  // Listing a tool and serving it are separate steps: a tool present in the
+  // roster but absent from the dispatch switch is advertised to every client
+  // and answers each call with "Unknown tool". And since premier takes the
+  // same body as /search, only the path the call lands on tells them apart.
+  const seen = [];
+  const up = http.createServer((req, res) => {
+    let raw = "";
+    req.on("data", (c) => { raw += c; });
+    req.on("end", () => {
+      seen.push({ path: req.url, body: JSON.parse(raw) });
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        code: 0,
+        request_id: "req_dispatch",
+        data: {
+          results: [{ title: `web via ${req.url}`, url: "http://x" }],
+          images: [{ type: "web_page", title: `image via ${req.url}`, url: "http://img" }],
+        },
+        meta: {},
+      }));
+    });
+  });
+  await new Promise((r) => up.listen(0, r));
+  const srv = await startHttp({ OCTEN_API_URL: `http://127.0.0.1:${up.address().port}` });
+  const callTool = (id, name, args) => rpc(srv.port,
+    { jsonrpc: "2.0", id, method: "tools/call", params: { name, arguments: args } },
+    { "x-api-key": "k" });
+  try {
+    const premier = await callTool(1, "premier_search", { query: "kafka retention", count: 3 });
+    assert.notEqual(premier.msg.result.isError, true, premier.msg.result.content?.[0]?.text);
+    assert.match(premier.msg.result.content[0].text, /web via \/search-premier/);
+
+    const design = await callTool(2, "design_search", { query: "pricing section", images: { count: 2 } });
+    assert.notEqual(design.msg.result.isError, true, design.msg.result.content?.[0]?.text);
+    assert.match(design.msg.result.content[0].text, /image via \/design-search/);
+
+    assert.deepEqual(seen, [
+      { path: "/search-premier", body: { query: "kafka retention", count: 3 } },
+      { path: "/design-search", body: { query: "pricing section", images: { count: 2 } } },
+    ]);
+
+    // The schema gate sits in front of dispatch for these tools as for any
+    // other: an out-of-range value never becomes a request.
+    const refused = await callTool(3, "design_search", { query: "x", images: { count: 101 } });
+    assert.equal(refused.msg.result.isError, true);
+    assert.match(refused.msg.result.content[0].text, /`images\.count` must be at most 100/);
+    assert.equal(seen.length, 2, "a call the schema refuses must not reach the API");
+  } finally { srv.stop(); up.close(); }
 });

@@ -27,7 +27,9 @@ import { newsSearchTool, handleNewsSearch } from "./newsSearch.js";
 import { businessSearchTool, handleBusinessSearch } from "./businessSearch.js";
 import { placeSearchTool, handlePlaceSearch } from "./placeSearch.js";
 import { pulseSearchTool, handlePulseSearch } from "./pulseSearch.js";
+import { premierSearchTool, handlePremierSearch } from "./premierSearch.js";
 import { imageSearchTool, handleImageSearch } from "./imageSearch.js";
+import { designSearchTool, handleDesignSearch } from "./designSearch.js";
 import { videoSearchTool, handleVideoSearch } from "./videoSearch.js";
 import { logEvent, type HandlerContext } from "./http.js";
 import { validateArgs } from "./validate.js";
@@ -57,8 +59,10 @@ const allTools = [
   placeSearchTool,
   pulseSearchTool,
   broadSearchTool,
+  premierSearchTool,
   extractTool,
   imageSearchTool,
+  designSearchTool,
   videoSearchTool,
 ];
 
@@ -231,10 +235,14 @@ export function createOctenServer(opts: CreateServerOptions): Server {
           return await handlePulseSearch(args ?? {}, ctx);
         case "broad_search":
           return await handleBroadSearch(args ?? {}, ctx);
+        case "premier_search":
+          return await handlePremierSearch(args ?? {}, ctx);
         case "extract":
           return await handleExtract(args ?? {}, ctx);
         case "image_search":
           return await handleImageSearch(args ?? {}, ctx);
+        case "design_search":
+          return await handleDesignSearch(args ?? {}, ctx);
         case "video_search":
           return await handleVideoSearch(args ?? {}, ctx);
         /* c8 ignore next 8 -- unreachable: the membership check above rejects

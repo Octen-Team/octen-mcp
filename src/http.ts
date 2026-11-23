@@ -437,6 +437,72 @@ export interface PostJsonOptions {
  * indistinguishable from a slow one at this point, so the advice would be a
  * guess — the codes and correlation id are the actionable part.
  */
+/**
+ * The message for a response that is not Octen's to interpret, or null when
+ * it is one.
+ *
+ * Octen's own failures come as an envelope — `{code, msg, request_id}` — and
+ * handlers surface that verbatim before they get here. Two things are left.
+ *
+ * A non-2xx status with no Octen error code: an answer from something in
+ * front of the API — a gateway, a proxy, a load balancer. Any non-2xx, not
+ * only 4xx and 5xx: a redirect with no `Location` header is handed back as-is
+ * rather than followed.
+ *
+ * A 2xx whose body is not an Octen envelope at all: a base URL pointed at the
+ * wrong service, or something answering in the API's place.
+ *
+ * Both parse as JSON and both have no `code` to branch on, so read as an
+ * envelope they have no error and no results, and the tool reports a search
+ * that completed and found nothing. That is the one reading that hides an
+ * outage or a routing mistake from the caller.
+ *
+ * An envelope is recognised by its `request_id`: the one field the reference
+ * requires on every response, success and error alike. Not by `data` or
+ * `code` — plenty of unrelated services return an object under `data` or a
+ * numeric `code`, and accepting those would let exactly the response this
+ * guards against through. And by nothing more than `request_id`, because
+ * asking for more would refuse a genuine response for leaving out a field it
+ * was allowed to leave out.
+ *
+ * Whatever the body said about itself is quoted, capped, because it is the
+ * only clue to which hop answered.
+ */
+export function nonEnvelopeFailure(label: string, resp: Response, data: unknown): string | null {
+  const ok = resp.status >= 200 && resp.status < 300;
+  if (ok && isOctenEnvelope(data)) return null;
+
+  const d = (typeof data === "object" && data !== null && !Array.isArray(data) ? data : {}) as Record<string, unknown>;
+  const found = [d.msg, d.message, d.error]
+    .find((v): v is string => typeof v === "string" && v.length > 0);
+  const said = found ? ` — ${found.length > 200 ? `${found.slice(0, 200)}…` : found}` : "";
+  if (ok) {
+    return `${label}: HTTP ${resp.status}${said}, but the body is not an Octen response ` +
+      "(it carries no `request_id`) — if `OCTEN_API_URL` is set, check where it points.";
+  }
+  // A failing status can still come with a `request_id` and no error code to
+  // pass on. The id is what lets someone trace the failure, so it is kept —
+  // and the reason given is the one that is true of this response.
+  return isOctenEnvelope(data)
+    ? `${label}: HTTP ${resp.status}${said} request_id=${d.request_id} (the response carries no Octen error code)`
+    : `${label}: HTTP ${resp.status}${said} (not an Octen error: the response carries no \`request_id\`)`;
+}
+
+/**
+ * Whether a parsed body is Octen's: it carries a non-empty `request_id`.
+ *
+ * Exported because handlers need the same answer one step earlier. A nonzero
+ * numeric `code` is Octen's error only on a response that is Octen's — plenty
+ * of gateways answer `{"code": 502, "message": "Bad Gateway"}`, and read as
+ * an envelope that is `code=502 msg=(no msg)`: the status is there by
+ * coincidence, and the one sentence saying what happened is gone.
+ */
+export function isOctenEnvelope(data: unknown): boolean {
+  if (typeof data !== "object" || data === null || Array.isArray(data)) return false;
+  const id = (data as Record<string, unknown>).request_id;
+  return typeof id === "string" && id !== "";
+}
+
 export function bodyReadFailure(label: string, resp: Response, e: unknown): string {
   // No id in these messages, verified rather than assumed: the only id worth
   // putting in front of a user is one Octen can actually look up, and for a

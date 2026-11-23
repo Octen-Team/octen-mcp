@@ -530,6 +530,44 @@ export function formatMediaList(label: string, items: unknown): string[] {
   return [head, ...shown.map((m) => `- ${formatMediaItem(m)}`)];
 }
 
+/**
+ * The entries of a result list that a renderer can be handed.
+ *
+ * `formatResult` reads fields off each entry, so one `null` among twenty
+ * results throws and takes the other nineteen with it; a list that is not a
+ * list throws before the first. Neither is a shape the API documents, and
+ * neither should cost the caller the results that did arrive.
+ */
+export function resultEntries(list: unknown): any[] {
+  if (!Array.isArray(list)) return [];
+  return list.filter((r) => typeof r === "object" && r !== null && !Array.isArray(r));
+}
+
+/**
+ * Render each entry, and let one that throws cost only itself.
+ *
+ * `resultEntries` removes what is not an object; this covers what is an object
+ * and still cannot be rendered. An object where a string belongs is usually
+ * harmless, but one that cannot be converted to a string throws inside the
+ * renderer, and without a guard per entry that single throw discards every
+ * valid result beside it. The failed entry keeps its place in the numbering
+ * and says what happened, so the caller is told something was dropped rather
+ * than left to notice a gap.
+ */
+export function renderEach(
+  entries: any[],
+  noun: string,
+  render: (entry: any, idx: number, total: number) => string,
+): string[] {
+  return entries.map((entry, i) => {
+    try {
+      return render(entry, i + 1, entries.length);
+    } catch {
+      return `## ${noun} ${i + 1}/${entries.length}: (malformed entry — could not be rendered)`;
+    }
+  });
+}
+
 export function formatResult(r: any, idx: number, total: number): string {
   const lines: string[] = [`## Result ${idx}/${total}: ${r.title ?? "(untitled)"}`];
   if (r.url) lines.push(r.url);

@@ -22,6 +22,8 @@ const { newsSearchTool } = await import("../dist/newsSearch.js");
 const { businessSearchTool } = await import("../dist/businessSearch.js");
 const { placeSearchTool } = await import("../dist/placeSearch.js");
 const { pulseSearchTool } = await import("../dist/pulseSearch.js");
+const { premierSearchTool } = await import("../dist/premierSearch.js");
+const { designSearchTool } = await import("../dist/designSearch.js");
 const { extractTool } = await import("../dist/extract.js");
 const { imageSearchTool } = await import("../dist/imageSearch.js");
 const { videoSearchTool } = await import("../dist/videoSearch.js");
@@ -104,6 +106,41 @@ const DOCUMENTED = {
       "full_content.max_tokens": { minimum: 100, maximum: 100000 },
     },
   },
+  // Documented as a drop-in for /search: same parameters, same limits. The
+  // table is restated rather than pointed at search's, because "the same as
+  // search" is a claim about two references that can stop being true — and
+  // deriving one tool's contract from another's is how news_search drifted.
+  // Reference: docs.octen.ai/api-reference/search-premier — verified 2026-11-23.
+  premier_search: {
+    tool: premierSearchTool,
+    fields: {
+      "query": { maxLength: 500 },
+      "count": { minimum: 1, maximum: 100 },
+      "include_domains": { maxItems: 1200, itemMaxLength: 60 },
+      "exclude_domains": { maxItems: 1200, itemMaxLength: 60 },
+      "include_text": { maxItems: 5, itemMaxLength: 30 },
+      "exclude_text": { maxItems: 5, itemMaxLength: 30 },
+      "highlight.max_tokens": { minimum: 100, maximum: 20000 },
+      "full_content.max_tokens": { minimum: 100, maximum: 100000 },
+    },
+  },
+  // Two result groups, each with its own options: the designs under `images`,
+  // the pages about them under `web_search`. `images.group_id` documents no
+  // length, so none is declared.
+  // Reference: docs.octen.ai/api-reference/design-search — verified 2026-11-23.
+  design_search: {
+    tool: designSearchTool,
+    fields: {
+      "query": { maxLength: 500 },
+      "images.count": { minimum: 1, maximum: 100 },
+      "images.snippet.max_tokens": { minimum: 100, maximum: 100000 },
+      "web_search.count": { minimum: 1, maximum: 100 },
+      "web_search.include_domains": { maxItems: 1200, itemMaxLength: 60 },
+      "web_search.exclude_domains": { maxItems: 1200, itemMaxLength: 60 },
+      "web_search.highlight.max_tokens": { minimum: 100, maximum: 20000 },
+      "web_search.full_content.max_tokens": { minimum: 100, maximum: 100000 },
+    },
+  },
   broad_search: {
     tool: broadSearchTool,
     fields: {
@@ -168,13 +205,22 @@ for (const [name, { tool, fields }] of Object.entries(DOCUMENTED)) {
  * DOCUMENTED, or that table stops meaning anything.
  */
 test("a search query must be declared non-empty", () => {
-  for (const tool of [searchTool, newsSearchTool, broadSearchTool]) {
+  for (const tool of [searchTool, newsSearchTool, broadSearchTool, premierSearchTool]) {
     const query = tool.inputSchema.properties.query;
     assert.ok(query, `${tool.name} must declare query`);
     assert.equal(query.minLength, 1,
       `${tool.name}.query must declare minLength 1 so an empty query is refused ` +
       `before dispatch, not by the handler or the API`);
   }
+});
+
+test("design_search's query is optional, so it carries no minimum and is not required", () => {
+  // The reference: "Optional when `images.group_id` is set." A minimum length
+  // or a `required` entry would refuse the group lookup the reference
+  // documents; the handler enforces "a query or a group" instead, because
+  // that rule spans two fields and the schema vocabulary cannot express it.
+  assert.equal(designSearchTool.inputSchema.properties.query.minLength, undefined);
+  assert.ok(!(designSearchTool.inputSchema.required ?? []).includes("query"));
 });
 
 test("extract's optional query is not given an unpublished minimum", () => {
@@ -206,6 +252,14 @@ test("enum values match the published API reference", () => {
     [placeSearchTool, "user_location.type", ["approximate"]],
     [pulseSearchTool, "mode", ["lite", "standard"]],
     [pulseSearchTool, "safesearch", ["off", "strict"]],
+    [premierSearchTool, "result_type", ["standard", "dynamic"]],
+    [premierSearchTool, "time_basis", ["auto", "published", "crawled"]],
+    [premierSearchTool, "time_range", ["day", "week", "month", "year", "d", "w", "m", "y"]],
+    [premierSearchTool, "format", ["text", "markdown"]],
+    [premierSearchTool, "safesearch", ["off", "strict"]],
+    // Nested, not shared: design_search declares these inside `web_search`.
+    [designSearchTool, "web_search.time_basis", ["auto", "published", "crawled"]],
+    [designSearchTool, "web_search.time_range", ["day", "week", "month", "year", "d", "w", "m", "y"]],
   ];
   for (const [tool, field, want] of enums) {
     const s = at(tool.inputSchema, field);
@@ -238,31 +292,45 @@ const DOCUMENTED_PARAMS = {
   // bodies we build are asserted against the documented shapes elsewhere.
   // `inputs[]` flattens to three: `query` is `inputs.data` for a text input,
   // `image_url` is `inputs.url`, `image_data` is `inputs.data` for an image.
-  image_search: ["query", "image_url", "image_data", "topic", "count",
-                 "include_domains", "exclude_domains", "safesearch", "html_snippet"],
+  image_search: ["query", "image_url", "image_data", "count",
+                 "include_domains", "exclude_domains", "safesearch"],
   video_search: ["query", "count", "time_range", "start_time", "end_time", "safesearch"],
   extract: ["urls", "query", "max_age_seconds", "format", "timeout",
             "include_images", "include_videos", "include_audio", "mode", "include_links"],
+  premier_search: ["query", "result_type", "count", "include_domains", "exclude_domains",
+                   "include_text", "exclude_text", "time_basis", "time_range",
+                   "start_time", "end_time", "language", "highlight", "full_content",
+                   "format", "safesearch", "include_images"],
+  design_search: ["query", "images", "web_search"],
+};
+
+/** The tools DOCUMENTED_PARAMS is checked against, by the same names. */
+const TOOLS_BY_NAME = {
+  image_search: imageSearchTool,
+  video_search: videoSearchTool,
+  extract: extractTool,
+  premier_search: premierSearchTool,
+  design_search: designSearchTool,
 };
 
 /**
  * Documented parameters a tool deliberately does not offer, each with a reason.
  *
  * Not the same as a gap: the table above stays a transcript of the published
- * reference, and this records where we knowingly offer less. Both entries are
- * the design corpus, withdrawn from the public surface pending an endpoint of
- * its own — `topic: design` is the only way to reach it, and `html_snippet`
- * only carries anything there.
+ * reference, and this records where we knowingly offer less.
+ *
+ * Empty now. It held `topic` and `html_snippet` on image_search while design
+ * results were withdrawn pending an endpoint of their own. Design search has
+ * that endpoint now — `/design-search`, served here as `design_search`, with a
+ * request and response of its own — and the reference has dropped both
+ * parameters from /image-search, so neither is a documented parameter this
+ * tool declines to offer any more. The mechanism stays for the next
+ * deliberate withdrawal.
  */
-const WITHDRAWN = {
-  image_search: {
-    topic: "general is the only value left; design is withdrawn pending its own endpoint",
-    html_snippet: "only populated for topic=design, which is withdrawn",
-  },
-};
+const WITHDRAWN = {};
 
 test("no tool advertises a parameter the API reference does not document", () => {
-  const byName = { image_search: imageSearchTool, video_search: videoSearchTool, extract: extractTool };
+  const byName = TOOLS_BY_NAME;
   for (const [name, documented] of Object.entries(DOCUMENTED_PARAMS)) {
     const declared = Object.keys(byName[name].inputSchema.properties);
     const extra = declared.filter((p) => !documented.includes(p) && !CLIENT_ONLY.has(p));
@@ -283,13 +351,32 @@ test("no tool advertises a parameter the API reference does not document", () =>
 test("a withdrawal is dropped once the tool offers the parameter again", () => {
   // Otherwise the list only grows, and a parameter that came back stays
   // outside the check that should now cover it.
-  const byName = { image_search: imageSearchTool, video_search: videoSearchTool, extract: extractTool };
+  const byName = TOOLS_BY_NAME;
   for (const [name, params] of Object.entries(WITHDRAWN)) {
     const declared = Object.keys(byName[name].inputSchema.properties);
     for (const p of Object.keys(params)) {
       assert.equal(declared.includes(p), false, `${name} offers ${p} now — drop it from WITHDRAWN`);
     }
   }
+});
+
+test("design_search's two groups declare exactly what the reference documents", () => {
+  // The top-level check above sees only `images` and `web_search`; what is
+  // offered lives one level down. Notably absent, on purpose: `specs`, a third
+  // group the API accepts and the reference does not document.
+  const groups = {
+    images: ["enable", "count", "design_facts", "snippet", "group_id"],
+    web_search: ["enable", "count", "highlight", "full_content", "include_domains",
+                 "exclude_domains", "language", "time_basis", "time_range",
+                 "start_time", "end_time"],
+  };
+  const props = designSearchTool.inputSchema.properties;
+  for (const [group, documented] of Object.entries(groups)) {
+    assert.deepEqual(Object.keys(props[group].properties).sort(), [...documented].sort(),
+      `design_search.${group} drifted from the API reference`);
+  }
+  assert.deepEqual(Object.keys(props.images.properties.snippet.properties).sort(),
+    ["enable", "max_tokens"]);
 });
 
 test("time filtering is offered where documented and nowhere else", () => {

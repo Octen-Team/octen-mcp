@@ -63,6 +63,15 @@ keywords: web search, search the web, look up, find, check, fact, current inform
         maxLength: 500,
         description: "Non-empty search query. Max 500 chars.",
       },
+      result_type: {
+        type: "string",
+        enum: ["standard", "dynamic"],
+        default: "standard",
+        description:
+          "How results are returned. `standard` returns them as the other " +
+          "parameters specify; `dynamic` returns only the relevant ones — up " +
+          "to `count` — and adjusts highlight length per result. Default standard.",
+      },
       count: {
         type: "integer",
         minimum: 1,
@@ -220,6 +229,7 @@ interface FullContentOptions {
 
 interface SearchArgs {
   query: string;
+  result_type?: "standard" | "dynamic";
   count?: number;
   include_domains?: string[];
   exclude_domains?: string[];

@@ -10,7 +10,7 @@ MCP server for **Octen**. Plug it into Claude, Cursor, VS Code, Windsurf, or any
 Core capabilities:
 
 - **`search`**: search the live web with domain, text, language, and time filters.
-- **`premier_search`**: the same search with deeper retrieval and more careful reranking — for the exact page that holds an answer, a niche document, or a query `search` answered thinly. Takes every parameter `search` takes, plus `result_type`; slower, and billed separately.
+- **`premier_search`**: the same search with deeper retrieval and more careful reranking — for the exact page that holds an answer, a niche document, or a query `search` answered thinly. Takes the same parameters as `search`; slower, and billed separately.
 - **`news_search`**: recent news, returned both as articles and as storylines — the coverage grouped into subjects, each with a summary and the span it covers.
 - **`pulse_search`**: the URL a query most likely means, in about 10ms — official docs, help centres, a site you could almost name. No freshness, no filters.
 - **`place_search`**: real-world places as structured cards — address, coordinates, phone, opening hours, rating — around a point you give it, or in an area the query names.
@@ -355,7 +355,7 @@ request; it is the one an engineer can look up.
 | Tool | What it does | Best for |
 |---|---|---|
 | `search` | Search the live web with domain, text, language (ISO 639-1), time, and content controls | a single focused web search |
-| `premier_search` | Web Search Premier: every parameter `search` takes plus `result_type`, and the same results, with deeper retrieval and more careful reranking. Slower, and billed at its own rate | the exact page behind a specific fact, niche or hard-to-find documents, a query `search` answered thinly |
+| `premier_search` | Web Search Premier: the same parameters and the same results as `search`, with deeper retrieval and more careful reranking. Slower, and billed at its own rate | the exact page behind a specific fact, niche or hard-to-find documents, a query `search` answered thinly |
 | `news_search` | Recent news as ranked articles plus `subjects` — the coverage grouped into storylines with summaries | current events and timely reporting |
 | `business_search` | Company and person cards (profile, financials, key people, career, recent activity) plus the ranked sources | due diligence, competitor and executive lookup |
 | `place_search` | Place cards (address, coordinates, phone, hours, status, rating) around a point or in a named area; web pages about them are opt-in | "near me", local lookup, opening hours, contact details |
@@ -415,6 +415,7 @@ reorders your filters — you get the API's answer.
 | Parameter | Type | Required | Limits | Default |
 |---|---|---|---|---|
 | `query` | string | yes | 1–500 chars |  |
+| `result_type` | string |  | `standard` / `dynamic` | `"standard"` |
 | `count` | integer |  | 1–100 | `5` |
 | `include_domains` | array |  | ≤1200 items; each ≤60 |  |
 | `exclude_domains` | array |  | ≤1200 items; each ≤60 |  |
@@ -431,6 +432,12 @@ reorders your filters — you get the API's answer.
 | `full_content` | object |  | `enable`, `max_tokens` |  |
 | `include_images` | boolean |  |  | `false` |
 | `timeout` | integer |  | 1–60 |  |
+
+`result_type: standard` returns results as the other parameters specify.
+`dynamic` returns only the relevant results, up to `count` (so `count` is a
+maximum, and fewer may come back), and Octen may adjust the highlight length
+per result, so `highlight.max_tokens` is a cap rather than a target. Any other
+value is refused before the request is sent.
 
 #### `premier_search`
 
@@ -456,11 +463,9 @@ reorders your filters — you get the API's answer.
 | `timeout` | integer |  | 1–60 |  |
 
 `/search-premier` is documented as a drop-in for `/search`: the same request
-body and the same response. As tools the two differ by one parameter — this
-one takes `result_type`, which `search` does not offer — so arguments written
-for `search` work here unchanged, and the reverse holds unless `result_type`
-is among them. `result_type: dynamic` returns only the relevant results, up to
-`count`, and adjusts highlight length per result.
+body and the same response, and as tools the two take the same parameters —
+`result_type` included — so arguments written for one work unchanged with the
+other.
 
 What differs is behind the endpoint — deeper retrieval and more careful
 reranking, so the page that holds the answer ranks higher — and what a call
@@ -563,6 +568,7 @@ highlights, full content and images at roughly twice the latency.
 |---|---|---|---|---|
 | `query` | string | yes | 1–500 chars |  |
 | `max_queries` | integer |  | 1–30 | `5` |
+| `result_type` | string |  | `standard` / `dynamic` | `"standard"` |
 | `count` | integer |  | 1–100 | `5` |
 | `include_domains` | array |  | ≤1200 items; each ≤60 |  |
 | `exclude_domains` | array |  | ≤1200 items; each ≤60 |  |
@@ -579,6 +585,11 @@ highlights, full content and images at roughly twice the latency.
 | `full_content` | object |  | `enable`, `max_tokens` |  |
 | `include_images` | boolean |  |  | `false` |
 | `timeout` | integer |  | 1–300 |  |
+
+`result_type` is sent inside `search_options`, so it applies to every
+sub-query. It means what it does on `search`: `standard` keeps the result count
+and the highlight cap as you set them, while `dynamic` treats `count` as a
+maximum per sub-query and Octen may adjust the highlight length per result.
 
 #### `extract`
 

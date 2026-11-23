@@ -17,6 +17,7 @@ import assert from "node:assert/strict";
 process.env.OCTEN_API_KEY = process.env.OCTEN_API_KEY ?? "test-key";
 
 const { premierSearchTool, handlePremierSearch } = await import("../dist/premierSearch.js");
+const { searchTool } = await import("../dist/search.js");
 const { validateArgs } = await import("../dist/validate.js");
 const { _setFetchForTests } = await import("../dist/http.js");
 
@@ -324,6 +325,14 @@ test("premier_search: declares exactly the parameters /search-premier documents"
     "timeout",
   ]);
   assert.deepEqual(premierSearchTool.inputSchema.required, ["query"]);
+});
+
+test("premier_search: `result_type` is the very definition `search` advertises", () => {
+  // Both tools take it from one place; if they ever diverge it should be a
+  // decision, and this is where it shows. The enum assertions in
+  // apiContract.test.mjs keep `premier_search` pinned to the reference alone.
+  assert.deepEqual(premierSearchTool.inputSchema.properties.result_type,
+    searchTool.inputSchema.properties.result_type);
 });
 
 test("premier_search: the schema gate refuses an undocumented result_type", () => {

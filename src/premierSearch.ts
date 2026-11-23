@@ -8,10 +8,9 @@
  * to — and they are billed at separate rates, which is why this is a tool of
  * its own rather than a flag on `search`.
  *
- * That is a statement about the two endpoints, not about the two tools: this
- * one declares `result_type`, which the reference documents, and the `search`
- * tool does not offer it. So the description says "every parameter `search`
- * takes, plus `result_type`" rather than "the same parameters".
+ * The two tools take the same parameters as well, `result_type` included: it
+ * is shared out of `search`'s schema by name. What differs is the endpoint,
+ * how deep retrieval goes, and what a call costs.
  *
  * Its parameters are named one by one rather than taken wholesale from
  * `search`'s schema. The two references match today; taking the schema
@@ -49,7 +48,7 @@ export const premierSearchTool: Tool = {
     destructiveHint: false,
   },
   description:
-    `Search the live web with deeper retrieval and more careful reranking than \`search\`, and return ranked results (title, url, snippet). It reaches more sources — niche and long-tail pages included — and ranks the page that actually holds the answer higher. It takes every parameter \`search\` takes — \`highlight\`, \`full_content\`, the domain / text / language filters, the time window — plus \`result_type\`, and returns the same result shape.
+    `Search the live web with deeper retrieval and more careful reranking than \`search\`, and return ranked results (title, url, snippet). It reaches more sources — niche and long-tail pages included — and ranks the page that actually holds the answer higher. It takes the same parameters as \`search\` — \`highlight\`, \`full_content\`, the domain / text / language filters, the time window, \`result_type\` — and returns the same result shape.
 
 USE FOR a lookup where finding the exact page decides the answer: a specific fact buried deep in a page, a niche document, a report or filing you can name but not locate — or a question \`search\` has just answered thinly or off-target. It takes longer than \`search\` and is billed separately at its own per-call rate, which a Search Plan's unlimited searches do not cover. So default to \`search\` for ordinary lookups, and reach for this one when ranking quality is what is missing. News still belongs in \`news_search\`, a company or a person in \`business_search\`, and a question spanning several independent subtopics in \`broad_search\`.
 
@@ -57,16 +56,7 @@ keywords: premier search, deeper search, higher accuracy, rerank, exact page, sp
   inputSchema: {
     type: "object",
     properties: {
-      ...sharedSearchProperties("query"),
-      result_type: {
-        type: "string",
-        enum: ["standard", "dynamic"],
-        default: "standard",
-        description:
-          "How results are returned. `standard` returns them as the other " +
-          "parameters specify; `dynamic` returns only the relevant ones — up " +
-          "to `count` — and adjusts highlight length per result. Default standard.",
-      },
+      ...sharedSearchProperties("query", "result_type"),
       ...sharedSearchProperties(
         "count", "include_domains", "exclude_domains", "include_text", "exclude_text",
         "time_basis", "time_range", "start_time", "end_time",

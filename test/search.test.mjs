@@ -193,17 +193,6 @@ test("search and broad_search: the schema gate accepts the two documented `resul
   }
 });
 
-test("`result_type` stays out of the schemas of the tools that are not Web Search or Broad Search", () => {
-  // These borrow parameters from `search` by name (or nest their own web
-  // options); their endpoints do not document `result_type`, so a name added
-  // to a list by mistake would advertise a parameter nobody committed to.
-  const nested = (t) => t.inputSchema.properties.web_search?.properties ?? {};
-  for (const tool of [newsSearchTool, businessSearchTool, pulseSearchTool, placeSearchTool, designSearchTool]) {
-    assert.equal("result_type" in tool.inputSchema.properties, false, `${tool.name} advertises result_type`);
-    assert.equal("result_type" in nested(tool), false, `${tool.name}.web_search advertises result_type`);
-  }
-});
-
 test("news_search: goes to its own endpoint, carrying no topic", async () => {
   const captured = captureFetch();
   await handleNewsSearch({ query: "chip news", count: 3 });
@@ -858,4 +847,16 @@ test("no tool advertises `country` — the API accepts it and ignores it", () =>
   assert.equal(placeSearchTool.inputSchema.properties.country, undefined);
   assert.ok(placeSearchTool.inputSchema.properties.user_location.properties.country,
     "user_location.country is documented and must stay");
+});
+
+// Registered last: it reads tools whose imports sit further down this file.
+test("`result_type` stays out of the schemas of the tools that are not Web Search or Broad Search", () => {
+  // These borrow parameters from `search` by name (or nest their own web
+  // options); their endpoints do not document `result_type`, so a name added
+  // to a list by mistake would advertise a parameter nobody committed to.
+  const nested = (t) => t.inputSchema.properties.web_search?.properties ?? {};
+  for (const tool of [newsSearchTool, businessSearchTool, pulseSearchTool, placeSearchTool, designSearchTool]) {
+    assert.equal("result_type" in tool.inputSchema.properties, false, `${tool.name} advertises result_type`);
+    assert.equal("result_type" in nested(tool), false, `${tool.name}.web_search advertises result_type`);
+  }
 });

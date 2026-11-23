@@ -587,9 +587,10 @@ highlights, full content and images at roughly twice the latency.
 | `timeout` | integer |  | 1–300 |  |
 
 `result_type` is sent inside `search_options`, so it applies to every
-sub-query. It means what it does on `search`: `standard` keeps the result count
-and the highlight cap as you set them, while `dynamic` treats `count` as a
-maximum per sub-query and Octen may adjust the highlight length per result.
+sub-query. It means what it does on `search`: `standard` returns results as the
+other parameters specify, while `dynamic` treats `count` as a maximum per
+sub-query (fewer may come back) and Octen may adjust the highlight length per
+result.
 
 #### `extract`
 

@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] — 2026-11-23
+
+### Added
+
+- **`result_type` on `search` and `broad_search`** (`standard` / `dynamic`).
+  The API has taken it on `/search`, and inside `search_options` on
+  `/broad-search`, since it was documented; only `premier_search` offered it,
+  so the other two tools could not reach it at all. `dynamic` returns only the
+  relevant results, up to `count`, and lets Octen adjust highlight length per
+  result; `standard` is the default and the request is unchanged when the
+  parameter is left out.
+
+  `broad_search` builds its options from `search`'s schema, so it picked the
+  parameter up there and its handler already nests it under `search_options`,
+  where the API reads it. The definition now lives once, in `search`, and
+  `premier_search` takes it from there by name — its schema is unchanged. A
+  test holds the two definitions equal, and another holds the news, business,
+  place, pulse and design tools without it: their endpoints do not document it.
+
+### Changed
+
+- `premier_search` and the README no longer say it takes one parameter more
+  than `search`. The two take the same parameters; they differ in endpoint,
+  retrieval depth and price. Tool output is unchanged.
+
 ## [0.8.0] — 2026-11-23
 
 ### Added

@@ -4,9 +4,13 @@
  *
  * Searches screenshots of real web pages, page sections, mobile app screens
  * and slides, and returns each with the design values behind it — plus, for
- * page sections, the HTML. This is the design corpus that was reachable
- * through `image_search` with `topic: design` until the API gave it an
- * endpoint of its own.
+ * page sections, the HTML.
+ *
+ * Design results used to be reachable only through `image_search` with
+ * `topic: design`, which 0.7.0 withdrew pending an endpoint of its own. This
+ * is the tool for that endpoint — a different request and a different
+ * response, not the old parameters under a new name. `image_search` still
+ * takes no `topic` and no `html_snippet`.
  *
  * Shaped like `place_search` rather than `search`: two result groups, each
  * with its own options — the designs under `images`, the pages written about
@@ -361,7 +365,10 @@ export async function handleDesignSearch(rawArgs: Record<string, unknown>, ctx?:
   // and falls through to the check below with its message intact.
   if (isOctenEnvelope(data) && typeof data.code === "number" && data.code !== 0) {
     return errorResult(
-      `Octen Design Search: code=${data.code} msg=${data.msg ?? "(no msg)"}` +
+      // `msg` is the envelope's own field. `message` is what a hop in front
+      // of the API says when it passes the request id through but answers in
+      // its own words; it is still the only explanation there is.
+      `Octen Design Search: code=${data.code} msg=${data.msg ?? data.message ?? "(no msg)"}` +
       (data.request_id ? ` request_id=${data.request_id}` : "")
     );
   }

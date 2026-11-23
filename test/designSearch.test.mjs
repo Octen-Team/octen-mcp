@@ -556,3 +556,50 @@ test("design_search: an API error is passed on with its own code and message", a
   assert.equal(r.isError, true);
   assert.match(text(r), /code=400 msg=Invalid params\. Param images\.count must be at most 100 request_id=req_400/);
 });
+
+test("design_search: a call that arrives without a key is refused, never served on the process's own", async () => {
+  // This process has OCTEN_API_KEY set, so an env fallback would show up here
+  // as a request made on the deployment's own credential.
+  const captured = captureFetch();
+  const http = await handleDesignSearch({ query: "pricing section" }, { apiKey: undefined, transport: "http" });
+  assert.equal(http.isError, true);
+  assert.match(text(http), /No API key on this request/);
+  const stdio = await handleDesignSearch({ query: "pricing section" }, { apiKey: undefined, transport: "stdio" });
+  assert.equal(stdio.isError, true);
+  assert.match(text(stdio), /OCTEN_API_KEY env var is not set/);
+  assert.equal(captured.calls, 0, "a call with no credential still reached the API");
+});
+
+test("design_search: a refusal for bad arguments comes before the missing-key message", async () => {
+  // A caller with no key and no query has two problems; the one about their
+  // arguments is the one they can fix in the call itself.
+  const captured = captureFetch();
+  const r = await handleDesignSearch({}, { apiKey: undefined, transport: "http" });
+  assert.equal(r.isError, true);
+  assert.match(text(r), /`query` must be a non-empty string/);
+  assert.equal(captured.calls, 0);
+});
+
+test("design_search: a connection failure is a tool error naming the API, not a thrown exception", async () => {
+  let calls = 0;
+  _setFetchForTests(async () => {
+    calls += 1;
+    const e = new TypeError("fetch failed");
+    e.cause = Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:1"), { code: "ECONNREFUSED" });
+    throw e;
+  });
+  const r = await handleDesignSearch({ query: "pricing section" });
+  assert.equal(r.isError, true);
+  assert.match(text(r), /^Network error calling Octen Design Search: /);
+  assert.match(text(r), /ECONNREFUSED/);
+  assert.ok(calls >= 1);
+});
+
+test("design_search: an error that says `message` instead of `msg` keeps what it said", async () => {
+  captureFetch({ code: 503, message: "upstream connect error", request_id: "req_hop" }, 503);
+  const r = await handleDesignSearch({ query: "pricing section" });
+  assert.equal(r.isError, true);
+  assert.match(text(r), /upstream connect error/);
+  assert.match(text(r), /request_id=req_hop/);
+  assert.doesNotMatch(text(r), /\(no msg\)/);
+});

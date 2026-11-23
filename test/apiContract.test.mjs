@@ -319,10 +319,12 @@ const TOOLS_BY_NAME = {
  * Not the same as a gap: the table above stays a transcript of the published
  * reference, and this records where we knowingly offer less.
  *
- * Empty now. It held `topic` and `html_snippet` on image_search while the
- * design corpus was withdrawn pending an endpoint of its own; that endpoint is
- * `/design-search`, served here as `design_search`, and the reference has
- * dropped both parameters from /image-search. The mechanism stays for the next
+ * Empty now. It held `topic` and `html_snippet` on image_search while design
+ * results were withdrawn pending an endpoint of their own. Design search has
+ * that endpoint now — `/design-search`, served here as `design_search`, with a
+ * request and response of its own — and the reference has dropped both
+ * parameters from /image-search, so neither is a documented parameter this
+ * tool declines to offer any more. The mechanism stays for the next
  * deliberate withdrawal.
  */
 const WITHDRAWN = {};

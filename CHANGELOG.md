@@ -34,9 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from: screenshots of live web pages, single page sections, mobile app
   screens and slides, each with the design values behind it — colours, fonts
   and font sizes, or an app screen's components — and, for page sections, the
-  HTML. Web pages on the same query come back alongside. This is the design
-  corpus withdrawn from `image_search` in 0.7.0, on the endpoint it was
-  waiting for.
+  HTML. Web pages on the same query come back alongside.
+
+  0.7.0 withdrew design results from `image_search` pending an endpoint of
+  their own; this is the tool for that endpoint. Nothing of the old shape
+  returns with it: `image_search` still takes no `topic` and no
+  `html_snippet`, and this tool has a request and a response of its own.
 
   Two result groups, each with its own options: the designs under `images`,
   the pages about them under `web_search`. Both are on by default at the API
@@ -89,7 +92,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A numeric `code` is likewise read as Octen's only when `request_id` is
   there: a gateway's `{"code": 502, "message": "Bad Gateway"}` keeps its
   message instead of becoming `code=502 msg=(no msg)`. A `request_id` that
-  does come with a failing response is kept in the message.
+  does come with a failing response is kept in the message, and an error
+  that says `message` where the envelope says `msg` keeps what it said.
 - **Both new tools keep the results that did arrive.** A `null` or other
   non-object entry in a result list is skipped, an entry that throws while it
   is rendered is named in its place — `(malformed entry — could not be
@@ -103,11 +107,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **The contract test no longer lists `topic` and `html_snippet` under
-  `image_search`.** They were recorded as a deliberate withdrawal while the
-  design corpus waited for its own endpoint. That endpoint is `/design-search`,
-  and the reference has since dropped both parameters from `/image-search`, so
-  the transcript of the reference drops them too and the withdrawal list is
-  empty.
+  `image_search`.** They were recorded as a deliberate withdrawal while
+  design results waited for an endpoint of their own. Design search has one
+  now, `/design-search`, and the reference has since dropped both parameters
+  from `/image-search`, so the transcript of the reference drops them too and
+  the withdrawal list is empty.
 - Plugin manifests name the two new capabilities and add `design search` to
   their keywords.
 - The README's pricing section says that `full_content` is billed per result,

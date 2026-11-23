@@ -332,3 +332,45 @@ test("premier_search: the schema gate refuses an undocumented result_type", () =
   assert.match(validateArgs(schema, { query: "x", result_type: "deep" }) ?? "",
     /Invalid value for `result_type`/);
 });
+
+test("premier_search: a call that arrives without a key is refused, never served on the process's own", async () => {
+  // The transport hands the handler the caller's credential. When there is
+  // none, falling back to OCTEN_API_KEY from the environment would let an
+  // unauthenticated caller ride the deployment's own key — and this process
+  // has one set, so a fallback would show up here as a request.
+  const captured = captureFetch();
+  const http = await handlePremierSearch({ query: "x" }, { apiKey: undefined, transport: "http" });
+  assert.equal(http.isError, true);
+  assert.match(text(http), /No API key on this request/);
+  const stdio = await handlePremierSearch({ query: "x" }, { apiKey: undefined, transport: "stdio" });
+  assert.equal(stdio.isError, true);
+  assert.match(text(stdio), /OCTEN_API_KEY env var is not set/);
+  assert.equal(captured.calls, 0, "a call with no credential still reached the API");
+});
+
+test("premier_search: a connection failure is a tool error naming the API, not a thrown exception", async () => {
+  let calls = 0;
+  _setFetchForTests(async () => {
+    calls += 1;
+    const e = new TypeError("fetch failed");
+    e.cause = Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:1"), { code: "ECONNREFUSED" });
+    throw e;
+  });
+  const r = await handlePremierSearch({ query: "x" });
+  assert.equal(r.isError, true);
+  assert.match(text(r), /^Network error calling Octen Web Search Premier: /);
+  assert.match(text(r), /ECONNREFUSED/);
+  assert.ok(calls >= 1);
+});
+
+test("premier_search: an error that says `message` instead of `msg` keeps what it said", async () => {
+  // Octen's envelope says `msg`. A hop in front of it that passes the request
+  // id through but answers in its own words says `message`; printing
+  // `(no msg)` would throw away the only explanation there is.
+  captureFetch({ code: 503, message: "upstream connect error", request_id: "req_hop" }, 503);
+  const r = await handlePremierSearch({ query: "x" });
+  assert.equal(r.isError, true);
+  assert.match(text(r), /upstream connect error/);
+  assert.match(text(r), /request_id=req_hop/);
+  assert.doesNotMatch(text(r), /\(no msg\)/);
+});

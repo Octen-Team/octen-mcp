@@ -158,7 +158,10 @@ export async function handlePremierSearch(rawArgs: Record<string, unknown>, ctx?
   // and falls through to the check below with its message intact.
   if (isOctenEnvelope(data) && typeof data.code === "number" && data.code !== 0) {
     return errorResult(
-      `Octen Web Search Premier: code=${data.code} msg=${data.msg ?? "(no msg)"}` +
+      // `msg` is the envelope's own field. `message` is what a hop in front
+      // of the API says when it passes the request id through but answers in
+      // its own words; it is still the only explanation there is.
+      `Octen Web Search Premier: code=${data.code} msg=${data.msg ?? data.message ?? "(no msg)"}` +
       (data.request_id ? ` request_id=${data.request_id}` : "")
     );
   }
